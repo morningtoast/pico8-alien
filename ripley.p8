@@ -27,10 +27,6 @@ function p_init()
 	p_freeze=0
 	p_st=1 -- state: 1=unarmed, 2=gun, 3=beacon
 	p_spr=32
-	
-	bullets={}
-	
-	minimap_battery=0
 end
 
 function p_update()
@@ -39,7 +35,9 @@ function p_update()
 	p_tx,p_ty=px_to_tile(p_cx,p_cy)
 	p_dx,p_dy=0,0
 	p_xdir,p_ydir=0,0
-	p_tile=get_tile(p_tx,p_ty)
+	
+	
+	local tile=get_tile(p_tx,p_ty)
 
 	
 	if not map_mode then
@@ -63,7 +61,7 @@ function p_update()
 
 
 		-- when player gets to a body, switch modes
-		if p_tile.occupant=="body" then
+		if tile.occupant=="body" then
 			if rnd()<.5 then
 				p_st=2
 				p_spr=64
@@ -74,8 +72,26 @@ function p_update()
 
 			set_tile_occupant(p_tx,p_ty,"empty")
 		end
+		
+		-- when player gets to a body, switch modes
+		if tile.occupant=="egg" then
+			eggs_collected=min(eggs_collected+1,10)
+			current_level.eggs=min(current_level.eggs-1,0)
+
+			set_tile_occupant(p_tx,p_ty,"empty")
+			
+			add_ticker_text("egg collected;"..current_level.eggs.." eggs remaining")
+			
+			
+			if eggs_collected>=10 then
+				add_ticker_text("mission accomplished;return to transport beacon immediately")
+			end
+		end
+	end
 
 
+	
+		-- Turn on minimap 
 		if btnzp and minimap_battery<=0 then
 			generate_minimap()
 			map_mode=true
@@ -94,26 +110,25 @@ function p_update()
 
 			-- fire gun
 			if p_st==2 then
+				
+				-- Create player bullet object
 				local targets={}
 				local obj={x=p_cx,y=p_cy,c=10}
 				local heading=0
 
 				for a in all(actors) do
-					if a.id==2 or a.id==1 then
+					if a.id==2 or a.id==1 then -- only target huggers and aliens, not snipers
 						if in_range(a.cx,a.cy, p_cx,p_cy, 60) then
 							add(targets,a)
-							printh("adding target")
 						end
 					end
 				end
 
 				if p_sflip then heading=.5 end
 
-				printh(#targets)
-				
 				if #targets>0 then
-					local target  = find_nearest(p_cx,p_cy, targets)
-					heading = atan2(target.cx-p_cx, target.cy-p_cy) 
+					local target = find_nearest(p_cx,p_cy, targets)
+					heading      = atan2(target.cx-p_cx, target.cy-p_cy) 
 				end
 
 				obj.dx,obj.dy = dir_calc(heading, 3)
@@ -152,18 +167,14 @@ function p_update()
 end
 
 function p_draw()
-	
-	
 	spr(p_spr, p_x,p_y, 2,2, p_sflip)
-	--highlight_tile(p_x,p_y,10)
-	pset(p_cx,p_cy, 12)
-	--debug_hitbox(p_x,p_y,p_hbox)
-	
-	
 end
 
 
+
+
 -- #bullets
+-- common actions for all bullets. creation object is within actor update
 function bullet_update()
 	for b in all(bullets) do
 		b.x+=b.dx
@@ -202,6 +213,8 @@ end
 -- npcs and ai
 
 
+-- #beacon - Attracts aliens for limited time
+-- Adds beacon actor to map
 function add_beacon(tx,ty)
 	x,y=tile_to_px(tx,ty)
 	local obj={
@@ -213,7 +226,7 @@ function add_beacon(tx,ty)
 			for a in all(actors) do
 				if a.id==2 then
 					if in_range(a.cx,a.cy, self.cx,self.cy, 50) then
-						if self.t>500 then
+						if self.t>300 then -- Release alien after 5 seconds
 							chg_st(a,0)
 							a.beacon=false
 						else
@@ -227,7 +240,8 @@ function add_beacon(tx,ty)
 				end
 			end
 		
-			if self.t>500 then
+			
+			if self.t>300 then
 				del(actors,self)
 			end
 			
@@ -235,7 +249,6 @@ function add_beacon(tx,ty)
 		end,
 		draw=function(self)
 			spr(9, self.x+4,self.y, 1,2)
-			
 		end
 	}	
 
@@ -244,27 +257,23 @@ function add_beacon(tx,ty)
 end
 
 
-
-
--- walker states; don't use these within your unique logic
--- 0,1=pathfinding, 2=wandering, 3=wait+scan, 4,5=chase
-
-
+-- #hugger
 -- creates facehugger actor at tile coordinate
 -- add_hugger(int_tilex,int_tiley)
--- #hugger
 function add_hugger(tx,ty)
 	local obj={
 		id=1,
 		tx=tx,ty=ty,dx=0,dy=0,
 		flip=false,
-		hbox={x=4,y=6,w=8,h=5},
+		hbox={x=4,y=6,w=8,h=5}, -- used for movement collision
 		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		chase=false,
 		navpath={},
 		update=function(self)
 			update_walker(self)
 
 			if self.tile.occupant=="body" then
+				add_ticker_text("adult xenomorph has been detected;avoid close proximity;continue egg search")
 				add_alien(self.tx,self.ty)
 				del(actors,self)
 			end
@@ -327,6 +336,7 @@ function add_alien(tx,ty)
 		flip=false,
 		hbox={x=4,y=4,w=8,h=8},
 		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		chase=false,
 		navpath={},
 		beacon=false,
 		foo={},
@@ -359,27 +369,10 @@ function add_alien(tx,ty)
 		end,
 		draw=function(self)
 			if self.st!=99 then
-				if self.st==4 or self.st==5 then pal(13,8) end -- switch to red
+				if self.st==4 or self.st==5 then pal(13,8) end -- switch to red when in chase
 
 				spr(1,self.x,self.y,2,2,self.flip)
-				
-				
-				--line(self.x+self.hbox.x+self.dx, self.y+self.hbox.y+self.dy, p_cx,p_cy, 12) --tl
-				--line(self.x+self.hbox.x+self.dx+self.hbox.w, self.y+self.hbox.y+self.dy,p_cx,p_cy, 12) --tr
-				
-				
-				--line(self.x+self.hbox.x+self.dx, self.y+self.hbox.y+self.dy+self.hbox.h,p_cx,p_cy, 12) --bl
-				--line(self.x+self.hbox.x+self.dx+self.hbox.w, self.y+self.hbox.y+self.dy+self.hbox.h,p_cx,p_cy, 12) --br
-				
-				line(self.cx,self.cy, p_cx,p_cy, 12)
-				
-				rect(self.cx-detect_range,self.cy-detect_range, self.cx+detect_range,self.cy+detect_range, 9)
-				
-				
-				
-				--pset(self.cx,self.cy,8)
-				--highlight_tile(self.x,self.y,15)
-				--debug_hitbox(self.x,self.y,self.hbox)
+
 
 				-- pathing highlighting debug
 				if self.st>0 then
@@ -390,6 +383,7 @@ function add_alien(tx,ty)
 					end	
 				end
 			else
+				-- dead bones
 				spr(40,self.x,self.y,2,2)
 			end
 			
@@ -407,7 +401,7 @@ end
 function add_sniper(tx,ty,flip)
 	local obj={
 		id=4,
-		tx=tx,ty=ty,dx=0,dy=0,
+		dx=0,dy=0,
 		flip=flip,
 		st=1,t=1,
 		update=function(self)
@@ -420,10 +414,13 @@ function add_sniper(tx,ty,flip)
 			end
 			
 			if self.st==1 then
+				
+				
+				
 				if in_hitbox(p_cx,p_cy, ox,oy, 32,8) then
+					-- sniper bullet object
 					local obj={
 						dx=4,x=self.x+16,
-						flip=self.flip,
 						c=13,dy=0,
 						y=self.y+8,
 						update=function(b)
@@ -433,11 +430,13 @@ function add_sniper(tx,ty,flip)
 							end
 						end
 					}
-					
+				
 					if self.flip then 
 						obj.dx=-3 
 						obj.x=self.x
 					end
+					
+					
 					
 					add(bullets,obj)
 					
@@ -456,12 +455,7 @@ function add_sniper(tx,ty,flip)
 			
 			self.t+=1
 		end,
-		draw=function(self)
-			
-			
-			--spr(66,self.x,self.y,2,2, self.flip)
-			--debug_hitbox(self.x,self.y,self.hbox)
-		end
+		draw=ef
 	}
 	
 	
@@ -473,20 +467,7 @@ end
 
 
 
--- update logic for ai that finds targets and wanders: huggers and aliens
--- 
-
-function pathfind(startx,starty,goaltx,goalty,obj)
-	printh("new path to "..goaltx..","..goalty)
-	printh("player tile "..p_tx..","..p_ty)
-	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
-	local endpoint=level_list[navpath[#navpath]]
-
-	return navpath,endpoint,1
-end
-
-
---#walker
+-- #walker - Common logic for actors that move around the map
 function update_walker(self)
 	-- id: 1=hugger, 2=alien
 	local id=self.id
@@ -497,48 +478,52 @@ function update_walker(self)
 	self.tx,self.ty=px_to_tile(self.cx,self.cy)
 	self.tile=get_tile(self.tx,self.ty)
 	
-	
-	if id==1 then
-		wander_speed=.5
-		chase_speed=1
-		detect_range=35
-		escape_range=25
-		recalc_intv=60
-	end
-	
-	if id==2 then
+
+	-- defaults of hugger	
+	local wander_speed=1
+	local chase_speed=1.5
+	local detect_range=25
+	local escape_range=25
+	local recalc_intv=60
+
+	if id==2 then -- alien
 		wander_speed=.75
 		chase_speed=1.2
-		detect_range=48
+		detect_range=38
 		escape_range=35
 		recalc_intv=25
 	end
 	
+	local movespeed=wander_speed
+	
 
+
+	-- Alien is always looking for player. This will skip the delay-find state of huggers
 	if id==2 then
-		
 		if in_range(p_cx,p_cy, self.cx,self.cy, detect_range) then
-			
-			if self.tx==p_tx and self.ty==p_ty then
-				chg_st(self,98)
-				printh("alien tile "..self.tx..","..self.ty)
-				printh("player tile "..p_tx..","..p_ty)
-				printh("PLAYER DEAD")
-			else
-				self.navpath,self.endpoint,self.waypoint=pathfind(self.tx,self.ty, p_tx,p_ty)	
-				wander_speed=1.7
-				self.wpcount=99
-				chg_st(self,1)
-				
+			if not self.chase then
+				chg_st(self,4)
 			end
+		else
+			self.chase=false
 		end
-		
+	end
+
+
+	-- caught the player; end state and game over
+	if self.tx==p_tx and self.ty==p_ty then
+		chg_st(self,98) --debug
+		printh("alien tile "..self.tx..","..self.ty)
+		printh("player tile "..p_tx..","..p_ty)
+		printh("PLAYER DEAD")
 	end
 	
-	
-	
-	-- find nearest body tile to current location and pathfind it
+
+	-- Initial pathfinding
 	if self.st==0 then
+		self.chase=false
+		movespeed=wander_speed
+		
 		if self.t<2 then
 			local near=false
 
@@ -548,27 +533,27 @@ function update_walker(self)
 				self.wpcount=5
 			end
 			
+			-- alien
 			if id==2 then
 				self.wpcount=3
 			end
 			
 
 			-- use random empty for body-free map and aliens
-			if not near then near=get_random_tile("empty") end
-			
-			
-			self.navpath,self.endpoint,self.waypoint=pathfind(self.tx,self.ty,near.tx,near.ty)
-			
-			--#todo
-			--self.navpath=find_path({x=self.tx,y=self.ty}, {x=near.tx,y=near.ty})
-			--self.endpoint=level_list[self.navpath[#self.navpath]]
-			--self.waypoint=1
-			
+			if not near then 
+				near={tx=self.tx,ty=self.ty}
+				while near.tx==self.tx and near.ty==self.ty do
+					near=get_random_tile("empty") 
+				end
+			end
+
+			self.navpath,self.endpoint,self.waypoint=pathfind(self.tx,self.ty, near.tx,near.ty)
 		end
 		
-		--if self.t>130 then
+		-- "thinking" delay, only start moving after 2 seconds
+		if self.t>120 then
 			chg_st(self,1)
-		--end
+		end
 	end
 	
 	
@@ -577,22 +562,30 @@ function update_walker(self)
 		self.dest=level_list[self.navpath[self.waypoint]]
 		
 		local heading   = atan2(self.dest.x-self.x, self.dest.y-self.y) 
-		self.dx,self.dy = dir_calc(heading, wander_speed) -- wander speed
+		self.dx,self.dy = dir_calc(heading, movespeed) -- wander speed
 		self.flip=sprite_flip(heading)
 
 		chg_st(self,2)
 	end
+	
 	
 	-- movement towards waypoint
 	if self.st==2 then
 		self.x+=self.dx
 		self.y+=self.dy
 		
+		-- if actor is chasing player, stop and re-pathfind
+		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, escape_range) then
+			self.waypoint=#self.navpath
+		end
+		
 		-- if actor's midpoint is within mid-tile, go to next waypoint
 		if in_range(self.cx,self.cy, self.dest.cx,self.dest.cy, 5) then
 			self.waypoint+=1
 			self.wpcount-=1
 
+			-- when at end of path, find a new path
+			-- or if they've moved the limit number of spots, delay and do more
 			if self.waypoint>#self.navpath then
 				chg_st(self,0)
 			else
@@ -608,16 +601,16 @@ function update_walker(self)
 	
 	
 	
-	-- artificial delay before more movement. check for player proximity
+	-- artificial delay before more movement
 	if self.st==3 then
-		-- see if player in range and switch to chase mode
-		--if in_range(p_cx,p_cy, self.cx,self.cy, detect_range) then
-			--chg_st(self,4)
-		--else
+		-- see if player in range and switch to chase mode; range extended during rest
+		if in_range(p_cx,p_cy, self.cx,self.cy, detect_range+10) then
+			chg_st(self,4)
+		else
 			if self.t>150 then
 				--hugger
 				if id==1 then
-					-- if body tile is gone, find another one
+					-- if body tile is gone, repath to find next body or start wandering
 					local tile=get_tile(self.endpoint.tx,self.endpoint.ty)
 					if tile.occupant=="body" then
 						self.wpcount=rand(6)+2
@@ -629,7 +622,7 @@ function update_walker(self)
 
 				-- alien
 				if id==2 then
-					self.wpcount=rand(3)+2
+					self.wpcount=rand(3)+2 --fewer segements, stopping a lot
 					chg_st(self,1)	
 				end
 			end
@@ -637,34 +630,36 @@ function update_walker(self)
 	end
 	
 	
-	-- get heading towards player
+	-- enter chase state; pathfind to player and speed up
 	if self.st==4 then
-		local heading   = atan2(p_cx-self.cx, p_cy-self.cy) --get heading towards end tile
-		self.dx,self.dy = dir_calc(heading, chase_speed) -- chase speed
-		self.flip=sprite_flip(heading)
-
-		chg_st(self,5)
+		self.navpath,self.endpoint,self.waypoint=pathfind(self.tx,self.ty, p_tx,p_ty)	
+		movespeed=chase_speed --chase speed
+		self.wpcount=99 --so there are no stops along the way
+		self.chase=true
+		chg_st(self,1)
 	end
 
-	if self.st==5 then
-		if not move_is_blocked(self.cx,self.cy, self.dx,self.dy, self.hbox)  then
-			self.x+=self.dx
-			self.y+=self.dy
-		end
-
-		-- re-target player when they're in range, otherwise go back to pathing
-		if self.t>recalc_intv then
-			if not in_range(p_cx,p_cy, self.cx,self.cy, escape_range) then
-				printh("not in, repath")
-				chg_st(self,0)
-			else
-				printh("player in, get heading")
-				chg_st(self,4)
-			end
-		end
-	end
-	
 end
+
+
+-- update logic for ai that finds targets and wanders: huggers and aliens
+-- 
+
+function pathfind(startx,starty,goaltx,goalty,obj)
+	printh("new path to "..goaltx..","..goalty)
+	printh("player tile "..p_tx..","..p_ty)
+	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
+	local endpoint=level_list[navpath[#navpath]]
+
+	return navpath,endpoint,1
+end
+
+
+function sprite_flip(d)
+	if d>.25 and d<.75 then return true end
+	return false
+end
+
 
 
 
@@ -687,10 +682,7 @@ end
 
 
 
-function sprite_flip(d)
-	if d>.25 and d<.75 then return true end
-	return false
-end
+
 
 
 -- returns true if an object is withing square range of another
@@ -831,6 +823,16 @@ function filter_tiles(occupant)
 end
 
 
+function get_aliens()
+	local t={}
+	for a in all(actors) do
+		if a.id==1 or a.id==2 then add(t,a) end
+	end
+	
+	return t
+end
+
+
 -- returns object of tile that is closest to provided pixel coordinate
 -- nearest_tile_oftype(int_pixelx,int_pixely, str_occupanttype)
 function nearest_tile_oftype(x,y,oftype)
@@ -858,6 +860,7 @@ end
 
 
 
+
 --
 -- #map
 -- map generation and supports
@@ -877,9 +880,7 @@ function generate_map(w,h)
 	level_grid={} -- x/y indexes; this has tile attributes
 	level_list={} -- node indexes for pathfinding
 	local snipers={}
-	
-	
-	
+
 	for x=1,map_tilew do
 		level_grid[x]={}
 		
@@ -887,8 +888,7 @@ function generate_map(w,h)
 			level_grid[x][y]={
 				tx=x,ty=y, --tile x/y
 				n=0,f=0,g=0,h=0,p=0,status=0, --pathfinding vars
-				occupant="empty",spr=0,
-				flip=false,
+				occupant="empty",
 				w=true --is space walkable? true=open,false=blocked
 			}
 		end
@@ -932,7 +932,7 @@ function generate_map(w,h)
 	
 	-- Add snipers to level
 	if #snipers>0 then
-		for n=0,4 do
+		for n=0,current_level.snipers do
 			local t=rnd_table(snipers)
 			del(snipers,t)
 
@@ -969,10 +969,6 @@ function generate_map(w,h)
 			level_grid[t.tx][t.ty].spr=rnd_table({3,34,68})
 		end
 	end
-
-	--add_bodies(5)
-	--add_eggs(1)	
-	
 end
 
 
@@ -986,7 +982,7 @@ function create_screen(mx,my, spritemap)
 			local tile={}
 			
 			--bush/wall
-			if pxc==11 then 
+			if pxc==11 or pxc==3 then 
 				tile.occupant="wall"
 				tile.spr=rnd_table({3,34,68})
 				tile.w=false
@@ -1000,13 +996,18 @@ function create_screen(mx,my, spritemap)
 			end
 			
 			-- sniper/bush
-			if pxc==3 then 
+			if pxc==3 and current_level.snipers>0 then 
 				tile.occupant="sniper"
 				tile.spr=rnd_table({3,34,68})
 				tile.w=false
 			end
 			
-			-- rock wall
+			-- transport computer
+			if pxc==12 then 
+				tile.occupant="transport"
+			end
+			
+			-- egg spawner
 			if pxc==15 then 
 				tile.occupant="spawn"
 			end
@@ -1015,8 +1016,7 @@ function create_screen(mx,my, spritemap)
 			if pxc==8 then
 				p_x,p_y=tile_to_px(tilex,tiley)
 			end
-			
-			
+
 			
 			for k,v in pairs(tile) do
 				level_grid[tilex][tiley][k] = v
@@ -1059,10 +1059,11 @@ function px_inbounds(pxx,pxy)
 end
 
 
+
 -- #minimap
 minimap_x=4
 minimap_y=4
-minimap_txtx=100
+minimap_txt_scroll=100
 
 function minimap_dot(x,y,c)
 	x1=((x-1)*minimap_size)+minimap_x
@@ -1084,8 +1085,9 @@ function generate_minimap()
 
 			if plot.occupant=="body" or plot.occupant=="egg"  then
 				add(minimap, {x=x,y=y,c=11})
+				minimap_txt_bio+=1
 				
-				if plot.occupant=="egg" then minimap_txt_eggs+=1 else minimap_txt_bio+=1 end
+				if plot.occupant=="egg" then minimap_txt_eggs+=1 end
 			end
 		end
 	end
@@ -1101,23 +1103,172 @@ function generate_minimap()
 end
 
 
+function minimap_draw()
+	--upper console; 116 is lower limit
+	rectfill(0,0, 82,82, 1) --full bg, blue
+	rectfill(minimap_x,minimap_y, (map_tilew*2)+minimap_x,(map_tileh*2)+minimap_y, 0) --level bg, black
+	rect(minimap_x,minimap_y, (map_tilew*2)+minimap_x,(map_tileh*2)+minimap_y, 11) --border
+
+	-- draw dots	
+	for mm in all(minimap) do
+		minimap_dot(mm.x,mm.y,mm.c)
+	end
+	
+	
+	-- chrome
+	rect(0,0,83,83,5)
+	rect(1,1,83,83,5)
+	rectfill(83,0, 127,116, 5)
+	rectfill(0,83, 127,116, 5)
+
+
+	print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: 3", 87, 4, 6)
+
+	print("planet: pv418\n\nclass: small", 4, 87, 6)
+end
+
+
+ticker_scrolling=false
+ticker_text_now=false
+ticker_t=0
+function add_ticker_text(txt,clear)
+	local list=split(txt)
+	
+	if clear then ticker_text={} end
+	
+	for t in all(list) do add(ticker_text,t) end
+end
+
+function ticker_next()
+	if #ticker_text>0 and not ticker_scrolling then
+		minimap_txt_scroll=120
+		ticker_text_now=ticker_text[1]
+		del(ticker_text, ticker_text_now)
+		ticker_scrolling=true
+	end
+end
+
+function ticker_update()
+	if ticker_scrolling then
+		minimap_txt_scroll-=.8
+			
+		if minimap_txt_scroll<=-150 then ticker_scrolling=false end
+	end
+		
+	ticker_next()
+
+end
+
+function ticker_common()
+	local list=split("bait only works on adult aliens;cameleon aliens cannot be killed;your map will recharge over time;your map uses battery power;bait only lasts a few moments;baby aliens search for bodies;use your items wisely;aliens will attack if you get too close")
+	add_ticker_text(rnd_table(list))
+end
+
+
+function ticker_draw()
+	rectfill(0,117, 127,127, 1) --text strip
+	
+	if ticker_scrolling then
+		print(ticket_text_now, minimap_txt_scroll,120, 6)
+	end
+
+	-- chrome
+	rectfill(90,117, 127,127, 5)
+	rect(0,117, 90,127,5) 
+	
+
+	-- battery
+	if minimap_battery>0 then pal(11,8) end
+	spr(23, 95,120)
+	pal()
+
+	 --egg count
+	spr(16, 108,119)
+	print("99",118,120, 6)
+end
+
+
+-- #levels - Define levels
+
+levels={}
+levels[1]={
+	name="pv418",w=2,h=2,bodies=2,eggs=1,eggtimer=480,snipers=0,colors=false
+}
+
+eggs_collected=0 --total eggs collected by player
+
 
 
 -- #game
-function game_init()
-	cart(game_update,game_draw)
+function game_init(levelid)
+	current_level=levels[levelid]
 	
-	actors={}
-	map_mode=false
-	egg_timer=600	
+	ticker_text = {}
+	bullets     = {}
+	actors      = {}
+	
+	minimap_battery = 0
+	map_mode        = false
+	egg_timer       = current_level.eggtimer	
+	
 	
 	p_init()
-	generate_map(5,5)
+	generate_map(current_level.w,current_level.h)
+	add_bodies(current_level.bodies)
+	add_eggs(current_level.eggs)
+	
+	add_ticker_text("welcome to "..current_level.name..";scans show "..current_level.eggs.." eggs in the vicinity;collect eggs before they hatch")
+	
+	
+	if levelid==1 then
+		add_ticker_text("press \148 for map;press \153 to use item")	
+	end
+	
+	cart(game_update,game_draw)
 end
 
 
 function game_update()
+	for a in all(actors) do
+		a.update(a)
+	end
+	
+	
+	-- #eggtimer
+	egg_timer-=1
+	if egg_timer<=0 then
+		local t=get_random_tile("egg")
+		if t then
+			add_ticker_text("egg hatch detected;avoid close proximity to life forms",true)
+			
+			current_level.eggs-=1
+			if current_level.eggs<=0 then
+				add_ticker_text("no more eggs detected;return to transport beacon immediately")
+			else
+				add_ticker_text(current_level.eggs.." eggs remaining")
+			end
+			
+			add_hugger(t.tx,t.ty)
+			set_tile_occupant(t.tx,t.ty,"empty")
+			egg_timer=500	
+		end
+	end
+
+	
+	if t>=240 then 
+		if current_level.eggs<=0 then
+			add_ticker_text("no more eggs detected;return to transport beacon immediately")
+		else
+			ticker_common()
+		end
+		
+		t=0
+	end -- toss in generic messages every 8 seconds
+	
+	bullet_update()
+	ticker_update()
 	p_update()
+
 end
 
 
@@ -1131,7 +1282,7 @@ function game_draw()
 		end
 	end
 	
-	-- map maze
+	-- level screens
 	palt(2,true)
 	palt(0,false)
 	
@@ -1147,7 +1298,7 @@ function game_draw()
 			if plot.occupant=="sniper" then
 				spr(66, px, py, 2,2)
 			end
-			--[[
+			
 			if plot.occupant=="body" then
 				spr(7,px,py+3,2,1)
 			end
@@ -1155,13 +1306,11 @@ function game_draw()
 			if plot.occupant=="egg" then
 				spr(36,px,py,2,2)
 			end
-			]]
-			--highlight_tile(plot.x,plot.y,5)
 		end
 	end
 	
 
-	-- borders
+	-- level borders
 	for m=0,flr(map_hpx/16)+2 do
 		spr(3, -15, (15*m), 2,2)
 		spr(3, map_wpx+1, (15*m), 2,2)
@@ -1171,13 +1320,8 @@ function game_draw()
 		spr(3, (15*m), -15, 2,2)
 		spr(3, (15*m),map_hpx+1, 2,2)
 	end
-	pal()
-	
-	
-	
+
 	-- non-player actors
-	palt(2,true)
-	palt(0,false)
 	for a in all(actors) do
 		a.draw(a)
 	end
@@ -1196,25 +1340,16 @@ function game_draw()
 	bullet_draw()
 	
 	
-	--lower third
+	-- minimap, user-controlled
+	if map_mode then
+		camera(0,0)
+		minimap_draw()
+	end
+	
+	
+	-- ticker
 	camera(0,0)
-	rectfill(0,117, 127,127, 1) --text strip
-	print("there are 3 eggs remaining, hurry!",minimap_txtx,120, 6)
-	
-	rectfill(90,117, 127,127, 5)
-	rect(0,117, 90,127,5) 
-	
-
-	-- battery
-	if minimap_battery>0 then pal(11,8) end
-	spr(23, 95,120)
-	pal()
-
-	 --egg count
-	spr(16, 108,119)
-	print("99",118,120, 6)
-	
-	minimap_txtx=max(minimap_txtx-.8,-130)
+	ticker_draw()
 	
 end
 
@@ -1252,17 +1387,7 @@ function _update60()
 	end
 
 	-- egg hatch timer	
-	egg_timer-=1
-	if egg_timer<=0 then
-		local t=get_random_tile("egg")
-		if t then
-			add_hugger(t.tx,t.ty)
-			set_tile_occupant(t.tx,t.ty,"empty")
-			egg_timer=500	
-		end
-	end
 	
-	bullet_update()
 	]]
 	
 	
@@ -1291,32 +1416,7 @@ function _draw()
 	
 	--[[
 	if map_mode then
-		camera(0,0)
-
-		--#ui
-		--upper console; 116 is lower limit
-		rectfill(0,0, 82,82, 1)
 		
-		minimap_size=2
-
-		rectfill(minimap_x,minimap_y, (map_tilew*minimap_size)+minimap_x,(map_tileh*minimap_size)+minimap_y, 0)
-		rect(minimap_x,minimap_y, (map_tilew*minimap_size)+minimap_x,(map_tileh*minimap_size)+minimap_y, 11)
-		
-		for mm in all(minimap) do
-			minimap_dot(mm.x,mm.y,mm.c)
-		end
-		
-		
-
-		rect(0,0,83,83,5)
-		rect(1,1,83,83,5)
-		rectfill(83,0, 127,116, 5)
-		rectfill(0,83, 127,116, 5)
-
-
-		print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: 3", 87, 4, 6)
-
-		print("planet: pv418\n\nclass: small", 4, 87, 6)
 	end
 	
 	
@@ -1464,24 +1564,26 @@ end
 
 -- string splitter, returns array
 -- split(string, delimter)
-function split(s,dchar)
- local a={}
- local ns=""
- 
- while #s>0 do
-  local d=sub(s,1,1)
-  if d==dchar then
-   add(a,ns+0)
-   ns=""
-  else
-   ns=ns..d
-  end
-  
-  s=sub(s,2)
- end
- 
- return a
-end
+function split(s,dc)
+	dc=dc or ";"
+	local a={}
+	local ns=""
+	
+	
+	while #s>0 do
+		local d=sub(s,1,1)
+		if d==dc then
+			add(a,ns)
+			ns=""
+		else
+			ns=ns..d
+		end
+	
+		s=sub(s,2)
+	end
+	
+	return a
+end	
 
 
 
@@ -1518,51 +1620,14 @@ function dir_calc(angle,speed)
 end
 
 
-
--- returns x/y of point as measured from provided x/y with length and angle	
-function get_line(x,y,dist,dir)
-	fx = flr(cos(dir)*dist+x)
-	fy = flr(sin(dir)*dist+y)
-	
-	return fx,fy
-end
-
-
 -- returns distance between two points
 function distance(ox,oy, px,py)
   local a = abs(ox-px)/16
   local b = abs(oy-py)/16
-  return pythag(a,b)*16
-end
-
-function pythag (a, b) return sqrt(a^2+b^2) end
-
-
--- returns true if x/y is out of screen bounds
-function offscreen(x,y)
-	if (x<screen_x or x>screen_w or y<screen_y or y>screen_h) then 
-		return true
-	else
-		return false
-	end
+  return sqrt(a^2+b^2)*16
 end
 
 
--- returns true if hitbox collision 
-function collide(ax,ay,ahb, bx,by,bhb)
-	  local l = max(ax+ahb.x,        bx+bhb.x)
-	  local r = min(ax+ahb.x+ahb.w,  bx+bhb.x+bhb.w)
-	  local t = max(ay+ahb.y,        by+bhb.y)
-	  local b = min(ay+ahb.y+ahb.h,  by+bhb.y+bhb.h)
-
-	  -- they overlapped if the area of intersection is greater than 0
-	  if l < r and t < b then
-		return true
-	  end
-					
-	return false
-end	
-				
 -- get a random number between min and max
 function random(min,max)
 	n=round(rnd(max-min))+min
