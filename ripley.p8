@@ -1061,8 +1061,7 @@ end
 
 
 -- #minimap
-minimap_x=4
-minimap_y=4
+
 minimap_txt_scroll=100
 
 function minimap_dot(x,y,c)
@@ -1207,6 +1206,7 @@ function game_init(levelid)
 	bullets     = {}
 	actors      = {}
 	
+	minimap_x,minimap_y=4,4
 	minimap_battery = 0
 	map_mode        = false
 	egg_timer       = current_level.eggtimer	
