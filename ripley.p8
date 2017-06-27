@@ -65,9 +65,11 @@ function p_update()
 			if rnd()<.5 then
 				p_st=2
 				p_spr=64
+				add_ticker_text("pulse rifle equipped",true)
 			else
 				p_st=3
 				p_spr=96
+				add_ticker_text("alien bait equipped",true)
 			end
 
 			set_tile_occupant(p_tx,p_ty,"empty")
@@ -134,6 +136,7 @@ function p_update()
 				add_beacon(p_tx,p_ty)
 				p_st=1
 				p_spr=32
+				
 			end
 
 
@@ -1147,14 +1150,18 @@ function minimap_update()
 		
 		radar_dots={}
 		
-		for a in all(get_aliens()) do
-			if in_range(a.cx,a.cy, p_cx,p_cy, 64) then
-				local rx,ry=get_line(106,64,13, atan2(a.cx-p_cx, a.cy-p_cy))
-				add(radar_dots,{x=rx,y=ry})
-			else
-				if in_range(a.cx, a.cy, p_cx,p_cy, 128) then
-					local rx,ry=get_line(106,64,9, atan2(a.cx-p_cx, a.cy-p_cy))
+		--local list=get_aliens()
+		
+		for a in all(actors) do
+			if a.id==1 or a.id==2 then
+				if in_range(a.cx,a.cy, p_cx,p_cy, 64) then
+					local rx,ry=get_line(106,64,13, atan2(a.cx-p_cx, a.cy-p_cy))
 					add(radar_dots,{x=rx,y=ry})
+				else
+					if in_range(a.cx, a.cy, p_cx,p_cy, 128) then
+						local rx,ry=get_line(106,64,9, atan2(a.cx-p_cx, a.cy-p_cy))
+						add(radar_dots,{x=rx,y=ry})
+					end
 				end
 			end
 		end
@@ -1243,7 +1250,7 @@ function ticker_update()
 end
 
 function ticker_common()
-	local list=split("bait only works on adult aliens;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;newborn aliens search for bodies;use your items wisely;aliens will attack if you get too close")
+	local list=split("find alien eggs before they hatch;bait distracts adult aliens;the pulse rifle auto-aims;the pulse rifle has one shot;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;newborn aliens search for bodies;use your items wisely;aliens will attack if you get too close")
 	add_ticker_text(rnd_table(list))
 	printh("generic text")
 end
