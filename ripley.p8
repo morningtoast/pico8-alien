@@ -90,22 +90,24 @@ function p_update()
 		end
 		
 		-- player hits transport beacon
-		if tile.occupant=="transport" and current_level.eggs>0 then
+		if tile.occupant=="transport" and current_level.eggs>0 and p_transport_t<1 then
 			add_ticker_text("dropship unavailable",true)
+			p_transport_t=1
 		end
 		
 		if tile.occupant=="transport" and current_level.eggs<=0 and not p_transport then
 			add_ticker_text("remain at transport beacon;dropship en route;dropship landing...",true)
 			p_transport=true
-			p_transport_t=0
+			p_transport_t=2
 		end
 
 		if tile.occupant!="transport" and p_transport then
-			add_ticker_text("dropship cancelled",true)
+			if p_transport>1 then add_ticker_text("dropship cancelled",true) end
 			p_transport=false
+			p_transport_t=0
 		end
 		
-		if tile.occupant=="transport" and p_transport then
+		if tile.occupant=="transport" and p_transport>1 then
 			p_transport_t+=1
 			
 			if p_transport_t==780 then
