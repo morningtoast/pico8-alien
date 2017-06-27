@@ -96,24 +96,22 @@ function p_update()
 		end
 		
 		if tile.occupant=="transport" and current_level.eggs<=0 and not p_transport then
-			add_ticker_text("remain at transport beacon;dropship en route;dropship landing...",true)
+			add_ticker_text("remain at transport beacon;dropship en route;dropship landing...;leaving "..current_level.name,true)
 			p_transport=true
 			p_transport_t=2
 		end
+		
+		if tile.occupant!="transport" and p_transport_t>0 then p_transport_t=0 end
 
 		if tile.occupant!="transport" and p_transport then
-			if p_transport_t>1 then add_ticker_text("dropship cancelled",true) end
+			add_ticker_text("dropship cancelled",true)
 			p_transport=false
 			p_transport_t=0
 		end
 		
 		if tile.occupant=="transport" and p_transport then
 			p_transport_t+=1
-			
-			if p_transport_t==780 then
-				add_ticker_text("leaving "..current_level.name, true)
-			end
-			
+
 			if p_transport_t==900 then
 				-- level complete
 				-- next level
