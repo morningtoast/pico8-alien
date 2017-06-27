@@ -1288,8 +1288,8 @@ function game_init(levelid)
 	
 	p_init()
 	generate_map(current_level.w,current_level.h)
-	--add_bodies(current_level.bodies)
-	--add_eggs(current_level.eggs)
+	add_bodies(current_level.bodies)
+	add_eggs(current_level.eggs)
 	
 	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch")
 	
