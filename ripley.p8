@@ -598,11 +598,11 @@ function update_walker(self)
 		self.x+=self.dx
 		self.y+=self.dy
 		
-		--[[ if actor is chasing player, stop and re-pathfind
+		-- if actor is chasing player, stop and re-pathfind
 		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, escape_range) then
 			self.waypoint=#self.navpath
 		end
-		]]
+		
 		
 		-- if actor's midpoint is within mid-tile, go to next waypoint
 		if in_range(self.cx,self.cy, self.dest.cx,self.dest.cy, 5) then
@@ -675,6 +675,13 @@ function pathfind(startx,starty,goaltx,goalty,obj)
 	printh("player tile "..p_tx..","..p_ty)
 	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
 	local endpoint=level_list[navpath[#navpath]]
+	
+	-- tile records don't have pixel positions, need to add them + centers
+	for n in all(navpath) do
+		n.x,n.y=tile_to_px(n.tx,n.ty)	
+		n.cx=n.x+8
+		n.cy=n.y+8
+	end
 
 	return navpath,endpoint,1
 end
@@ -1458,6 +1465,54 @@ end
 
 
 
+
+-- #scenes
+
+
+-- #nextlevel
+function scene_nextlevel()
+	cart(nextlevel_update,nextlevel_draw)
+end
+
+function nextlevel_update()
+	
+end 
+
+function nextlevel_draw()
+	
+end
+
+
+-- #title
+function scene_title()
+	cart(title_update,title_draw)
+end
+
+function title_update()
+	
+end 
+
+function title_draw()
+	
+end
+
+
+-- #gameover
+function scene_gameover()
+	cart(gameover_update,gameover_draw)
+end
+
+function gameover_update()
+	
+end 
+
+function gameover_draw()
+	
+end
+
+
+
+
 -- #loop
 function _init()
 	printh("\n\n=====new load================================================\n\n")
@@ -1475,13 +1530,13 @@ function _update60()
 	btnr=btn(1)
 	btnu=btn(2)
 	btnd=btn(3)
-	btnz=btn(4)
-	btnx=btn(5)
+	--btnz=btn(4)
+	--btnx=btn(5)
 
-	btnlp=btnp(0)
-	btnrp=btnp(1)
-	btnup=btnp(2)
-	btndp=btnp(3)
+	--btnlp=btnp(0)
+	--btnrp=btnp(1)
+	--btnup=btnp(2)
+	--btndp=btnp(3)
 	btnzp=btnp(4)
 	btnxp=btnp(5)
 	
