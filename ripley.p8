@@ -584,7 +584,8 @@ function update_walker(self)
 	-- get heading towards next waypoint
 	if self.st==1 then
 		self.dest=level_list[self.navpath[self.waypoint]]
-		
+		self.dest.x,self.dest.y=tile_to_px(self.dest.tx,self.dest.ty)	
+
 		local heading   = atan2(self.dest.x-self.x, self.dest.y-self.y) 
 		self.dx,self.dy = dir_calc(heading, movespeed) -- wander speed
 		self.flip=sprite_flip(heading)
@@ -605,7 +606,7 @@ function update_walker(self)
 		
 		
 		-- if actor's midpoint is within mid-tile, go to next waypoint
-		if in_range(self.cx,self.cy, self.dest.cx,self.dest.cy, 5) then
+		if in_range(self.cx,self.cy, self.dest.x+8,self.dest.y+8, 5) then
 			self.waypoint+=1
 			self.wpcount-=1
 
@@ -670,19 +671,12 @@ end
 -- update logic for ai that finds targets and wanders: huggers and aliens
 -- 
 
-function pathfind(startx,starty,goaltx,goalty,obj)
+function pathfind(startx,starty,goaltx,goalty)
 	printh("new path to "..goaltx..","..goalty)
 	printh("player tile "..p_tx..","..p_ty)
 	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
 	local endpoint=level_list[navpath[#navpath]]
 	
-	-- tile records don't have pixel positions, need to add them + centers
-	for n in all(navpath) do
-		n.x,n.y=tile_to_px(n.tx,n.ty)	
-		n.cx=n.x+8
-		n.cy=n.y+8
-	end
-
 	return navpath,endpoint,1
 end
 
