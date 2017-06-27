@@ -1273,7 +1273,7 @@ end
 -- #levels - define levels
 
 levels={}
-levels[1]={name="pv418",w=2,h=3,bodies=2,eggs=1,eggtimer=480,snipers=0,colors=false}
+levels[1]={name="pv418",w=2,h=3,bodies=2,eggs=1,eggtimer=600,snipers=0,colors=false}
 
 
 
@@ -1320,7 +1320,7 @@ function game_update()
 	if egg_timer<=0 then
 		local t=get_random_tile("egg")
 		if t then
-			add_ticker_text("egg hatch detected;avoid close proximity",true)
+			add_ticker_text("new life form detected;avoid close proximity",true)
 			
 			current_level.eggs-=1
 			if current_level.eggs<=0 then
