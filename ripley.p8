@@ -316,7 +316,7 @@ function add_hugger(tx,ty)
 
 				spr(72,self.x,self.y,2,2,self.flip)
 
-				-- pathing highlighting debug
+				--[[ pathing highlighting debug
 				if self.st>0 then
 					for n in all(self.navpath) do
 						local t=level_list[n]
@@ -324,6 +324,7 @@ function add_hugger(tx,ty)
 						rect(t.cx-6,t.cy-6, t.cx+6,t.cy+6, 8)
 					end	
 				end
+				]]
 			else
 				spr(40,self.x,self.y,2,2)
 			end
@@ -333,7 +334,7 @@ function add_hugger(tx,ty)
 			--highlight_tile(self.x,self.y,15)
 			--debug_hitbox(self.x,self.y,self.hbox)
 			
-			-- pathing highlighting debug
+			--[[ pathing highlighting debug
 			if self.st>0 then
 				for n in all(self.navpath) do
 					local t=level_list[n]
@@ -341,6 +342,7 @@ function add_hugger(tx,ty)
 					rect(t.cx-6,t.cy-6, t.cx+6,t.cy+6, 8)
 				end	
 			end
+			]]
 			
 			
 		end
@@ -398,7 +400,7 @@ function add_alien(tx,ty)
 				spr(1,self.x,self.y,2,2,self.flip)
 
 
-				-- pathing highlighting debug
+				--[[ pathing highlighting debug
 				if self.st>0 then
 					for n in all(self.navpath) do
 						local t=level_list[n]
@@ -406,6 +408,7 @@ function add_alien(tx,ty)
 						--rect(t.cx-6,t.cy-6, t.cx+6,t.cy+6, 8)
 					end	
 				end
+				]]
 			else
 				-- dead bones
 				spr(40,self.x,self.y,2,2)
