@@ -541,12 +541,9 @@ function update_walker(self)
 
 	-- caught the player; end state and game over
 	--if self.tx==p_tx and self.ty==p_ty then
-	if in_range(self.cx,self.cy, p_cx,p_cy, 10) then
+	if in_range(self.cx,self.cy, p_cx,p_cy, 10) and self.st<99 then
 		chg_st(self,98) --debug
 		gameover_init()
-		printh("alien tile "..self.tx..","..self.ty)
-		printh("player tile "..p_tx..","..p_ty)
-		printh("player dead")
 	end
 	
 
@@ -1146,22 +1143,19 @@ end
 
 function minimap_update()
 	minimap_radar+=1
+	
 	if minimap_radar>35 then 
-		
 		radar_dots={}
+		local list=get_aliens()
 		
-		--local list=get_aliens()
-		
-		for a in all(actors) do
-			if a.id==1 or a.id==2 then
-				if in_range(a.cx,a.cy, p_cx,p_cy, 64) then
-					local rx,ry=get_line(106,64,13, atan2(a.cx-p_cx, a.cy-p_cy))
+		for a in all(list) do
+			if in_range(a.cx,a.cy, p_cx,p_cy, 64) then
+				local rx,ry=get_line(106,64,13, atan2(a.cx-p_cx, a.cy-p_cy))
+				add(radar_dots,{x=rx,y=ry})
+			else
+				if in_range(a.cx, a.cy, p_cx,p_cy, 128) then
+					local rx,ry=get_line(106,64,9, atan2(a.cx-p_cx, a.cy-p_cy))
 					add(radar_dots,{x=rx,y=ry})
-				else
-					if in_range(a.cx, a.cy, p_cx,p_cy, 128) then
-						local rx,ry=get_line(106,64,9, atan2(a.cx-p_cx, a.cy-p_cy))
-						add(radar_dots,{x=rx,y=ry})
-					end
 				end
 			end
 		end
