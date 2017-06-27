@@ -102,12 +102,12 @@ function p_update()
 		end
 
 		if tile.occupant!="transport" and p_transport then
-			if p_transport>1 then add_ticker_text("dropship cancelled",true) end
+			if p_transport_t>1 then add_ticker_text("dropship cancelled",true) end
 			p_transport=false
 			p_transport_t=0
 		end
 		
-		if tile.occupant=="transport" and p_transport>1 then
+		if tile.occupant=="transport" and p_transport then
 			p_transport_t+=1
 			
 			if p_transport_t==780 then
