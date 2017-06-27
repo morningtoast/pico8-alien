@@ -312,7 +312,7 @@ function add_hugger(tx,ty)
 			
 
 			if self.st!=99 then
-				if self.st==4 or self.st==5 then pal(15,8) end -- switch to red hugger
+				if self.chase then pal(15,8) end -- switch to red hugger
 
 				spr(72,self.x,self.y,2,2,self.flip)
 
@@ -395,7 +395,7 @@ function add_alien(tx,ty)
 		end,
 		draw=function(self)
 			if self.st!=99 then
-				if self.st==4 or self.st==5 then pal(13,8) end -- switch to red when in chase
+				if self.chase then pal(13,8) end -- switch to red when in chase
 
 				spr(1,self.x,self.y,2,2,self.flip)
 
@@ -521,7 +521,7 @@ function update_walker(self)
 		recalc_intv=25
 	end
 	
-	local movespeed=wander_speed
+	
 	
 
 
@@ -549,7 +549,7 @@ function update_walker(self)
 	-- initial pathfinding
 	if self.st==0 then
 		self.chase=false
-		movespeed=wander_speed
+		self.speed=wander_speed
 		
 		if self.t<2 then
 			local near=false
@@ -590,7 +590,7 @@ function update_walker(self)
 		self.dest.x,self.dest.y=tile_to_px(self.dest.tx,self.dest.ty)	
 
 		local heading   = atan2(self.dest.x-self.x, self.dest.y-self.y) 
-		self.dx,self.dy = dir_calc(heading, movespeed) -- wander speed
+		self.dx,self.dy = dir_calc(heading, self.speed) -- wander speed
 		self.flip=sprite_flip(heading)
 
 		chg_st(self,2)
@@ -602,8 +602,9 @@ function update_walker(self)
 		self.x+=self.dx
 		self.y+=self.dy
 		
-		-- if actor is chasing player, stop and re-pathfind
+		-- if actor is chasing player but player escapes, stop and re-pathfind
 		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, escape_range) then
+			self.chase=false
 			self.waypoint=#self.navpath
 		end
 		
@@ -662,7 +663,7 @@ function update_walker(self)
 	-- enter chase state; pathfind to player and speed up
 	if self.st==4 then
 		self.navpath,self.endpoint,self.waypoint=pathfind(self.tx,self.ty, p_tx,p_ty)	
-		movespeed=chase_speed --chase speed
+		self.speed=chase_speed --chase speed
 		self.wpcount=99 --so there are no stops along the way
 		self.chase=true
 		chg_st(self,1)
