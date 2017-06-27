@@ -836,7 +836,7 @@ function filter_tiles(occupant)
 	for tx=1,map_tilew do
 		for ty=1,map_tileh do
 			local t=level_grid[tx][ty]
-			t.x,t.y=tile_to_px(x,y)
+			t.x,t.y=tile_to_px(tx,ty)
 			
 			if t.occupant==occupant then
 				add(list,t)
