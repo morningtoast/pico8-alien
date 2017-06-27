@@ -5,7 +5,7 @@ __lua__
 --
 -- #globals and system needs
 --
-t=0
+gt=0
 
 ef=function() end
 cart_update,cart_draw=ef,ef
@@ -13,7 +13,7 @@ cart=function(u,d)
 	u=u or ef
 	d=d or ef
 	cart_update,cart_draw=u,d
-	t=0
+	gt=0
 end
 
 
@@ -27,6 +27,7 @@ function p_init()
 	p_freeze=0
 	p_st=1 -- state: 1=unarmed, 2=gun, 3=beacon
 	p_spr=32
+	p_transport_t=0
 end
 
 function p_update()
@@ -38,9 +39,7 @@ function p_update()
 	
 	
 	local tile=get_tile(p_tx,p_ty)
-	
 
-	
 	if not map_mode then
 		minimap_battery=max(minimap_battery-1,0)
 		p_freeze=max(p_freeze-1,0)
@@ -77,32 +76,47 @@ function p_update()
 		-- when player gets to a body, switch modes
 		if tile.occupant=="egg" then
 			eggs_collected=min(eggs_collected+1,10)
+			egg_count+=1
 			current_level.eggs=min(current_level.eggs-1,0)
 
 			set_tile_occupant(p_tx,p_ty,"empty")
 			
-			add_ticker_text("egg collected;"..current_level.eggs.." eggs remaining;")
+			add_ticker_text("alien egg collected;"..current_level.eggs.." eggs remaining")
 			
 			
 			if eggs_collected>=10 then
-				add_ticker_text("mission accomplished;return to transport beacon immediately;")
+				add_ticker_text("mission accomplished;return to transport beacon immediately")
 			end
 		end
 		
-		
+		-- player hits transport beacon
 		if tile.occupant=="transport" and not p_transport then
 			printh(p_transport)
 			eggs_collected=min(eggs_collected+1,10)
 			if current_level.eggs>0 then
-				add_ticker_text("contacting shuttle...;mission: find alien eggs;",true)
+				add_ticker_text("contacting dropship...;dropship unavailable",true)
 			else
-				add_ticker_text("contacting shuttle...;preparing for arrival;",true)
+				add_ticker_text("contacting dropship...",true)
+				p_transport_t=1
 			end
 			p_transport=true
 		end
 		
 		if tile.occupant!="transport" and p_transport then
 			p_transport=false
+		end
+		
+		if p_transport_t>1 then 
+			p_transport_t+=1
+			
+			if p_transport_t==100 then
+				add_ticker_text("dropship en route")
+			end
+			
+			if p_transport_t==300 then
+				-- level complete
+				-- #todo
+			end
 		end
 
 
@@ -114,7 +128,7 @@ function p_update()
 		end
 
 		
-		-- action; shoot or place beacon
+		-- use item
 		if btnxp then
 			-- beacon
 			if p_st==3 then
@@ -168,8 +182,6 @@ function p_update()
 		end
 		
 	else
-		minimap_battery+=1
-	
 		if btnzp then
 			minimap_battery=600
 			map_mode=false
@@ -285,7 +297,7 @@ function add_hugger(tx,ty)
 			update_walker(self)
 
 			if self.tile.occupant=="body" then
-				add_ticker_text("adult xenomorph has been detected;avoid close proximity;continue egg search;")
+				add_ticker_text("adult xenomorph has been detected;avoid close proximity")
 				add_alien(self.tx,self.ty)
 				del(actors,self)
 			end
@@ -481,7 +493,7 @@ end
 
 -- #walker - common logic for actors that move around the map
 function update_walker(self)
-	-- id: 1=hugger, 2=alien
+	-- self is actor object - id: 1=hugger, 2=alien
 	local id=self.id
 	local dest={}
 	
@@ -816,7 +828,7 @@ function move_is_blocked(px,py, dx,dy, hbox)
 end
 
 
--- returns list of tiles of specified occupant
+-- returns list of tiles of specified occupant + pixel coordinates
 -- filter_tiles(str_occupant)
 function filter_tiles(occupant)
 	local list={}
@@ -824,6 +836,7 @@ function filter_tiles(occupant)
 	for tx=1,map_tilew do
 		for ty=1,map_tileh do
 			local t=level_grid[tx][ty]
+			t.x,t.y=tile_to_px(x,y)
 			
 			if t.occupant==occupant then
 				add(list,t)
@@ -834,7 +847,7 @@ function filter_tiles(occupant)
 	return list
 end
 
-
+-- Returns array of actors that are either huggers or aliens
 function get_aliens()
 	local t={}
 	for a in all(actors) do
@@ -853,13 +866,14 @@ end
 
 -- finds nearest object based on x/y pixel coordinates
 -- list objects must have x/y values!!
+-- find_nearest(int_pixelX,int_pixelY, tbl_items)
 function find_nearest(x,y,list)
 	local d=9999
 	local n=false
 
 	for t in all(list) do
-		local far=sqrt(((t.x-x)/16)^2+((t.y-y)/16)^2)*16
-	
+		local far=distance(t.x,t.y, x,y)
+
 		if far<d then
 			d=far
 			n=t
@@ -1089,7 +1103,7 @@ end
 
 function generate_minimap() 
 	minimap={}
-	
+
 	minimap_txt_bio=0
 	minimap_txt_eggs=0
 	minimap_radar=0
@@ -1109,14 +1123,12 @@ function generate_minimap()
 		end
 	end
 	
-	for a in all(actors) do
-		if a.id==1 or a.id==2 then
-			add(minimap, {x=a.tx,y=a.ty,c=11})
-			minimap_txt_bio+=1
-		end
+	for a in all(get_aliens()) do
+		add(minimap, {x=a.tx,y=a.ty,c=11})
+		minimap_txt_bio+=1
 	end
 
-	add(minimap, {x=p_tx,y=p_ty,c=8})
+	add(minimap, {x=p_tx,y=p_ty,c=10}) --player position
 end
 
 
@@ -1126,13 +1138,13 @@ function minimap_update()
 		
 		radar_dots={}
 		
-		for a in all(actors) do
+		for a in all(get_aliens()) do
 			if in_range(a.cx,a.cy, p_cx,p_cy, 64) then
-				local rx,ry=get_line(106,64,10, atan2(a.cx-p_cx, a.cy-p_cy))
+				local rx,ry=get_line(106,64,13, atan2(a.cx-p_cx, a.cy-p_cy))
 				add(radar_dots,{x=rx,y=ry})
 			else
 				if in_range(a.cx, a.cy, p_cx,p_cy, 128) then
-					local rx,ry=get_line(106,64,10, atan2(a.cx-p_cx, a.cy-p_cy))
+					local rx,ry=get_line(106,64,9, atan2(a.cx-p_cx, a.cy-p_cy))
 					add(radar_dots,{x=rx,y=ry})
 				end
 			end
@@ -1143,32 +1155,32 @@ function minimap_update()
 end
 
 function minimap_draw()
--- chrome
 	rectfill(0,0, 127,116, 5) --base grey
 	
-	--radar
+	--sidebar
 	rectfill(87,45, 125,84, 1)
 	pset(106,64,12)
 	circ(106,64,8,12)
 	circ(106,64,17,12)
 	
-	circ(106,64,minimap_radar,7)
+	circ(106,64,minimap_radar,7) -- growing circle
 	
 	for d in all (radar_dots) do
-		circfill(d.x,d.y,1,8)
+		circfill(d.x,d.y,1,7)
 	end
 	
+	print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: "..egg_count, 87, 4, 7)
+	
+	
+	-- chrome
 	rectfill(85,0, 127,45, 5)
 	rect(85,45, 127,85,5)
 	rect(86,45, 126,85,5)
 	rectfill(0,85, 127,116, 5) --base grey
 	rect(0,0, 85,85, 5)
-	
 	line(0,115,127,115, 0)
-	
-	
 
-	--upper console; 116 is lower limit
+	--level minimap; 116 is lower limit
 	rectfill(1,1, 84,84, 0) --full bg, blue
 	rectfill(2,2, (map_tilew*2)+2,(map_tileh*2)+2, 3) --level bg, black
 	rect(1,1, (map_tilew*2)+3,(map_tileh*2)+3, 11) --border
@@ -1182,10 +1194,7 @@ function minimap_draw()
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
 
-
-	print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: "..eggs_collected, 87, 4, 7)
-
-	print("planet: pv418\n\nitem: "..item, 4, 90, 7)
+	print("planet: "..current_level.name.."\n\nitem: "..item, 4, 90, 7)
 end
 
 
@@ -1225,7 +1234,7 @@ function ticker_update()
 end
 
 function ticker_common()
-	local list=split("bait only works on adult aliens;"..current_level.eggs.." eggs remaining;use \142 to scan area;cameleon aliens cannot be killed;your map will recharge over time;your map uses battery power;bait only lasts a few moments;baby aliens search for bodies;use your items wisely;aliens will attack if you get too close;")
+	local list=split("bait only works on adult aliens;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;baby aliens search for bodies;use your items wisely;aliens will attack if you get too close")
 	add_ticker_text(rnd_table(list)..";")
 	printh("generic text")
 end
@@ -1239,31 +1248,26 @@ function ticker_draw()
 	end
 
 	-- chrome
-	
 	rectfill(90,117, 127,127, 5)
 	rect(0,117, 90,127,5) 
-	--line(0,116, 127,116, 5)
-	
+
 
 	-- battery
 	if minimap_battery>0 then pal(11,8) end
-	spr(23, 95,120)
+	spr(23, 96,120)
 	pal()
 
 	 --egg count
-	spr(16, 108,119)
-	print("99",118,120, 6)
+	spr(16, 110,119)
+	print(eggs_collected,120,120, 6)
 end
 
 
 -- #levels - define levels
 
 levels={}
-levels[1]={
-	name="pv418",w=2,h=3,bodies=2,eggs=1,eggtimer=480,snipers=0,colors=false
-}
+levels[1]={name="pv418",w=2,h=3,bodies=2,eggs=1,eggtimer=480,snipers=0,colors=false}
 
-eggs_collected=0 --total eggs collected by player
 
 
 
@@ -1278,7 +1282,8 @@ function game_init(levelid)
 	minimap_x,minimap_y=4,4
 	minimap_battery = 0
 	map_mode        = false
-	egg_timer       = current_level.eggtimer	
+	egg_timer       = current_level.eggtimer
+	egg_count       = 0
 	
 	
 	p_init()
@@ -1286,7 +1291,7 @@ function game_init(levelid)
 	--add_bodies(current_level.bodies)
 	--add_eggs(current_level.eggs)
 	
-	add_ticker_text("arrived on "..current_level.name.." safely;scans show "..current_level.eggs.." eggs in vicinity;find eggs before they hatch;")
+	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch")
 	
 	
 	if levelid==1 then
@@ -1308,30 +1313,30 @@ function game_update()
 	if egg_timer<=0 then
 		local t=get_random_tile("egg")
 		if t then
-			add_ticker_text("egg hatch detected;avoid close proximity to life forms;",true)
+			add_ticker_text("egg hatch detected;avoid close proximity",true)
 			
 			current_level.eggs-=1
 			if current_level.eggs<=0 then
-				add_ticker_text("no more eggs detected;return to transport beacon immediately;")
+				add_ticker_text("no more eggs detected;return to transport beacon immediately")
 			else
 				add_ticker_text(current_level.eggs.." eggs remaining")
 			end
 			
 			add_hugger(t.tx,t.ty)
 			set_tile_occupant(t.tx,t.ty,"empty")
-			egg_timer=500	
+			egg_timer=current_level.eggtimer	
 		end
 	end
 
 	
-	if t>=1200 then -- toss in generic messages every 8 seconds 
+	if gt>=1200 then -- toss in generic messages every 8 seconds 
 		if current_level.eggs<=0 then
-			add_ticker_text("no more eggs detected;return to transport beacon immediately;")
+			add_ticker_text("no more eggs detected;return to transport beacon immediately")
 		else
 			ticker_common()
 		end
 		
-		t=0
+		gt=0
 	end
 	
 	if map_mode then
@@ -1347,6 +1352,14 @@ end
 
 function game_draw()
 	camera(p_cx-64, p_cy-64)
+	
+	if current_level.colors then
+		local swap_bright=current_level.colors[1]
+		local swap_dark=current_level.colors[2]
+		
+		
+	end
+	
 	
 	--grass map background
 	for bgx=0,map_w-1 do
@@ -1364,13 +1377,6 @@ function game_draw()
 			local plot=level_grid[x][y]
 			local px,py=tile_to_px(x,y)
 			
-			if plot.occupant=="wall" then
-				spr(plot.spr, px, py, 2,2)
-			end
-			
-			if plot.occupant=="sniper" then
-				spr(66, px, py, 2,2)
-			end
 			
 			if plot.occupant=="body" then
 				spr(7,px,py+3,2,1)
@@ -1383,6 +1389,22 @@ function game_draw()
 			if plot.occupant=="egg" then
 				spr(36,px,py,2,2)
 			end
+			
+			
+			
+			if swap_bright then
+				pal(11,swap_bright)
+				pal(3,swap_dark)
+			end
+			
+			if plot.occupant=="wall" then
+				spr(plot.spr, px, py, 2,2)
+			end
+			
+			if plot.occupant=="sniper" then
+				spr(66, px, py, 2,2)
+			end
+
 		end
 	end
 	
@@ -1400,23 +1422,24 @@ function game_draw()
 		spr(3, (16*m),map_hpx, 2,2)
 	end
 
-	-- non-player actors
+	-- non-player actors; aliens, items
 	for a in all(actors) do
 		a.draw(a)
 	end
-	pal()
+	--pal()
 	
 	
 	-- player
-	palt(2,true)
-	palt(0,false)
+	--palt(2,true)
+	--palt(0,false)
 	
 	if p_freeze>0 then pal(10,13) end
 	
+	bullet_draw()
 	p_draw()
+	
 	pal()
 	
-	bullet_draw()
 	
 	
 	-- minimap, user-controlled
@@ -1438,8 +1461,12 @@ end
 function _init()
 	printh("\n\n=====new load================================================\n\n")
 	
-	game_init(1)
+	
+	eggs_collected=0 --total eggs collected by player for game session
+	level_grid={}
+	level_list={}
 
+	game_init(1)
 end
 
 function _update60()
@@ -1460,7 +1487,7 @@ function _update60()
 	cart_update()
 	
 
-	t+=1
+	gt+=1
 end
 
 function _draw()
@@ -1468,16 +1495,125 @@ function _draw()
 	cart_draw()
 
 	
+	-- memory debug
 	camera(0,0)
 	print(flr((stat(0)/1024)*100).."%",100,0,8)
 end
 
--- #path
 
 
 
 
 
+
+
+--
+-- #utility functions and libraries
+--
+
+function chg_st(o,ns) 
+	o.t=0 o.st=ns 
+	printh("change state: "..ns)
+end
+
+function rand(x) return flr(rnd(x)) end
+
+-- debug tools
+debug=false
+function debug_hitbox(x,y,hb) 
+	rect(x+hb.x,y+hb.y, x+hb.x+hb.w,y+hb.y+hb.h, 11)
+end
+
+function highlight_tile(pxx,pxy,c)
+	rect(pxx,pxy, pxx+15,pxy+15, c)
+end
+
+
+-- string splitter, returns array
+-- split(string, delimter)
+function split(s,dc)
+	dc=dc or ";"
+	local a={}
+	local ns=""
+	s=s..";"
+	
+	while #s>0 do
+		local d=sub(s,1,1)
+		if d==dc then
+			add(a,ns)
+			ns=""
+		else
+			ns=ns..d
+		end
+	
+		s=sub(s,2)
+	end
+	
+	return a
+end	
+
+
+
+-- center string on screen, assumes full viewport
+function center_text(s,y,c) print(s,64-(#s*2),y,c) end
+
+
+
+-- checks to see if value is in a table
+-- in_table(needle, haystack)
+function in_table(element, tbl)
+  for _, value in pairs(tbl) do
+    if value == element then
+      return true
+    end
+  end
+  return false
+end
+
+-- returns random pos value from provided table
+function rnd_table(t)
+	local r=flr(rnd(#t))+1
+	return(t[r])
+end
+	
+	
+	
+-- get dx/dy calculations for movement
+function dir_calc(angle,speed)
+	local dx=cos(angle)*speed
+	local dy=sin(angle)*speed
+	
+	return dx,dy
+end
+
+-- returns x/y of point as measured from provided x/y with length and angle	
+function get_line(x,y,dist,dir)
+	fx = flr(cos(dir)*dist+x)
+	fy = flr(sin(dir)*dist+y)
+	
+	return fx,fy
+end
+
+
+-- returns distance between two points
+function distance(ox,oy, px,py)
+  local a = abs(ox-px)/16
+  local b = abs(oy-py)/16
+  return sqrt(a^2+b^2)*16
+end
+
+
+-- get a random number between min and max
+function random(min,max)
+	n=round(rnd(max-min))+min
+	return n
+end
+
+-- round number to the nearest whole
+function round(num, idp)
+  local mult = 10^(idp or 0)
+  return flr(num * mult + 0.5) / mult
+end
 
 ------------------
 -- #astar algorithm --
@@ -1576,117 +1712,6 @@ function find_path(start_index,target_index)
 
 	return path
 end
-
-
---
--- #utility functions and libraries
---
-
-function chg_st(o,ns) 
-	o.t=0 o.st=ns 
-	printh("change state: "..ns)
-end
-
-function rand(x) return flr(rnd(x)) end
-
--- debug tools
-debug=false
-function debug_hitbox(x,y,hb) 
-	rect(x+hb.x,y+hb.y, x+hb.x+hb.w,y+hb.y+hb.h, 11)
-end
-
-function highlight_tile(pxx,pxy,c)
-	rect(pxx,pxy, pxx+15,pxy+15, c)
-end
-
-
--- string splitter, returns array
--- split(string, delimter)
-function split(s,dc)
-	dc=dc or ";"
-	local a={}
-	local ns=""
-	
-	
-	while #s>0 do
-		local d=sub(s,1,1)
-		if d==dc then
-			add(a,ns)
-			ns=""
-		else
-			ns=ns..d
-		end
-	
-		s=sub(s,2)
-	end
-	
-	return a
-end	
-
-
-
--- center string on screen, assumes full viewport
-function center_text(s,y,c) print(s,64-(#s*2),y,c) end
-
-
-
--- checks to see if value is in a table
--- in_table(needle, haystack)
-function in_table(element, tbl)
-  for _, value in pairs(tbl) do
-    if value == element then
-      return true
-    end
-  end
-  return false
-end
-
--- returns random pos value from provided table
-function rnd_table(t)
-	local r=flr(rnd(#t))+1
-	return(t[r])
-end
-	
-	
-	
--- get dx/dy calculations for movement
-function dir_calc(angle,speed)
-	local dx=cos(angle)*speed
-	local dy=sin(angle)*speed
-	
-	return dx,dy
-end
-
--- returns x/y of point as measured from provided x/y with length and angle	
-function get_line(x,y,dist,dir)
-	fx = flr(cos(dir)*dist+x)
-	fy = flr(sin(dir)*dist+y)
-	
-	return fx,fy
-end
-
-
--- returns distance between two points
-function distance(ox,oy, px,py)
-  local a = abs(ox-px)/16
-  local b = abs(oy-py)/16
-  return sqrt(a^2+b^2)*16
-end
-
-
--- get a random number between min and max
-function random(min,max)
-	n=round(rnd(max-min))+min
-	return n
-end
-
--- round number to the nearest whole
-function round(num, idp)
-  local mult = 10^(idp or 0)
-  return flr(num * mult + 0.5) / mult
-end
-
-
 
 
 
