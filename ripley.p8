@@ -598,10 +598,11 @@ function update_walker(self)
 		self.x+=self.dx
 		self.y+=self.dy
 		
-		-- if actor is chasing player, stop and re-pathfind
+		--[[ if actor is chasing player, stop and re-pathfind
 		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, escape_range) then
 			self.waypoint=#self.navpath
 		end
+		]]
 		
 		-- if actor's midpoint is within mid-tile, go to next waypoint
 		if in_range(self.cx,self.cy, self.dest.cx,self.dest.cy, 5) then
@@ -709,7 +710,7 @@ end
 
 
 
--- returns true if an object is withing square range of another
+-- returns true if an object is withing square range of another; pixels only
 -- #in_range(int_needlex,int_needley, int_haystackx,int_haystacky, int_distance)
 function in_range(ax,ay, bx,by, rng)
 	if ax>=bx-rng and ax<=bx+rng and ay>=by-rng and ay<=by+rng then
