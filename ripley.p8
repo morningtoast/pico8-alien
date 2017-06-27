@@ -516,7 +516,7 @@ function update_walker(self)
 
 	if id==2 then -- alien
 		wander_speed=.75
-		chase_speed=1.2
+		chase_speed=1.3
 		detect_range=40
 		escape_range=48
 	end
@@ -538,7 +538,8 @@ function update_walker(self)
 
 
 	-- caught the player; end state and game over
-	if self.tx==p_tx and self.ty==p_ty then
+	--if self.tx==p_tx and self.ty==p_ty then
+	if in_range(self.cx,self.cy, p_cx,p_cy, 10) then
 		chg_st(self,98) --debug
 		printh("alien tile "..self.tx..","..self.ty)
 		printh("player tile "..p_tx..","..p_ty)
@@ -1110,6 +1111,7 @@ end
 
 function generate_minimap() 
 	minimap={}
+	radar_dots={}
 
 	minimap_txt_bio=0
 	minimap_txt_eggs=0
@@ -1241,8 +1243,8 @@ function ticker_update()
 end
 
 function ticker_common()
-	local list=split("bait only works on adult aliens;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;baby aliens search for bodies;use your items wisely;aliens will attack if you get too close")
-	add_ticker_text(rnd_table(list)..";")
+	local list=split("bait only works on adult aliens;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;newborn aliens search for bodies;use your items wisely;aliens will attack if you get too close")
+	add_ticker_text(rnd_table(list))
 	printh("generic text")
 end
 
@@ -1273,7 +1275,7 @@ end
 -- #levels - define levels
 
 levels={}
-levels[1]={name="pv418",w=2,h=3,bodies=2,eggs=1,eggtimer=600,snipers=0,colors=false}
+levels[1]={name="pv-418",w=3,h=2,bodies=3,eggs=2,eggtimer=1800,snipers=0,colors=false}
 
 
 
@@ -1299,10 +1301,9 @@ function game_init(levelid)
 	add_eggs(current_level.eggs)
 	
 	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch")
-	
-	
+
 	if levelid==1 then
-		add_ticker_text("press \142 to scan area;press \151 to use item;")	
+		add_ticker_text("press \142 to scan area;press \151 to use item")	
 	end
 	
 	cart(game_update,game_draw)
@@ -1336,7 +1337,7 @@ function game_update()
 	end
 
 	
-	if gt>=1200 then -- toss in generic messages every 8 seconds 
+	if gt>=1200 then -- toss in generic messages every 20 seconds 
 		if current_level.eggs<=0 then
 			add_ticker_text("no more eggs detected;return to transport beacon immediately")
 		else
