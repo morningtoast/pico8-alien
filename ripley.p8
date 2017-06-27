@@ -297,7 +297,8 @@ function add_hugger(tx,ty)
 			update_walker(self)
 
 			if self.tile.occupant=="body" then
-				add_ticker_text("adult xenomorph has been detected;avoid close proximity")
+				set_tile_occupant(self.tx,self.ty,"empty")
+				add_ticker_text("new alien detected;avoid close proximity")
 				add_alien(self.tx,self.ty)
 				del(actors,self)
 			end
@@ -374,6 +375,7 @@ function add_alien(tx,ty)
 				local heading   = atan2(self.beacon.cx-self.x, self.beacon.cy-self.y) 
 				self.dx,self.dy = dir_calc(heading, 1) -- wander speed
 				self.flip=sprite_flip(heading)
+				self.chase=false
 				
 				chg_st(self,11)
 			end
@@ -510,15 +512,13 @@ function update_walker(self)
 	local wander_speed=1
 	local chase_speed=1.5
 	local detect_range=25
-	local escape_range=25
-	local recalc_intv=60
+	local escape_range=35
 
 	if id==2 then -- alien
 		wander_speed=.75
 		chase_speed=1.2
-		detect_range=38
-		escape_range=35
-		recalc_intv=25
+		detect_range=40
+		escape_range=48
 	end
 	
 	
@@ -604,8 +604,9 @@ function update_walker(self)
 		
 		-- if actor is chasing player but player escapes, stop and re-pathfind
 		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, escape_range) then
-			self.chase=false
-			self.waypoint=#self.navpath
+			--self.chase=false
+			--self.waypoint=#self.navpath
+			chg_st(self,0)
 		end
 		
 		
