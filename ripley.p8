@@ -90,32 +90,31 @@ function p_update()
 		end
 		
 		-- player hits transport beacon
-		if tile.occupant=="transport" and not p_transport then
-			printh(p_transport)
-			eggs_collected=min(eggs_collected+1,10)
-			if current_level.eggs>0 then
-				add_ticker_text("contacting dropship...;dropship unavailable",true)
-			else
-				add_ticker_text("contacting dropship...",true)
-				p_transport_t=1
-			end
-			p_transport=true
+		if tile.occupant=="transport" and current_level.eggs>0 then
+			add_ticker_text("dropship unavailable",true)
 		end
 		
+		if tile.occupant=="transport" and current_level.eggs<=0 and not p_transport then
+			add_ticker_text("remain at transport beacon;dropship en route;dropship landing...",true)
+			p_transport=true
+			p_transport_t=0
+		end
+
 		if tile.occupant!="transport" and p_transport then
+			add_ticker_text("dropship cancelled",true)
 			p_transport=false
 		end
 		
-		if p_transport_t>1 then 
+		if tile.occupant=="transport" and p_transport then
 			p_transport_t+=1
 			
-			if p_transport_t==100 then
-				add_ticker_text("dropship en route")
+			if p_transport_t==780 then
+				add_ticker_text("leaving "..current_level.name, true)
 			end
 			
-			if p_transport_t==300 then
+			if p_transport_t==900 then
 				-- level complete
-				-- #todo
+				-- next level
 			end
 		end
 
@@ -541,6 +540,7 @@ function update_walker(self)
 	--if self.tx==p_tx and self.ty==p_ty then
 	if in_range(self.cx,self.cy, p_cx,p_cy, 10) then
 		chg_st(self,98) --debug
+		gameover_init()
 		printh("alien tile "..self.tx..","..self.ty)
 		printh("player tile "..p_tx..","..p_ty)
 		printh("player dead")
@@ -1498,7 +1498,7 @@ end
 
 
 -- #gameover
-function scene_gameover()
+function gameover_init()
 	cart(gameover_update,gameover_draw)
 end
 
@@ -1507,7 +1507,7 @@ function gameover_update()
 end 
 
 function gameover_draw()
-	
+	print("you're dead",0,0,8)	
 end
 
 
