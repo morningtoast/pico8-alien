@@ -79,15 +79,15 @@ function p_update()
 		if tile.occupant=="egg" then
 			eggs_collected=min(eggs_collected+1,10)
 			egg_count+=1
-			current_level.eggs=min(current_level.eggs-1,0)
+			current_level.eggs=max(current_level.eggs-1,0)
 
 			set_tile_occupant(p_tx,p_ty,"empty")
 			
-			add_ticker_text("alien egg collected;"..current_level.eggs.." eggs remaining")
+			add_ticker_text("alien egg collected",true)
 			
 			
-			if eggs_collected>=10 then
-				add_ticker_text("mission accomplished;return to transport beacon immediately")
+			if current_level.eggs>0 then
+				add_ticker_text(current_level.eggs.." eggs remaining")
 			end
 		end
 		
@@ -98,7 +98,7 @@ function p_update()
 		end
 		
 		if tile.occupant=="transport" and current_level.eggs<=0 and not p_transport then
-			add_ticker_text("remain at transport beacon;dropship en route;dropship landing...;leaving "..current_level.name,true)
+			add_ticker_text("remain at transport beacon;dropship arriving;leaving "..current_level.name,true)
 			p_transport=true
 			p_transport_t=2
 		end
@@ -114,9 +114,11 @@ function p_update()
 		if tile.occupant=="transport" and p_transport then
 			p_transport_t+=1
 
-			if p_transport_t==900 then
+			if p_transport_t==840 then
 				-- level complete
 				-- next level
+				printh("NEXT LEVEL")
+				nextlevel_init()
 			end
 		end
 
@@ -352,6 +354,8 @@ function add_hugger(tx,ty)
 	}
 	
 	obj.x,obj.y=tile_to_px(tx,ty)
+	obj.cx=obj.x+8
+	obj.cy=obj.y+8
 
 	add(actors, obj)
 end
@@ -423,6 +427,8 @@ function add_alien(tx,ty)
 	}
 	
 	obj.x,obj.y=tile_to_px(tx,ty)
+	obj.cx=obj.x+8
+	obj.cy=obj.y+8
 
 	add(actors, obj)
 end
@@ -492,6 +498,8 @@ function add_sniper(tx,ty,flip)
 	
 	
 	obj.x,obj.y=tile_to_px(tx,ty)
+	obj.cx=obj.x+8
+	obj.cy=obj.y+8
 
 	add(actors, obj)
 end
@@ -513,7 +521,7 @@ function update_walker(self)
 	-- defaults of hugger	
 	local wander_speed=1
 	local chase_speed=1.5
-	local detect_range=25
+	local detect_range=30
 	local escape_range=35
 
 	if id==2 then -- alien
@@ -588,13 +596,18 @@ function update_walker(self)
 	-- get heading towards next waypoint
 	if self.st==1 then
 		self.dest=level_list[self.navpath[self.waypoint]]
-		self.dest.x,self.dest.y=tile_to_px(self.dest.tx,self.dest.ty)	
+		
+		if not self.dest then
+			chg_st(self,0)
+		else
+			self.dest.x,self.dest.y=tile_to_px(self.dest.tx,self.dest.ty)	
 
-		local heading   = atan2(self.dest.x-self.x, self.dest.y-self.y) 
-		self.dx,self.dy = dir_calc(heading, self.speed) -- wander speed
-		self.flip=sprite_flip(heading)
+			local heading   = atan2(self.dest.x-self.x, self.dest.y-self.y) 
+			self.dx,self.dy = dir_calc(heading, self.speed) -- wander speed
+			self.flip=sprite_flip(heading)
 
-		chg_st(self,2)
+			chg_st(self,2)
+		end
 	end
 	
 	
@@ -636,7 +649,7 @@ function update_walker(self)
 	-- artificial delay before more movement
 	if self.st==3 then
 		-- see if player in range and switch to chase mode; range extended during rest
-		if in_range(p_cx,p_cy, self.cx,self.cy, detect_range+10) then
+		if in_range(p_cx,p_cy, self.cx,self.cy, detect_range) then
 			chg_st(self,4)
 		else
 			if self.t>150 then
@@ -1149,12 +1162,16 @@ function minimap_update()
 		local list=get_aliens()
 		
 		for a in all(list) do
+		
+			--printh("alien "..a.cx..","..a.cy)
+			--printh("player "..p_cx..","..p_cy)
+		
 			if in_range(a.cx,a.cy, p_cx,p_cy, 64) then
-				local rx,ry=get_line(106,64,13, atan2(a.cx-p_cx, a.cy-p_cy))
+				local rx,ry=get_line(106,64,5, atan2(a.cx-p_cx, a.cy-p_cy))
 				add(radar_dots,{x=rx,y=ry})
 			else
 				if in_range(a.cx, a.cy, p_cx,p_cy, 128) then
-					local rx,ry=get_line(106,64,9, atan2(a.cx-p_cx, a.cy-p_cy))
+					local rx,ry=get_line(106,64,13, atan2(a.cx-p_cx, a.cy-p_cy))
 					add(radar_dots,{x=rx,y=ry})
 				end
 			end
@@ -1179,7 +1196,7 @@ function minimap_draw()
 		circfill(d.x,d.y,1,7)
 	end
 	
-	print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: "..egg_count, 87, 4, 7)
+	
 	
 	
 	-- chrome
@@ -1204,6 +1221,7 @@ function minimap_draw()
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
 
+	print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: "..egg_count, 87, 4, 7)
 	print("planet: "..current_level.name.."\n\nitem: "..item, 4, 90, 7)
 end
 
@@ -1246,7 +1264,6 @@ end
 function ticker_common()
 	local list=split("find alien eggs before they hatch;bait distracts adult aliens;the pulse rifle auto-aims;the pulse rifle has one shot;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;newborn aliens search for bodies;use your items wisely;aliens will attack if you get too close")
 	add_ticker_text(rnd_table(list))
-	printh("generic text")
 end
 
 
@@ -1276,7 +1293,7 @@ end
 -- #levels - define levels
 
 levels={}
-levels[1]={name="pv-418",w=3,h=2,bodies=3,eggs=2,eggtimer=1800,snipers=0,colors=false}
+levels[1]={name="pv-418",w=3,h=2,bodies=3,eggs=2,eggtimer=1700,snipers=0,colors=false}
 
 
 
@@ -1326,7 +1343,7 @@ function game_update()
 			
 			current_level.eggs-=1
 			if current_level.eggs<=0 then
-				add_ticker_text("no more eggs detected;return to transport beacon immediately")
+				add_ticker_text("no more eggs detected;return to transport beacon")
 			else
 				add_ticker_text(current_level.eggs.." eggs remaining")
 			end
@@ -1340,7 +1357,7 @@ function game_update()
 	
 	if gt>=1200 then -- toss in generic messages every 20 seconds 
 		if current_level.eggs<=0 then
-			add_ticker_text("no more eggs detected;return to transport beacon immediately")
+			add_ticker_text("no more eggs detected;return to transport beacon")
 		else
 			ticker_common()
 		end
@@ -1471,7 +1488,7 @@ end
 
 
 -- #nextlevel
-function scene_nextlevel()
+function nextlevel_init()
 	cart(nextlevel_update,nextlevel_draw)
 end
 
@@ -1480,7 +1497,7 @@ function nextlevel_update()
 end 
 
 function nextlevel_draw()
-	
+	print("next level",0,0,8)
 end
 
 
