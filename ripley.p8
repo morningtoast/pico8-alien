@@ -379,7 +379,7 @@ function add_alien(tx,ty)
 		update=function(self)
 			-- alien is always looking for player. this will skip the delay-find state of huggers
 			if self.st<10 then
-				if in_range(p_cx,p_cy, self.cx,self.cy, 40) then
+				if in_range(p_cx,p_cy, self.cx,self.cy, 50) then
 					if not self.chase then
 						chg_st(self,4)
 					end
@@ -534,18 +534,18 @@ function update_walker(self)
 	self.tx,self.ty=px_to_tile(self.cx,self.cy)
 	self.tile=get_tile(self.tx,self.ty)
 	
-
+	-- escape must be bigger than detect
 	-- defaults of hugger	
 	local wander_speed=1
 	local chase_speed=1.5
-	local detect_range=30
-	local escape_range=35
+	local detect_range=32
+	local escape_range=48
 
 	if id==2 then -- alien
 		wander_speed=.75
 		chase_speed=1.3
-		detect_range=40
-		escape_range=48
+		detect_range=50
+		escape_range=60
 	end
 	
 	
