@@ -25,7 +25,7 @@ function p_init()
 	p_hbox={y=4,x=4,w=7,h=7}
 	p_sflip=false
 	p_freeze=0
-	p_st=1 -- state: 1=unarmed, 2=gun, 3=beacon
+	p_st=1 -- state: 1=unarmed, 2=gun, 3=bait
 	p_spr=32
 	p_transport_t=0
 end
@@ -36,8 +36,7 @@ function p_update()
 	p_tx,p_ty=px_to_tile(p_cx,p_cy)
 	p_dx,p_dy=0,0
 	p_xdir,p_ydir=0,0
-	
-	
+
 	local tile=get_tile(p_tx,p_ty)
 
 	if not map_mode then
@@ -87,7 +86,7 @@ function p_update()
 			
 			
 			if current_level.eggs>0 then
-				add_ticker_text(current_level.eggs.." eggs remaining")
+				--add_ticker_text(current_level.eggs.." eggs remaining")
 			end
 		end
 		
@@ -114,7 +113,7 @@ function p_update()
 		if tile.occupant=="transport" and p_transport then
 			p_transport_t+=1
 
-			if p_transport_t==840 then
+			if p_transport_t==sec(14) then
 				-- level complete
 				-- next level
 				printh("NEXT LEVEL")
@@ -130,7 +129,8 @@ function p_update()
 				generate_minimap()
 				map_mode=true
 			else
-				add_ticker_text("wait for scanner to recharge",true)
+				-- #sound, "not allowed" buzzer
+				add_ticker_text("scanner power too low",true)
 			end
 		end
 		
@@ -147,6 +147,7 @@ function p_update()
 
 			-- fire gun
 			if p_st==2 then
+				-- #sound, bullet shot noise
 				
 				-- create player bullet object
 				local targets={}
@@ -189,7 +190,7 @@ function p_update()
 		
 	else
 		if btnzp then
-			minimap_battery=600
+			minimap_battery=sec(8)
 			map_mode=false
 		end
 	end -- /map_mode
@@ -197,7 +198,6 @@ end
 
 function p_draw()
 	spr(p_spr, p_x,p_y, 2,2, p_sflip)
-	--debug_hitbox(p_x,p_y,p_hbox)
 end
 
 
@@ -272,7 +272,7 @@ function add_bait(tx,ty)
 			end
 		
 			
-			if self.t>300 then
+			if self.t>sec(5) then
 				del(actors,self)
 			end
 			
@@ -296,6 +296,9 @@ function add_hugger(tx,ty)
 		id=1,
 		tx=tx,ty=ty,dx=0,dy=0,
 		flip=false,
+		detect=40,
+		wander_spd=.7,
+		chase_spd=1.5,
 		hbox={x=4,y=6,w=8,h=5}, -- used for movement collision
 		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
 		chase=false,
@@ -310,49 +313,20 @@ function add_hugger(tx,ty)
 				del(actors,self)
 			end
 			
-			if self.st==99 and self.t>180 then
+			if self.st==99 and self.t>sec(3) then
 				del(actors,self)
 			end
 			
 			self.t+=1
 		end,
 		draw=function(self)
-			
-
 			if self.st!=99 then
 				if self.chase then pal(15,8) end -- switch to red hugger
 
 				spr(160,self.x,self.y,2,2,self.flip)
-
-				--[[ pathing highlighting debug
-				if self.st>0 then
-					for n in all(self.navpath) do
-						local t=level_list[n]
-						highlight_tile(t.x,t.y,12)
-						rect(t.cx-6,t.cy-6, t.cx+6,t.cy+6, 8)
-					end	
-				end
-				]]
 			else
 				spr(44,self.x,self.y,2,2)
 			end
-			
-			
-			--pset(self.cx,self.cy,8)
-			--highlight_tile(self.x,self.y,15)
-			--debug_hitbox(self.x,self.y,self.hbox)
-			
-			--[[ pathing highlighting debug
-			if self.st>0 then
-				for n in all(self.navpath) do
-					local t=level_list[n]
-					highlight_tile(t.x,t.y,12)
-					rect(t.cx-6,t.cy-6, t.cx+6,t.cy+6, 8)
-				end	
-			end
-			]]
-			
-			
 		end
 	}
 	
@@ -372,6 +346,9 @@ function add_alien(tx,ty)
 		flip=false,
 		hbox={x=4,y=4,w=8,h=8},
 		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		detect=50,
+		wander_spd=.5,
+		chase_spd=1.3,
 		chase=false,
 		navpath={},
 		beacon=false,
@@ -410,7 +387,7 @@ function add_alien(tx,ty)
 				end
 			end
 			
-			if self.st==99 and self.t>180 then
+			if self.st==99 and self.t>sec(3) then
 				del(actors,self)
 			end
 			
@@ -421,19 +398,6 @@ function add_alien(tx,ty)
 				if self.chase then pal(13,8) end -- switch to red when in chase
 
 				spr(128,self.x,self.y,2,2,self.flip)
-
-				
-				--rect(self.cx-40,self.cy-40, self.cx+40,self.cy+40, 8)
-
-				--[[ pathing highlighting debug
-				if self.st>0 then
-					for n in all(self.navpath) do
-						local t=level_list[n]
-						highlight_tile(t.x,t.y,12)
-						--rect(t.cx-6,t.cy-6, t.cx+6,t.cy+6, 8)
-					end	
-				end
-				]]
 			else
 				-- dead bones
 				spr(44,self.x,self.y,2,2)
@@ -468,9 +432,7 @@ function add_sniper(tx,ty,flip)
 			end
 			
 			if self.st==1 then
-				
-				
-				
+
 				if in_hitbox(p_cx,p_cy, ox,oy, 32,8) then
 					-- sniper bullet object
 					local obj={
@@ -500,7 +462,7 @@ function add_sniper(tx,ty,flip)
 			
 			-- shot spent, turn into a bush
 			if self.st==2 then
-				if self.t>60 then
+				if self.t>sec(1) then
 					local t=set_tile_occupant(self.tx,self.ty, "wall")
 					t.spr=rnd_table({1,3,5})
 					del(actors,self)
@@ -515,8 +477,6 @@ function add_sniper(tx,ty,flip)
 	
 	
 	obj.x,obj.y=tile_to_px(tx,ty)
-	--obj.cx=obj.x+8
-	--obj.cy=obj.y+8
 
 	add(actors, obj)
 end
@@ -533,40 +493,20 @@ function update_walker(self)
 	self.cy=self.y+8
 	self.tx,self.ty=px_to_tile(self.cx,self.cy)
 	self.tile=get_tile(self.tx,self.ty)
-	
-	-- escape must be bigger than detect
-	-- defaults of hugger	
-	local wander_speed=1
-	local chase_speed=1.5
-	local detect_range=32
-	local escape_range=48
-
-	if id==2 then -- alien
-		wander_speed=.75
-		chase_speed=1.3
-		detect_range=50
-		escape_range=60
-	end
-	
-	
-	
-
-
-	
-
 
 	-- caught the player; end state and game over
-	--if self.tx==p_tx and self.ty==p_ty then
-	if in_range(self.cx,self.cy, p_cx,p_cy, 10) and self.st<99 then
-		chg_st(self,98) --debug
-		gameover_init()
+	if self.st<99 then
+		if in_range(self.cx,self.cy, p_cx,p_cy, 10) then
+			chg_st(self,98) --debug
+			gameover_init()
+		end
 	end
-	
+
 
 	-- initial pathfinding
 	if self.st==0 then
 		self.chase=false
-		self.speed=wander_speed
+		self.speed=self.wander_spd
 		
 		if self.t<2 then
 			local near=false
@@ -595,7 +535,7 @@ function update_walker(self)
 		end
 		
 		-- "thinking" delay, only start moving after 2 seconds
-		if self.t>120 then
+		if self.t>sec(2) then
 			chg_st(self,1)
 		end
 	end
@@ -624,11 +564,13 @@ function update_walker(self)
 		self.x+=self.dx
 		self.y+=self.dy
 		
-		-- if actor is chasing player but player escapes, stop and re-pathfind
-		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, escape_range) then
-			--self.chase=false
+		-- if actor is chasing player but player escapes, keep going along path like normal but wander speed
+		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, self.detect+15) then
+			self.chase=false
+			self.speed=self.wander_spd
+			self.wpcount=rand(3)+2
 			--self.waypoint=#self.navpath
-			chg_st(self,0)
+			--chg_st(self,0)
 		end
 		
 		
@@ -657,10 +599,10 @@ function update_walker(self)
 	-- artificial delay before more movement
 	if self.st==3 then
 		-- see if player in range and switch to chase mode; range extended during rest
-		if in_range(p_cx,p_cy, self.cx,self.cy, detect_range) then
+		if in_range(p_cx,p_cy, self.cx,self.cy, self.detect) then
 			chg_st(self,4)
 		else
-			if self.t>150 then
+			if self.t>sec(2.5) then
 				--hugger
 				if id==1 then
 					-- if body tile is gone, repath to find next body or start wandering
@@ -686,7 +628,7 @@ function update_walker(self)
 	-- enter chase state; pathfind to player and speed up
 	if self.st==4 then
 		self.navpath,self.endpoint,self.waypoint=pathfind(self.tx,self.ty, p_tx,p_ty)	
-		self.speed=chase_speed --chase speed
+		self.speed=self.chase_spd --chase speed
 		self.wpcount=99 --so there are no stops along the way
 		self.chase=true
 		chg_st(self,1)
@@ -699,8 +641,6 @@ end
 -- 
 
 function pathfind(startx,starty,goaltx,goalty)
-	printh("new path to "..goaltx..","..goalty)
-	printh("player tile "..p_tx..","..p_ty)
 	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
 	local endpoint=level_list[navpath[#navpath]]
 	
@@ -717,19 +657,33 @@ end
 
 
 function add_bodies(q)
-	for n=1,q do
+	local c,try=0,0
+	while c<q and try<50 do
 		local t=get_random_tile("empty")
-		set_tile_occupant(t.tx,t.ty, "body")
+		local near,dist=find_nearest(t.cx,t.cy, filter_tiles("body"))
 		
-		printh("body at "..t.tx..","..t.ty)
+		if dist>48 then
+			set_tile_occupant(t.tx,t.ty, "body")
+			c+=1
+		end
+		
+		try+=1
 	end
 end
 
 
 function add_eggs(q)
-	for n=1,q do
+	local c,try=0,0
+	while c<q and try<50 do
 		local t=get_random_tile("spawn")
-		set_tile_occupant(t.tx,t.ty, "egg")
+		local near,dist=find_nearest(t.cx,t.cy, filter_tiles("egg"))
+		
+		if dist>70 then
+			set_tile_occupant(t.tx,t.ty, "egg")
+			c+=1
+		end
+		
+		try+=1
 	end
 end
 
@@ -747,16 +701,6 @@ function in_range(ax,ay, bx,by, rng)
 	
 	return false
 end
-
--- Returns true if needle tile is within distance of haystack tile
--- #in_range(int_needlex,int_needley, int_haystackx,int_haystacky, int_distance)
-function in_tile_range(ntx,nty, htx,hty, rng)
-	local npx,npy,ncx,ncy=tile_to_px(ntx,nty)
-	local hpx,hpy,hcx,hcy=tile_to_px(htx,hty)
-	
-	return in_range(npx,npy, hpx,hpy, rng)
-end
-
 
 
 function in_hitbox(x,y, ox,oy,ow,oh)
@@ -789,7 +733,9 @@ function get_random_tile(occupant)
 	
 	if #list>0 then
 		local n=rand(#list)+1
-		return list[n]
+		local t=list[n]
+		t.x,t.y,t.cx,t.cy=tile_to_px(t.tx,t.ty)
+		return t
 	end
 	
 	return false
@@ -799,7 +745,10 @@ end
 -- get_tile(int_tilex,int_tiley)
 function get_tile(tx,ty)
 	if tx<=map_tilew and tx>0 and ty<=map_tileh and ty>0 then
-		return level_grid[tx][ty]
+		local t=level_grid[tx][ty]
+		t.x,t.y,t.cx,t.cy=tile_to_px(tx,ty)
+		
+		return t
 	end
 end
 
@@ -878,7 +827,7 @@ function filter_tiles(occupant)
 	for tx=1,map_tilew do
 		for ty=1,map_tileh do
 			local t=level_grid[tx][ty]
-			t.x,t.y=tile_to_px(tx,ty)
+			t.x,t.y,t.cx,t.cy=tile_to_px(tx,ty)
 			
 			if t.occupant==occupant then
 				add(list,t)
@@ -922,7 +871,7 @@ function find_nearest(x,y,list)
 		end
 	end
 
-	return n
+	return n,d
 end
 
 
@@ -1001,16 +950,12 @@ function generate_map(w,h)
 	while aliens_added<current_level.aliens do
 		local t=get_random_tile("empty")
 		
-		if not in_tile_range(t.tx,t.ty, p_cx,p_cy, 8) then
-			printh("add alien at "..t.tx..","..t.ty)
+		if not in_range(t.cx,t.cy, p_cx,p_cy, 64) then
 			add_alien(t.tx,t.ty)
 			aliens_added+=1
 		end
 	end
-	
-	--add_alien(p_tx-2,p_ty+2)
-	
-	
+
 	-- add snipers to level
 	if #snipers>0 then
 		printh("snipers")
@@ -1235,16 +1180,6 @@ function minimap_draw()
 	end
 	
 	
-	
-	
-	-- chrome
-	rectfill(85,0, 127,45, 5)
-	rect(85,45, 127,85,5)
-	rect(86,45, 126,85,5)
-	rectfill(0,85, 127,116, 5) --base grey
-	rect(0,0, 85,85, 5)
-	line(0,115,127,115, 0)
-
 	--level minimap; 116 is lower limit
 	rectfill(1,1, 84,84, 0) --full bg, blue
 	rectfill(2+minimap_x,2+minimap_y, (map_tilew*2)+2+minimap_x,(map_tileh*2)+2+minimap_y, 3) --level bg, black
@@ -1255,6 +1190,15 @@ function minimap_draw()
 		minimap_dot(mm.x+1,mm.y+1,mm.c)
 	end
 	
+	
+	-- chrome
+	rectfill(85,0, 127,45, 5)
+	rect(85,45, 127,85,5)
+	rect(86,45, 126,85,5)
+	rectfill(0,85, 127,116, 5) --base grey
+	rect(0,0, 85,85, 5)
+	line(0,115,127,115, 0)
+
 	local item="none"
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
@@ -1300,7 +1244,7 @@ function ticker_update()
 end
 
 function ticker_common()
-	local list=split("find alien eggs before they hatch;bait distracts adult aliens;the pulse rifle auto-aims;the pulse rifle has one shot;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;newborn aliens search for bodies;use your items wisely;aliens will attack if you get too close")
+	local list=split("find alien eggs before they hatch;bait distracts adult aliens;the pulse rifle auto-aims;the pulse rifle has one shot;scan shows "..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;newborn aliens search for bodies;use your items wisely;aliens will attack if you get too close")
 	add_ticker_text(rnd_table(list))
 end
 
@@ -1329,20 +1273,23 @@ end
 
 
 -- #levels - define levels
+-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
 
 levels={}
---levels[1]={name="pv-418",w=3,h=8,bodies=5,eggs=4,eggtimer=1700,snipers=0,colors=false}
-levels[1]={name="pv-418",w=4,h=5,bodies=5,eggs=4,eggtimer=1200,aliens=2,snipers=3}
-
+--levels[1]={name="pv-418",w=3,h=8,bodies=5,eggs=4,eggtimer=5,snipers=0,colors=false}
+add(levels,{name="jl 78",w=2,h=3,bodies=3,eggs=1,eggtimer=20,aliens=0,snipers=0})
+add(levels,{name="pv-418",w=3,h=3,bodies=3,eggs=2,eggtimer=30,aliens=1,snipers=0})
+add(levels,{name="roxi 9",w=4,h=3,bodies=5,eggs=3,eggtimer=30,aliens=3,snipers=1})
+add(levels,{name="f-kee 16",w=7,h=4,bodies=5,eggs=5,eggtimer=40,aliens=4,snipers=2})
+add(levels,{name="clb-55",w=3,h=7,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=2})
 
 
 
 -- #game
-function game_init(levelid)
-	current_level=levels[levelid]
-	
-	
-	
+-- current_level set in nextlevel_init()
+function game_init()
+	--current_level=levels[levelid]
+
 	ticker_text = {}
 	bullets     = {}
 	actors      = {}
@@ -1350,7 +1297,7 @@ function game_init(levelid)
 	minimap_x,minimap_y=4,4
 	minimap_battery = 0
 	map_mode        = false
-	egg_timer       = current_level.eggtimer
+	egg_timer       = sec(current_level.eggtimer)
 	egg_count       = 0
 	
 	
@@ -1358,11 +1305,7 @@ function game_init(levelid)
 	generate_map(current_level.w,current_level.h)
 	add_bodies(current_level.bodies)
 	add_eggs(current_level.eggs)
-	
-	
-	
-	
-	
+
 	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch")
 
 	if levelid==1 then
@@ -1374,19 +1317,16 @@ end
 
 
 function game_update()
-	for a in all(actors) do
-		a.update(a)
-	end
+	for a in all(actors) do a.update(a) end
 	
 	
 	-- #eggtimer
 	egg_timer-=1
 	if egg_timer<=0 then
-		printh("egg hatch")
 		local t=get_random_tile("egg")
 		
 		if t then
-			add_ticker_text("new life form detected;avoid close proximity",true)
+			add_ticker_text("new life form detected",true)
 			
 			current_level.eggs-=1
 			if current_level.eggs<=0 then
@@ -1404,7 +1344,7 @@ function game_update()
 	end
 
 	
-	if gt>=1200 then -- toss in generic messages every 20 seconds 
+	if gt>=sec(20) then -- toss in generic messages every 20 seconds 
 		if current_level.eggs<=0 then
 			add_ticker_text("no more eggs detected;return to transport beacon")
 		else
@@ -1421,9 +1361,6 @@ function game_update()
 	bullet_update()
 	ticker_update()
 	p_update()
-	
-	
-	debug=#actors
 end
 
 
@@ -1506,9 +1443,6 @@ function game_draw()
 	
 	
 	-- player
-	--palt(2,true)
-	--palt(0,false)
-	
 	if p_freeze>0 then pal(10,13) end
 	
 	bullet_draw()
@@ -1539,16 +1473,36 @@ end
 
 -- #nextlevel
 function nextlevel_init()
+	level_id+=1
+	current_level=levels[level_id]
+	
+	
+	for n=0,200 do
+		add(stars,{rnd(128),rnd(128),rnd_table({13,6,11,1,7})})
+	
+	
 	cart(nextlevel_update,nextlevel_draw)
 end
 
 function nextlevel_update()
-	
+	if btnzp or btnxp then
+		stars={}
+		game_init()
+	end
 end 
 
 function nextlevel_draw()
-	print("next level",0,0,8)
+	print("planet: "..current_level.name.."\n\n", 1,1, 11)
+	
+	for s in all(stars) do
+		pset(s[1],s[2], s[3])
+	end
+	
+	circfill(125,127, 40, 3)
+	circfill(124,127, 40, 5)
 end
+
+
 
 
 -- #title
@@ -1571,7 +1525,9 @@ function gameover_init()
 end
 
 function gameover_update()
-	
+	if btnzp or btnxp then
+		_init()
+	end
 end 
 
 function gameover_draw()
@@ -1585,12 +1541,12 @@ end
 function _init()
 	printh("\n\n=====new load================================================\n\n")
 	
-	
+	level_id=0
 	eggs_collected=0 --total eggs collected by player for game session
 	level_grid={}
 	level_list={}
 
-	game_init(1)
+	nextlevel_init()
 end
 
 function _update60()
@@ -1619,14 +1575,10 @@ function _draw()
 	cart_draw()
 
 	
-	-- memory debug
+	-- debugging
 	camera(0,0)
 	local dbmem=flr((stat(0)/1024)*100).."% / "..flr(((flr(stat(1)*100))/200)*100).."%"
-	
-	
 	print(dbmem,70,0,8)
-	
-	
 	if debug then print(debug,1,1,7) end
 end
 
@@ -1641,12 +1593,9 @@ end
 -- #utility functions and libraries
 --
 
-function chg_st(o,ns) 
-	o.t=0 o.st=ns 
-	--printh("change state: "..ns)
-end
-
+function chg_st(o,ns) o.t=0 o.st=ns end
 function rand(x) return flr(rnd(x)) end
+function sec(f) return flr(f*60) end -- set FPS here if you need
 
 -- debug tools
 debug=false
