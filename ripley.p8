@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 10
+version 8
 __lua__
 
 --
@@ -20,6 +20,7 @@ end
 --
 -- #player
 function p_init()
+	p_dead=false
 	p_x,p_y,p_spd=0,0,1
 	p_cx,p_cy=p_x+8,p_y+8
 	p_hbox={y=4,x=4,w=7,h=7}
@@ -28,6 +29,7 @@ function p_init()
 	p_st=1 -- state: 1=unarmed, 2=gun, 3=bait
 	p_spr=32
 	p_transport_t=0
+	
 end
 
 function p_update()
@@ -116,7 +118,7 @@ function p_update()
 			if p_transport_t==sec(14) then
 				-- level complete
 				-- next level
-				printh("NEXT LEVEL")
+				printh("next level")
 				nextlevel_init()
 			end
 		end
@@ -495,10 +497,12 @@ function update_walker(self)
 	self.tile=get_tile(self.tx,self.ty)
 
 	-- caught the player; end state and game over
+	-- #dead
 	if self.st<99 then
 		if in_range(self.cx,self.cy, p_cx,p_cy, 10) then
-			chg_st(self,98) --debug
-			gameover_init()
+			chg_st(self,98)
+			p_dead=true
+			add_ticker_text("you are dead;press \142 to continue;you collected "..eggs_collected.." eggs;press \142 to continue",true)
 		end
 	end
 
@@ -599,6 +603,7 @@ function update_walker(self)
 	-- artificial delay before more movement
 	if self.st==3 then
 		-- see if player in range and switch to chase mode; range extended during rest
+		
 		if in_range(p_cx,p_cy, self.cx,self.cy, self.detect) then
 			chg_st(self,4)
 		else
@@ -657,12 +662,15 @@ end
 
 
 function add_bodies(q)
+	printh("adding bodies "..q)
 	local c,try=0,0
 	while c<q and try<50 do
 		local t=get_random_tile("empty")
 		local near,dist=find_nearest(t.cx,t.cy, filter_tiles("body"))
+		local pdist=distance(t.cx,t.cy, p_cx,p_cy)
 		
-		if dist>48 then
+		if dist>64 and pdist>120 then
+			printh("distance is "..dist)
 			set_tile_occupant(t.tx,t.ty, "body")
 			c+=1
 		end
@@ -838,7 +846,7 @@ function filter_tiles(occupant)
 	return list
 end
 
--- Returns array of actors that are either huggers or aliens
+-- returns array of actors that are either huggers or aliens
 function get_aliens()
 	local t={}
 	for a in all(actors) do
@@ -857,7 +865,7 @@ end
 
 -- finds nearest object based on x/y pixel coordinates
 -- list objects must have x/y values!!
--- find_nearest(int_pixelX,int_pixelY, tbl_items)
+-- find_nearest(int_pixelx,int_pixely, tbl_items)
 function find_nearest(x,y,list)
 	local d=9999
 	local n=false
@@ -944,6 +952,8 @@ function generate_map(w,h)
 		end
 	end
 	
+	printh(p_cx)
+	
 	
 	-- add random aliens
 	local aliens_added=0
@@ -996,6 +1006,8 @@ function generate_map(w,h)
 			level_grid[t.tx][t.ty].spr=rnd_table({1,3,5})
 		end
 	end
+	
+	printh(p_cx)
 end
 
 
@@ -1042,6 +1054,8 @@ function create_screen(mx,my, spritemap)
 			-- player start; doesn't change tile attrs
 			if pxc==8 then
 				p_x,p_y=tile_to_px(tilex,tiley)
+				p_cx=p_x+8
+				p_cy=p_y+8
 				p_tx,p_ty=tilex,tiley
 			end
 
@@ -1093,12 +1107,14 @@ end
 minimap_txt_scroll=100
 
 function minimap_dot(x,y,c)
-	x1=((x-1)*2)+minimap_x
-	y1=((y-1)*2)+minimap_y
-	x2=((x-1)*2)+2+minimap_x
-	y2=((y-1)*2)+2+minimap_y
+	x1=((x-1)*2)+minimap_x+7
+	y1=((y-1)*2)+minimap_y+7
+	x2=((x-1)*2)+2+minimap_x+7
+	y2=((y-1)*2)+2+minimap_y+7
 
 	rectfill(x1,y1, x2,y2, c)
+	--print("\143",x1,y1,c)
+	--circfill(x1,y1,1,c)
 end
 
 function generate_minimap() 
@@ -1107,7 +1123,7 @@ function generate_minimap()
 
 	minimap_txt_bio=0
 	minimap_txt_eggs=0
-	minimap_radar=0
+	minimap_radar=111
 	minimap_x=0
 	minimap_y=0
 	
@@ -1131,11 +1147,20 @@ function generate_minimap()
 		minimap_txt_bio+=1
 	end
 
+	local t=get_random_tile("egg")
+	if not t then
+		t=get_random_tile("transport")
+	end
+	
+	minimap_nav=atan2(t.x-p_cx, t.y-p_cy)
+	
+	
 	add(minimap, {x=p_tx,y=p_ty,c=10}) --player position
 end
 
 
 function minimap_update()
+
 	if map_w>5 or map_h>5 then
 		if btnl	then minimap_x-=1 end
 		if btnr	then minimap_x+=1 end
@@ -1143,42 +1168,83 @@ function minimap_update()
 		if btnd	then minimap_y+=1 end
 	end
 
-	minimap_radar+=.65
+	minimap_radar-=.65
 	
-	if minimap_radar==35 then 
+	if flr(minimap_radar)==78 then 
 		radar_dots={}
-		
+
 		for a in all(get_aliens()) do
-			if in_range(a.cx,a.cy, p_cx,p_cy, 60) then
-				local rx,ry=get_line(106,64,7, atan2(a.cx-p_cx, a.cy-p_cy))
+			if in_range(a.cx,a.cy, p_cx,p_cy, 64) then
+				local rx,ry=get_line(106,95,7, atan2(a.cx-p_cx, a.cy-p_cy))
 				add(radar_dots,{x=rx,y=ry})
 			else
 				if in_range(a.cx, a.cy, p_cx,p_cy, 128) then
-					local rx,ry=get_line(106,64,15, atan2(a.cx-p_cx, a.cy-p_cy))
+					local rx,ry=get_line(106,95,15, atan2(a.cx-p_cx, a.cy-p_cy))
 					add(radar_dots,{x=rx,y=ry})
 				end
 			end
 		end
 	end
 	
-	if minimap_radar>130 then minimap_radar=0 end
+	if minimap_radar<0 then minimap_radar=111 end
+
 end
 
 function minimap_draw()
-	rectfill(0,0, 127,116, 5) --base grey
+	rectfill(0,0, 127,116, 0) --base grey
 	
-	--sidebar
-	rectfill(87,45, 125,84, 1)
-	pset(106,64,12)
-	circ(106,64,8,12)
-	circ(106,64,17,12)
+	rectfill(minimap_x+6,minimap_y+6, (map_tilew*2)+minimap_x+8,(map_tileh*2)+minimap_y+8, 3) --map bg
+	rect(minimap_x+6,minimap_y+6, (map_tilew*2)+minimap_x+8,(map_tileh*2)+minimap_y+8, 11) --map border
 	
-	circ(106,64,minimap_radar,7) -- growing circle
-	
-	for d in all (radar_dots) do
-		circfill(d.x,d.y,1,7)
+	-- draw dots	
+	for mm in all(minimap) do
+		minimap_dot(mm.x,mm.y,mm.c)
 	end
 	
+	
+	rectfill(0,0, 127,5, 0) --bg cover
+	rectfill(0,0, 3,113, 0) --bg cover
+	rectfill(0,89, 127,116, 0) --bg cover
+	rectfill(88,0, 127,116, 0) --bg cover
+	
+
+	rect(2,2, 125,114, 12) -- border frame
+	rect(4,4, 87,88, 12) --map frame
+	
+	rect(89,4, 123,76, 12) --sidebar border
+	
+	rect(4,90, 87,112, 12) -- info border
+	
+	--rectfill(80,75, 123,112, 1)
+	rectfill(89,78, 123,112, 1)
+	
+	local item="none"
+	if p_st==2 then item="pulse rifle" end
+	if p_st==3 then item="alien bait" end
+
+	print("eggs:"..minimap_txt_eggs.."\n\nbios:"..minimap_txt_bio.."\n\ncargo:"..egg_count.."\n\n\nnav:\n"..minimap_nav, 93, 9, 11)
+	print("planet:"..current_level.name.."\n\nitem:"..item, 7,93, 11)
+	
+	
+	
+	circ(106,95,7,12)
+	circ(106,95,14,12)
+	pset(106,95,12)
+	
+	for d in all (radar_dots) do circfill(d.x,d.y,1,7) end
+	
+	if minimap_radar>78 then
+		line(90,minimap_radar, 122,minimap_radar, 7)
+	end
+	
+	
+	
+	rect(89,78, 123,112, 12) --radar border
+	
+	
+--[[
+
+	rectfill(0,0, 127,116, 5) --base grey
 	
 	--level minimap; 116 is lower limit
 	rectfill(1,1, 84,84, 0) --full bg, blue
@@ -1190,12 +1256,31 @@ function minimap_draw()
 		minimap_dot(mm.x+1,mm.y+1,mm.c)
 	end
 	
+	--sidebar
+	--rectfill(87,45, 125,84, 1)
+	circfill(106,64,17,1)
+	pset(106,64,12)
+	circ(106,64,8,12)
+	circ(106,64,17,12)
+	
+	
+	if minimap_radar<20 then
+		circ(106,64,minimap_radar,7) -- growing circle
+	else
+		--circ(106,64,minimap_radar,0) -- growing circle
+	end
+	
+	
+	for d in all (radar_dots) do circfill(d.x,d.y,1,7) end
+	
 	
 	-- chrome
-	rectfill(85,0, 127,45, 5)
+	rectfill(75,0, 127,45, 5)
+	rectfill(75,45, 86,116, 5)
+	
 	rect(85,45, 127,85,5)
 	rect(86,45, 126,85,5)
-	rectfill(0,85, 127,116, 5) --base grey
+	rectfill(0,85, 127,116, 5)
 	rect(0,0, 85,85, 5)
 	line(0,115,127,115, 0)
 
@@ -1205,6 +1290,7 @@ function minimap_draw()
 
 	print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: "..egg_count, 87, 4, 7)
 	print("planet: "..current_level.name.."\n\nitem: "..item, 4, 90, 7)
+]]	
 end
 
 
@@ -1277,11 +1363,12 @@ end
 
 levels={}
 --levels[1]={name="pv-418",w=3,h=8,bodies=5,eggs=4,eggtimer=5,snipers=0,colors=false}
-add(levels,{name="jl 78",w=2,h=3,bodies=3,eggs=1,eggtimer=20,aliens=0,snipers=0})
-add(levels,{name="pv-418",w=3,h=3,bodies=3,eggs=2,eggtimer=30,aliens=1,snipers=0})
-add(levels,{name="roxi 9",w=4,h=3,bodies=5,eggs=3,eggtimer=30,aliens=3,snipers=1})
-add(levels,{name="f-kee 16",w=7,h=4,bodies=5,eggs=5,eggtimer=40,aliens=4,snipers=2})
-add(levels,{name="clb-55",w=3,h=7,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=2})
+add(levels,{name="test",w=4,h=4,bodies=3,eggs=3,eggtimer=40,aliens=2,snipers=0})
+add(levels,{name="jl78",w=2,h=3,bodies=3,eggs=1,eggtimer=20,aliens=0,snipers=0})
+add(levels,{name="pv-418",w=3,h=3,bodies=3,eggs=2,eggtimer=40,aliens=2,snipers=0})
+add(levels,{name="roxi 9",w=5,h=3,bodies=5,eggs=3,eggtimer=40,aliens=3,snipers=1})
+add(levels,{name="f-kee 16",w=4,h=7,bodies=7,eggs=5,eggtimer=50,aliens=5,snipers=5})
+add(levels,{name="col-b55",w=3,h=7,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=2})
 
 
 
@@ -1306,61 +1393,75 @@ function game_init()
 	add_bodies(current_level.bodies)
 	add_eggs(current_level.eggs)
 
-	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch")
+	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch",true)
 
 	if levelid==1 then
 		add_ticker_text("press \142 to scan area;press \151 to use item")	
 	end
 	
+	blood={}
+	for n=0,15 do
+		add(blood,{random(34,94),random(34,94),random(5,9)})
+	end
+
+	for n=0,18 do
+		add(blood,{random(14,114),random(14,115),random(1,3)})
+	end
+	
+		
 	cart(game_update,game_draw)
 end
 
 
 function game_update()
-	for a in all(actors) do a.update(a) end
-	
-	
-	-- #eggtimer
-	egg_timer-=1
-	if egg_timer<=0 then
-		local t=get_random_tile("egg")
+	if p_dead then
+		if btnxp or btnzp then _init() end
+	else	
+		for a in all(actors) do a.update(a) end
 		
-		if t then
-			add_ticker_text("new life form detected",true)
+		-- #eggtimer
+		egg_timer-=1
+		if egg_timer<=0 then
+			local t=get_random_tile("egg")
 			
-			current_level.eggs-=1
+			if t then
+				add_ticker_text("new life form detected",true)
+				
+				current_level.eggs-=1
+				if current_level.eggs<=0 then
+					add_ticker_text("no more eggs detected;return to transport beacon")
+				else
+					add_ticker_text(current_level.eggs.." eggs remaining")
+				end
+				
+				add_hugger(t.tx,t.ty)
+				set_tile_occupant(t.tx,t.ty,"empty")
+				
+			end
+			
+			egg_timer=current_level.eggtimer	
+		end
+		
+		if map_mode then
+			minimap_update()
+		end
+		
+		bullet_update()
+		p_update()
+		
+		if gt>=sec(20) then -- toss in generic messages every 20 seconds 
 			if current_level.eggs<=0 then
 				add_ticker_text("no more eggs detected;return to transport beacon")
 			else
-				add_ticker_text(current_level.eggs.." eggs remaining")
+				ticker_common()
 			end
 			
-			add_hugger(t.tx,t.ty)
-			set_tile_occupant(t.tx,t.ty,"empty")
-			
+			gt=0
 		end
-		
-		egg_timer=current_level.eggtimer	
-	end
-
-	
-	if gt>=sec(20) then -- toss in generic messages every 20 seconds 
-		if current_level.eggs<=0 then
-			add_ticker_text("no more eggs detected;return to transport beacon")
-		else
-			ticker_common()
-		end
-		
-		gt=0
 	end
 	
-	if map_mode then
-		minimap_update()
-	end
-	
-	bullet_update()
 	ticker_update()
-	p_update()
+	
 end
 
 
@@ -1463,6 +1564,12 @@ function game_draw()
 	camera(0,0)
 	ticker_draw()
 	
+	if p_dead then
+		for b in all(blood) do
+			circfill(b[1],b[2],b[3], 8)
+		end
+	end
+	
 end
 
 
@@ -1476,31 +1583,75 @@ function nextlevel_init()
 	level_id+=1
 	current_level=levels[level_id]
 	
+	local scanlinev=78
+	local scanlinev_dir=1
+	local scanlineh=89
+	local scanlineh_dir=1
+	local t=31
+	local nums={}
 	
-	for n=0,200 do
-		add(stars,{rnd(128),rnd(128),rnd_table({13,6,11,1,7})})
+	
+	
+	
+	function nextlevel_update()
+		if btnzp or btnxp then
+			stars={}
+			landmass={}
+			game_init()
+		end
+		
+		if t>30 then
+			nums={}
+			for n=0,8 do add(nums,rnd()) end
+			t=0
+		end
+		
+		t+=1
+	end 
+
+	function nextlevel_draw()
+		rect(0,0, 127,127, 12) -- border frame
+		rect(2,2, 87,93, 12) -- map frame
+		
+		
+		circ(128,115, 30, 12)
+		circ(128,110, 20, 12)
+		
+		line(89,scanlinev, 125,scanlinev, 7)
+		line(scanlineh,80, scanlineh,125, 7)
+		
+		rect(89,2, 125,78, 12) --sidebar border
+		rect(89,80, 125,125, 12) --sidebar border
+		rect(88,79, 126,126, 0)
+		
+		rect(2,95, 87,125, 12) -- info border
+		
+		local numy=6
+		for x in all(nums) do
+			print(x, 93,numy, 11)
+			numy+=8
+		end
+		
+		print("deorbital descent\n\napproaching "..current_level.name.."\n\n\ncalculating final\ndescent path...\n\nready to commence\nfinal approach_\n\n\n\n\n\n\npress \142 to confirm", 7,8, 11)
+		
+		
+		if flr(scanlinev)==78 then scanlinev_dir=1 end
+		if flr(scanlinev)==125 then scanlinev_dir=-1 end
+		if flr(scanlineh)==89 then scanlineh_dir=1 end
+		if flr(scanlineh)==125 then scanlineh_dir=-1 end
+		
+		scanlinev+=.33*scanlinev_dir
+		scanlineh+=.33*scanlineh_dir
+		
+		
+		
+	end
 	
 	
 	cart(nextlevel_update,nextlevel_draw)
 end
 
-function nextlevel_update()
-	if btnzp or btnxp then
-		stars={}
-		game_init()
-	end
-end 
 
-function nextlevel_draw()
-	print("planet: "..current_level.name.."\n\n", 1,1, 11)
-	
-	for s in all(stars) do
-		pset(s[1],s[2], s[3])
-	end
-	
-	circfill(125,127, 40, 3)
-	circfill(124,127, 40, 5)
-end
 
 
 
@@ -1546,6 +1697,9 @@ function _init()
 	level_grid={}
 	level_list={}
 
+	level_id+=1
+	current_level=levels[level_id]
+	--game_init()
 	nextlevel_init()
 end
 
@@ -1595,7 +1749,7 @@ end
 
 function chg_st(o,ns) o.t=0 o.st=ns end
 function rand(x) return flr(rnd(x)) end
-function sec(f) return flr(f*60) end -- set FPS here if you need
+function sec(f) return flr(f*60) end -- set fps here if you need
 
 -- debug tools
 debug=false
@@ -1794,6 +1948,7 @@ end
 
 
 
+
 __gfx__
 0000000000000000000000000000000000000000000000000b0000000000000000000000a0a0000aaa2222220000060000000000000c00000000000000000000
 000000000000000b00000000000000000000000000300000bbb000000000000000000000a0a0aa0000222222000006000000000000c0c0000000000000000000
@@ -1845,20 +2000,20 @@ aa02222aaa2222220000000000000000000000000000000000000000000000000000000000000000
 22222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000066666605550000000006666050000
 222aa222222222a20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 22aaaa2222222a220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-22aa00222222a2220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2a00aa22222a22220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-aa0000a222a222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-aaa0aa0aaa2222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-20aa00000a2222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-200aaaaaa22222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2000000aa22222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-20aa00a0022222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-20a00a20022222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-20a2a22a022222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2a02222aa22222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-aa02222aaa2222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2aa22222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-22222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+22aa00222222a2220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005550000000005555550
+2a00aa22222a22220000000000000000000000000000000000000000000000000000000000000000000000000000000005555500000555755000555055555500
+aa0000a222a222220000000000000000000000000000000000000000000000000000000000000000000000000000555555555550005555555505555555555550
+aaa0aa0aaa2222220000000000000000000000000000000000000000000000000000000000000000000000000055555557575555555575555555757575555500
+20aa00000a2222220000000000000000000000000000000000000000000000000000000000000000000000000000005555555555555555555555555555555550
+200aaaaaa22222220000000000000000000000000000000000000000000000000000000000000000000000000555555555557575555555575555555055555500
+2000000aa22222220000000000000000000000000000000000000000000000000000000000000000000000000005555555555555555555555500000055555550
+20aa00a0022222220000000000000000000000000000000000000000000000000000000000000000000000000000055555555555000000575500000005555000
+20a00a20022222220000000000000000000000000000000000000000000000000000000000000000000000000555550550555550000000555500000000000000
+20a2a22a022222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055000000000000000
+2a02222aa22222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055000000000000000
+aa02222aaa2222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055500000000000000
+2aa22222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055500000000000000
+22222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000
 22222222ddddd2220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 2222222ddddddd220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 222222d2000dd0d20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
