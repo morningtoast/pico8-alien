@@ -92,6 +92,7 @@ function p_update()
 			end
 		end
 		
+		-- #transport
 		-- player hits transport beacon
 		if tile.occupant=="transport" and current_level.eggs>0 and p_transport_t<1 then
 			add_ticker_text("dropship unavailable",true)
@@ -99,7 +100,7 @@ function p_update()
 		end
 		
 		if tile.occupant=="transport" and current_level.eggs<=0 and not p_transport then
-			add_ticker_text("remain at transport beacon;dropship arriving;leaving "..current_level.name,true)
+			add_ticker_text("dropship landing, stay at beacon;leaving "..current_level.name,true)
 			p_transport=true
 			p_transport_t=2
 		end
@@ -115,7 +116,7 @@ function p_update()
 		if tile.occupant=="transport" and p_transport then
 			p_transport_t+=1
 
-			if p_transport_t==sec(14) then
+			if p_transport_t==sec(8) then
 				-- level complete
 				-- next level
 				printh("next level")
@@ -300,7 +301,7 @@ function add_hugger(tx,ty)
 		flip=false,
 		detect=40,
 		wander_spd=.7,
-		chase_spd=1.5,
+		chase_spd=1.3,
 		hbox={x=4,y=6,w=8,h=5}, -- used for movement collision
 		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
 		chase=false,
@@ -350,7 +351,7 @@ function add_alien(tx,ty)
 		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
 		detect=50,
 		wander_spd=.5,
-		chase_spd=1.3,
+		chase_spd=1.1,
 		chase=false,
 		navpath={},
 		beacon=false,
@@ -502,6 +503,10 @@ function update_walker(self)
 		if in_range(self.cx,self.cy, p_cx,p_cy, 10) then
 			chg_st(self,98)
 			p_dead=true
+			level_list={}
+			make_blood()
+			
+			gt=0
 			add_ticker_text("you are dead;press \142 to continue;you collected "..eggs_collected.." eggs;press \142 to continue",true)
 		end
 	end
@@ -662,17 +667,33 @@ end
 
 
 function add_bodies(q)
-	printh("adding bodies "..q)
 	local c,try=0,0
+	
+	--printh("adding bodies: "..q)
 	while c<q and try<50 do
 		local t=get_random_tile("empty")
-		local near,dist=find_nearest(t.cx,t.cy, filter_tiles("body"))
-		local pdist=distance(t.cx,t.cy, p_cx,p_cy)
+		local list=filter_tiles("body")
 		
-		if dist>64 and pdist>120 then
-			printh("distance is "..dist)
-			set_tile_occupant(t.tx,t.ty, "body")
-			c+=1
+		if #list>0 then
+			--printh("checking existinb bodies")
+		
+			for n in all(list) do
+				if not in_range(n.tx,n.ty, t.tx,t.ty, 3) then
+					if not in_range(t.tx,t.ty, p_tx,p_ty, 4) then
+						set_tile_occupant(t.tx,t.ty, "body")
+						--printh("added at "..t.tx..","..t.ty)
+						c+=1
+					end
+				end
+			end
+		else
+			--printh("no existinb bodies")
+		
+			if not in_range(t.tx,t.ty, p_tx,p_ty, 4) then
+				--printh("added at "..t.tx..","..t.ty)
+				set_tile_occupant(t.tx,t.ty, "body")
+				c+=1
+			end
 		end
 		
 		try+=1
@@ -682,13 +703,32 @@ end
 
 function add_eggs(q)
 	local c,try=0,0
+	
+	--printh("adding bodies: "..q)
 	while c<q and try<50 do
-		local t=get_random_tile("spawn")
-		local near,dist=find_nearest(t.cx,t.cy, filter_tiles("egg"))
+		local t=get_random_tile("empty")
+		local list=filter_tiles("egg")
 		
-		if dist>70 then
-			set_tile_occupant(t.tx,t.ty, "egg")
-			c+=1
+		if #list>0 then
+			--printh("checking existinb bodies")
+		
+			for n in all(list) do
+				if not in_range(n.tx,n.ty, t.tx,t.ty, 6) then
+					if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+						set_tile_occupant(t.tx,t.ty, "egg")
+						--printh("added at "..t.tx..","..t.ty)
+						c+=1
+					end
+				end
+			end
+		else
+			--printh("no existinb bodies")
+		
+			if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+				--printh("added at "..t.tx..","..t.ty)
+				set_tile_occupant(t.tx,t.ty, "egg")
+				c+=1
+			end
 		end
 		
 		try+=1
@@ -700,7 +740,7 @@ end
 
 
 
--- returns true if an object is withing square range of another; pixels only
+-- returns true if an object is withing square range of another
 -- #in_range(int_needlex,int_needley, int_haystackx,int_haystacky, int_distance)
 function in_range(ax,ay, bx,by, rng)
 	if ax>=bx-rng and ax<=bx+rng and ay>=by-rng and ay<=by+rng then
@@ -709,6 +749,8 @@ function in_range(ax,ay, bx,by, rng)
 	
 	return false
 end
+
+
 
 
 function in_hitbox(x,y, ox,oy,ow,oh)
@@ -955,12 +997,12 @@ function generate_map(w,h)
 	printh(p_cx)
 	
 	
-	-- add random aliens
+	-- add random aliens, not too close to player
 	local aliens_added=0
 	while aliens_added<current_level.aliens do
 		local t=get_random_tile("empty")
 		
-		if not in_range(t.cx,t.cy, p_cx,p_cy, 64) then
+		if not in_range(t.cx,t.cy, p_cx,p_cy, 100) then
 			add_alien(t.tx,t.ty)
 			aliens_added+=1
 		end
@@ -1161,11 +1203,11 @@ end
 
 function minimap_update()
 
-	if map_w>5 or map_h>5 then
-		if btnl	then minimap_x-=1 end
-		if btnr	then minimap_x+=1 end
-		if btnu	then minimap_y-=1 end
-		if btnd	then minimap_y+=1 end
+	if map_w>4 or map_h>4 then
+		if btnl	then minimap_x+=1 end
+		if btnr	then minimap_x-=1 end
+		if btnu	then minimap_y+=1 end
+		if btnd	then minimap_y-=1 end
 	end
 
 	minimap_radar-=.65
@@ -1222,7 +1264,7 @@ function minimap_draw()
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
 
-	print("eggs:"..minimap_txt_eggs.."\n\nbios:"..minimap_txt_bio.."\n\ncargo:"..egg_count.."\n\n\nnav:\n"..minimap_nav, 93, 9, 11)
+	print("eggs:"..minimap_txt_eggs.."\n\nbios:"..minimap_txt_bio.."\n\ncargo:"..eggs_collected.."\n\n\nnav:\n"..minimap_nav, 93, 9, 11)
 	print("planet:"..current_level.name.."\n\nitem:"..item, 7,93, 11)
 	
 	
@@ -1354,21 +1396,20 @@ function ticker_draw()
 
 	 --egg count
 	spr(26, 110,119)
-	print(eggs_collected,120,120, 6)
+	print(egg_count,120,120, 6)
 end
 
 
--- #levels - define levels
--- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
+function make_blood()
+	blood_t=0
+	for n=0,15 do
+		add(blood,{random(34,94),random(34,94),random(5,9)})
+	end
 
-levels={}
---levels[1]={name="pv-418",w=3,h=8,bodies=5,eggs=4,eggtimer=5,snipers=0,colors=false}
-add(levels,{name="test",w=4,h=4,bodies=3,eggs=3,eggtimer=40,aliens=2,snipers=0})
-add(levels,{name="jl78",w=2,h=3,bodies=3,eggs=1,eggtimer=20,aliens=0,snipers=0})
-add(levels,{name="pv-418",w=3,h=3,bodies=3,eggs=2,eggtimer=40,aliens=2,snipers=0})
-add(levels,{name="roxi 9",w=5,h=3,bodies=5,eggs=3,eggtimer=40,aliens=3,snipers=1})
-add(levels,{name="f-kee 16",w=4,h=7,bodies=7,eggs=5,eggtimer=50,aliens=5,snipers=5})
-add(levels,{name="col-b55",w=3,h=7,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=2})
+	for n=0,18 do
+		add(blood,{random(14,114),random(14,115),random(1,3)})
+	end
+end
 
 
 
@@ -1376,7 +1417,11 @@ add(levels,{name="col-b55",w=3,h=7,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=
 -- current_level set in nextlevel_init()
 function game_init()
 	--current_level=levels[levelid]
+	printh("level "..level_id)
+	printh("eggs "..current_level.eggs)
+	printh("bodies "..current_level.bodies)
 
+	blood={}
 	ticker_text = {}
 	bullets     = {}
 	actors      = {}
@@ -1395,18 +1440,11 @@ function game_init()
 
 	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch",true)
 
-	if levelid==1 then
+	if level_id==1 then
 		add_ticker_text("press \142 to scan area;press \151 to use item")	
 	end
 	
-	blood={}
-	for n=0,15 do
-		add(blood,{random(34,94),random(34,94),random(5,9)})
-	end
-
-	for n=0,18 do
-		add(blood,{random(14,114),random(14,115),random(1,3)})
-	end
+	
 	
 		
 	cart(game_update,game_draw)
@@ -1416,8 +1454,15 @@ end
 function game_update()
 	if p_dead then
 		if btnxp or btnzp then _init() end
+		
+		if gt>=sec(12) then -- toss in generic messages every 20 seconds 
+			add_ticker_text("game over;press \142 to continue")
+			gt=0
+		end
+		
 	else	
 		for a in all(actors) do a.update(a) end
+
 		
 		-- #eggtimer
 		egg_timer-=1
@@ -1490,8 +1535,6 @@ function game_draw()
 			local plot=level_grid[x][y]
 			local px,py=tile_to_px(x,y)
 			
-			
-		
 			if plot.occupant=="body" then
 				spr(9,px,py+3,2,1)
 			end
@@ -1503,8 +1546,6 @@ function game_draw()
 			if plot.occupant=="egg" then
 				spr(14,px,py,2,2)
 			end
-			
-			
 			
 			if swap_bright then
 				pal(11,swap_bright)
@@ -1518,7 +1559,6 @@ function game_draw()
 			if plot.occupant=="sniper" then
 				spr(42, px, py, 2,2, plot.flip)
 			end
-			
 		end
 	end
 	
@@ -1535,18 +1575,21 @@ function game_draw()
 		spr(3, (16*m), -15, 2,2)
 		spr(3, (16*m),map_hpx, 2,2)
 	end
-
+	pal()
+	
+	
+	
+	palt(2,true)
+	palt(0,false)
 	-- non-player actors; aliens, items
 	for a in all(actors) do
 		a.draw(a)
 	end
 	
-	
+	bullet_draw()
 	
 	-- player
 	if p_freeze>0 then pal(10,13) end
-	
-	bullet_draw()
 	p_draw()
 	
 	pal()
@@ -1568,6 +1611,11 @@ function game_draw()
 		for b in all(blood) do
 			circfill(b[1],b[2],b[3], 8)
 		end
+		
+		if blood_t>sec(3) then
+			make_blood()
+		end
+		blood_t+=1
 	end
 	
 end
@@ -1582,6 +1630,18 @@ end
 function nextlevel_init()
 	level_id+=1
 	current_level=levels[level_id]
+	p_transport=false
+	
+	
+	-- after level 5, maps are same always big, just new layout
+	if level_id>5 then
+		local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
+		local name=rnd_table(abc)..rnd_table(abc).."-"..random(3,150)
+		local colors={{3,4},{11,9},{11,4},{15,14}}
+	
+		add(levels,{name=name,w=6,h=6,bodies=7,eggs=5,eggtimer=45,aliens=5,snipers=5,colors=rnd_table(colors)})
+	end
+	
 	
 	local scanlinev=78
 	local scanlinev_dir=1
@@ -1591,12 +1651,8 @@ function nextlevel_init()
 	local nums={}
 	
 	
-	
-	
 	function nextlevel_update()
 		if btnzp or btnxp then
-			stars={}
-			landmass={}
 			game_init()
 		end
 		
@@ -1632,7 +1688,7 @@ function nextlevel_init()
 			numy+=8
 		end
 		
-		print("deorbital descent\n\napproaching "..current_level.name.."\n\n\ncalculating final\ndescent path...\n\nready to commence\nfinal approach_\n\n\n\n\n\n\npress \142 to confirm", 7,8, 11)
+		print("approaching planet\n\n"..current_level.name.."\n\n\nstarting deorbital\ndescent\n\ncalculating final\napproach path\n\npreparing landing\nsequence...\n\n\n\npress \142 to confirm", 7,8, 11)
 		
 		
 		if flr(scanlinev)==78 then scanlinev_dir=1 end
@@ -1686,6 +1742,45 @@ function gameover_draw()
 end
 
 
+-- #intro
+intro_init=function()
+	cart_update=function() end
+	cart_draw=intro_draw
+	
+	textc=0
+	t=0
+end
+
+intro_draw=function()
+	center_text("alien harvest "..ver,8,textc)
+	center_text("(c)2017 brian vaughn",16,textc)
+	
+
+	texty=35
+	center_text("design+code",texty,textc)
+	center_text("brian vaughn",texty+8,textc)
+	center_text("@morningtoast",texty+16,textc)
+	
+	texty=70
+	center_text("music+sound",texty,textc)
+	center_text("brian follick",texty+8,textc)
+	center_text("@gnarcade_vgm",texty+16,textc)
+
+	
+	if t>6 then textc=5 end
+	if t>12 then textc=6 end
+	if t>18 then textc=7 end
+	
+	if t>130 then textc=6 end
+	if t>136 then textc=5 end
+	if t>142 then textc=0 end
+	
+	if t>160 then title_init() end
+	
+	t+=1
+end
+
+
 
 
 -- #loop
@@ -1694,12 +1789,22 @@ function _init()
 	
 	level_id=0
 	eggs_collected=0 --total eggs collected by player for game session
+	
 	level_grid={}
 	level_list={}
-
-	level_id+=1
-	current_level=levels[level_id]
-	--game_init()
+	blood={}
+	actors={}
+	levels={}
+	
+	-- #levels - define levels
+	-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
+	add(levels,{name="jl78",w=2,h=3,bodies=2,eggs=1,eggtimer=30,aliens=0,snipers=0,colors={11,3}})
+	add(levels,{name="col-b",w=3,h=3,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
+	add(levels,{name="mf2018",w=3,h=4,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=1,colors={9,4}})
+	add(levels,{name="roxi 9",w=5,h=3,bodies=5,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={11,4}})
+	add(levels,{name="pv-418",w=4,h=6,bodies=7,eggs=5,eggtimer=50,aliens=5,snipers=5,colors={14,2}})
+	
+	
 	nextlevel_init()
 end
 
@@ -1838,7 +1943,7 @@ end
 
 -- get a random number between min and max
 function random(min,max)
-	n=round(rnd(max-min))+min
+	n=flr(rnd(max-min))+min
 	return n
 end
 
