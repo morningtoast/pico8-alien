@@ -5,16 +5,11 @@ __lua__
 --
 -- #globals and system needs
 --
-gt=0
+ver="v1.0"
 
+gt=0
 ef=function() end
-cart_update,cart_draw=ef,ef
-cart=function(u,d)
-	u=u or ef
-	d=d or ef
-	cart_update,cart_draw=u,d
-	gt=0
-end
+cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
 
 
 --
@@ -78,7 +73,7 @@ function p_update()
 		
 		-- when player gets to a body, switch modes
 		if tile.occupant=="egg" then
-			eggs_collected=min(eggs_collected+1,10)
+			eggs_collected=min(eggs_collected+1,20)
 			egg_count+=1
 			current_level.eggs=max(current_level.eggs-1,0)
 
@@ -87,8 +82,8 @@ function p_update()
 			add_ticker_text("alien egg collected",true)
 			
 			
-			if current_level.eggs>0 then
-				--add_ticker_text(current_level.eggs.." eggs remaining")
+			if eggs_collected>=20 then
+				add_ticker_text("mission accomplished;return to transport beacon",true)
 			end
 		end
 		
@@ -117,10 +112,12 @@ function p_update()
 			p_transport_t+=1
 
 			if p_transport_t==sec(8) then
-				-- level complete
-				-- next level
-				printh("next level")
-				nextlevel_init()
+				if eggs_collected>=20 then
+					victory_init()
+				else
+					nextlevel_init()	
+				end
+				
 			end
 		end
 
@@ -133,7 +130,7 @@ function p_update()
 				map_mode=true
 			else
 				-- #sound, "not allowed" buzzer
-				add_ticker_text("scanner power too low",true)
+				add_ticker_text("scanner battery recharging",true)
 			end
 		end
 		
@@ -231,9 +228,7 @@ end
 
 
 function bullet_draw()
-	for b in all(bullets) do 
-		circfill(b.x,b.y, 2, b.c)
-	end
+	for b in all(bullets) do circfill(b.x,b.y, 2, b.c) end
 end
 
 
@@ -260,7 +255,7 @@ function add_bait(tx,ty)
 			for a in all(actors) do
 				if a.id==2 then
 					if in_range(a.cx,a.cy, self.cx,self.cy, 50) then
-						if self.t>300 then -- release alien after 5 seconds
+						if self.t>sec(5) then -- release alien after 5 seconds
 							chg_st(a,0)
 							a.beacon=false
 						else
@@ -355,7 +350,6 @@ function add_alien(tx,ty)
 		chase=false,
 		navpath={},
 		beacon=false,
-		foo={},
 		update=function(self)
 			-- alien is always looking for player. this will skip the delay-find state of huggers
 			if self.st<10 then
@@ -467,7 +461,7 @@ function add_sniper(tx,ty,flip)
 			if self.st==2 then
 				if self.t>sec(1) then
 					local t=set_tile_occupant(self.tx,self.ty, "wall")
-					t.spr=rnd_table({1,3,5})
+					t.spr=rnd_table(bush_sprites)
 					del(actors,self)
 				end
 			end
@@ -522,7 +516,7 @@ function update_walker(self)
 
 			--hugger
 			if id==1 then
-				near=nearest_tile_oftype(self.cx,self.cy,"body")
+				near=find_nearest(x,y, filter_tiles("body"))
 				self.wpcount=5
 			end
 			
@@ -750,9 +744,6 @@ function in_range(ax,ay, bx,by, rng)
 	return false
 end
 
-
-
-
 function in_hitbox(x,y, ox,oy,ow,oh)
 	if x>=ox and x<=ox+ow and y>=oy and y<=oy+oh then
 		return true
@@ -899,12 +890,6 @@ function get_aliens()
 end
 
 
--- returns object of tile that is closest to provided pixel coordinate
--- nearest_tile_oftype(int_pixelx,int_pixely, str_occupanttype)
-function nearest_tile_oftype(x,y,oftype)
-	return find_nearest(x,y, filter_tiles(oftype))
-end
-
 -- finds nearest object based on x/y pixel coordinates
 -- list objects must have x/y values!!
 -- find_nearest(int_pixelx,int_pixely, tbl_items)
@@ -994,8 +979,6 @@ function generate_map(w,h)
 		end
 	end
 	
-	printh(p_cx)
-	
 	
 	-- add random aliens, not too close to player
 	local aliens_added=0
@@ -1010,7 +993,6 @@ function generate_map(w,h)
 
 	-- add snipers to level
 	if #snipers>0 then
-		printh("snipers")
 		for n=0,current_level.snipers do
 			local t=rnd_table(snipers)
 			del(snipers,t)
@@ -1045,15 +1027,14 @@ function generate_map(w,h)
 		-- turn left over sniper slots into bushes
 		for t in all(snipers) do
 			level_grid[t.tx][t.ty].occupant="wall"
-			level_grid[t.tx][t.ty].spr=rnd_table({1,3,5})
+			level_grid[t.tx][t.ty].spr=rnd_table(bush_sprites)
 		end
 	end
-	
-	printh(p_cx)
 end
 
 
 -- creates map plots based on a 8x8 sprite
+bush_sprites={1,3,5}
 function create_screen(mx,my, spritemap)
 	for spx=0,7 do
 		for spy=0,7 do
@@ -1065,7 +1046,7 @@ function create_screen(mx,my, spritemap)
 			--bush/wall
 			if pxc==11 or pxc==3 then 
 				tile.occupant="wall"
-				tile.spr=rnd_table({1,3,5})
+				tile.spr=rnd_table(bush_sprites)
 				tile.w=false
 			end
 			
@@ -1079,7 +1060,7 @@ function create_screen(mx,my, spritemap)
 			-- sniper/bush
 			if pxc==3 and current_level.snipers>0 then 
 				tile.occupant="sniper"
-				tile.spr=rnd_table({1,3,5})
+				tile.spr=rnd_table(bush_sprites)
 				tile.w=false
 			end
 			
@@ -1155,8 +1136,6 @@ function minimap_dot(x,y,c)
 	y2=((y-1)*2)+2+minimap_y+7
 
 	rectfill(x1,y1, x2,y2, c)
-	--print("\143",x1,y1,c)
-	--circfill(x1,y1,1,c)
 end
 
 function generate_minimap() 
@@ -1264,7 +1243,7 @@ function minimap_draw()
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
 
-	print("eggs:"..minimap_txt_eggs.."\n\nbios:"..minimap_txt_bio.."\n\ncargo:"..eggs_collected.."\n\n\nnav:\n"..minimap_nav, 93, 9, 11)
+	print("eggs:"..minimap_txt_eggs.."\n\nbio:"..minimap_txt_bio.."\n\ncargo:"..eggs_collected.."\n\n\nnav:\n"..minimap_nav, 93, 9, 11)
 	print("planet:"..current_level.name.."\n\nitem:"..item, 7,93, 11)
 	
 	
@@ -1283,56 +1262,6 @@ function minimap_draw()
 	
 	rect(89,78, 123,112, 12) --radar border
 	
-	
---[[
-
-	rectfill(0,0, 127,116, 5) --base grey
-	
-	--level minimap; 116 is lower limit
-	rectfill(1,1, 84,84, 0) --full bg, blue
-	rectfill(2+minimap_x,2+minimap_y, (map_tilew*2)+2+minimap_x,(map_tileh*2)+2+minimap_y, 3) --level bg, black
-	rect(1+minimap_x,1+minimap_y, (map_tilew*2)+3+minimap_x,(map_tileh*2)+3+minimap_y, 11) --border
-
-	-- draw dots	
-	for mm in all(minimap) do
-		minimap_dot(mm.x+1,mm.y+1,mm.c)
-	end
-	
-	--sidebar
-	--rectfill(87,45, 125,84, 1)
-	circfill(106,64,17,1)
-	pset(106,64,12)
-	circ(106,64,8,12)
-	circ(106,64,17,12)
-	
-	
-	if minimap_radar<20 then
-		circ(106,64,minimap_radar,7) -- growing circle
-	else
-		--circ(106,64,minimap_radar,0) -- growing circle
-	end
-	
-	
-	for d in all (radar_dots) do circfill(d.x,d.y,1,7) end
-	
-	
-	-- chrome
-	rectfill(75,0, 127,45, 5)
-	rectfill(75,45, 86,116, 5)
-	
-	rect(85,45, 127,85,5)
-	rect(86,45, 126,85,5)
-	rectfill(0,85, 127,116, 5)
-	rect(0,0, 85,85, 5)
-	line(0,115,127,115, 0)
-
-	local item="none"
-	if p_st==2 then item="pulse rifle" end
-	if p_st==3 then item="alien bait" end
-
-	print("eggs: "..minimap_txt_eggs.."\n\nbios: "..minimap_txt_bio.."\n\ncargo: "..egg_count, 87, 4, 7)
-	print("planet: "..current_level.name.."\n\nitem: "..item, 4, 90, 7)
-]]	
 end
 
 
@@ -1402,12 +1331,15 @@ end
 
 function make_blood()
 	blood_t=0
-	for n=0,15 do
-		add(blood,{random(34,94),random(34,94),random(5,9)})
-	end
-
-	for n=0,18 do
-		add(blood,{random(14,114),random(14,115),random(1,3)})
+	
+	if #blood<45
+		for n=0,15 do
+			add(blood,{random(34,94),random(34,94),random(5,9)})
+		end
+	
+		for n=0,18 do
+			add(blood,{random(14,114),random(14,115),random(1,3)})
+		end
 	end
 end
 
@@ -1455,7 +1387,7 @@ function game_update()
 	if p_dead then
 		if btnxp or btnzp then _init() end
 		
-		if gt>=sec(12) then -- toss in generic messages every 20 seconds 
+		if gt>=sec(12) then 
 			add_ticker_text("game over;press \142 to continue")
 			gt=0
 		end
@@ -1629,17 +1561,18 @@ end
 -- #nextlevel
 function nextlevel_init()
 	level_id+=1
-	current_level=levels[level_id]
 	p_transport=false
 	
 	
 	-- after level 5, maps are same always big, just new layout
-	if level_id>5 then
+	if level_id>#levels then
 		local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
-		local name=rnd_table(abc)..rnd_table(abc).."-"..random(3,150)
+		local name=rnd_table(abc)..rnd_table(abc).."-"..random(108,850)
 		local colors={{3,4},{11,9},{11,4},{15,14}}
 	
-		add(levels,{name=name,w=6,h=6,bodies=7,eggs=5,eggtimer=45,aliens=5,snipers=5,colors=rnd_table(colors)})
+		current_level={name=name,w=6,h=6,bodies=10,eggs=5,eggtimer=45,aliens=6,snipers=6,colors=rnd_table(colors)}
+	else
+		current_level=levels[level_id]
 	end
 	
 	
@@ -1688,7 +1621,7 @@ function nextlevel_init()
 			numy+=8
 		end
 		
-		print("approaching planet\n\n"..current_level.name.."\n\n\nstarting deorbital\ndescent\n\ncalculating final\napproach path\n\npreparing landing\nsequence...\n\n\n\npress \142 to confirm", 7,8, 11)
+		print("approaching planet\n\n"..current_level.name.."\n\n\n\ncalculating deorbital\napproach vector\n\ncommence landing\nsequence...\n\n\n\npress \142 to confirm", 7,8, 11)
 		
 		
 		if flr(scanlinev)==78 then scanlinev_dir=1 end
@@ -1698,9 +1631,7 @@ function nextlevel_init()
 		
 		scanlinev+=.33*scanlinev_dir
 		scanlineh+=.33*scanlineh_dir
-		
-		
-		
+
 	end
 	
 	
@@ -1709,84 +1640,42 @@ end
 
 
 
+-- #victory
+function victory_init()
+	cart(victory_update,victory_draw)
+end
+
+function victory_update()
+	if btnxp or btnzp then
+		title_init()
+	end
+end 
+
+function victory_draw()
+	print("you won",0,0,7)
+end
+
+
+
+-- #story
+function story_init()
+	cart(story_update,story_draw)
+end
+
+function story_update()
+	if btnxp or btnzp then
+		title_init()
+	end
+end 
+
+function story_draw()
+	print("story of some sort",0,0,7)
+end
 
 
 
 -- #title
-function scene_title()
-	cart(title_update,title_draw)
-end
-
-function title_update()
-	
-end 
-
-function title_draw()
-	
-end
-
-
--- #gameover
-function gameover_init()
-	cart(gameover_update,gameover_draw)
-end
-
-function gameover_update()
-	if btnzp or btnxp then
-		_init()
-	end
-end 
-
-function gameover_draw()
-	print("you're dead",0,0,8)	
-end
-
-
--- #intro
-intro_init=function()
-	cart_update=function() end
-	cart_draw=intro_draw
-	
-	textc=0
-	t=0
-end
-
-intro_draw=function()
-	center_text("alien harvest "..ver,8,textc)
-	center_text("(c)2017 brian vaughn",16,textc)
-	
-
-	texty=35
-	center_text("design+code",texty,textc)
-	center_text("brian vaughn",texty+8,textc)
-	center_text("@morningtoast",texty+16,textc)
-	
-	texty=70
-	center_text("music+sound",texty,textc)
-	center_text("brian follick",texty+8,textc)
-	center_text("@gnarcade_vgm",texty+16,textc)
-
-	
-	if t>6 then textc=5 end
-	if t>12 then textc=6 end
-	if t>18 then textc=7 end
-	
-	if t>130 then textc=6 end
-	if t>136 then textc=5 end
-	if t>142 then textc=0 end
-	
-	if t>160 then title_init() end
-	
-	t+=1
-end
-
-
-
-
--- #loop
-function _init()
-	printh("\n\n=====new load================================================\n\n")
-	
+function title_init()
 	level_id=0
 	eggs_collected=0 --total eggs collected by player for game session
 	
@@ -1799,13 +1688,87 @@ function _init()
 	-- #levels - define levels
 	-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
 	add(levels,{name="jl78",w=2,h=3,bodies=2,eggs=1,eggtimer=30,aliens=0,snipers=0,colors={11,3}})
-	add(levels,{name="col-b",w=3,h=3,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
-	add(levels,{name="mf2018",w=3,h=4,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=1,colors={9,4}})
-	add(levels,{name="roxi 9",w=5,h=3,bodies=5,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={11,4}})
-	add(levels,{name="pv-418",w=4,h=6,bodies=7,eggs=5,eggtimer=50,aliens=5,snipers=5,colors={14,2}})
+	add(levels,{name="col-b",w=3,h=4,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
+	add(levels,{name="gvh 1106",w=4,h=4,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=1,colors={9,4}})
+	add(levels,{name="roxi 9",w=5,h=4,bodies=5,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={11,4}})
+	add(levels,{name="pv-418",w=5,h=5,bodies=7,eggs=5,eggtimer=50,aliens=5,snipers=5,colors={14,2}})
+	add(levels,{name="mf2018",w=3,h=7,bodies=10,eggs=6,eggtimer=35,aliens=5,snipers=5,colors={11,3}})
+	add(levels,{name="p-co 8",w=6,h=4,bodies=6,eggs=4,eggtimer=45,aliens=5,snipers=7,colors={14,2}})
 	
 	
-	nextlevel_init()
+	
+	cart(title_update,title_draw)
+end
+
+function title_update()
+	if btnxp or btnzp then
+		nextlevel_init()
+	end
+	
+	if gt>sec(5) then
+		story_init()	
+	end
+	
+end 
+
+function title_draw()
+	print("alien harvest",0,0,7)
+end
+
+
+
+-- #intro
+intro_init=function()
+	
+	
+	local textc=0
+	
+	function intro_draw()
+		center_text("alien harvest "..ver,8,textc)
+		center_text("(c)2017 brian vaughn",16,textc)
+		
+		center_text("design+code",35,textc)
+		center_text("brian vaughn",43,textc)
+		center_text("@morningtoast",51,textc)
+		
+		center_text("music+sound",70,textc)
+		center_text("brian follick",78,textc)
+		center_text("@gnarcade_vgm",86,textc)
+		
+		center_text("animation",105,textc)
+		center_text("pinecone",113,textc)
+		center_text("@pinecone",121,textc)
+		
+		center_text("original sprites",105,textc)
+		center_text("http://bit.ly/h37fh",105,textc)
+	
+		
+		if gt>6 then textc=5 end
+		if gt>12 then textc=6 end
+		if gt>18 then textc=7 end
+		
+		if gt>130 then textc=6 end
+		if gt>136 then textc=5 end
+		if gt>142 then textc=0 end
+		
+		if gt>160 then title_init() end
+		
+		gt+=1
+	end
+	
+	cart(ef,intro_draw)
+end
+
+
+
+
+
+
+-- #loop
+function _init()
+	printh("\n\n=====new load================================================\n\n")
+	
+	
 end
 
 function _update60()
