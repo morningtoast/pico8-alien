@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 8
+version 10
 __lua__
 
 --
@@ -10,7 +10,7 @@ ver="v1.0"
 gt=0
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
-
+cart(ef,ef)
 
 --
 -- #player
@@ -89,6 +89,10 @@ function p_update()
 		
 		-- #transport
 		-- player hits transport beacon
+		if tile.occupant=="transport" then
+			printh(current_level.eggs)
+		end
+		
 		if tile.occupant=="transport" and current_level.eggs>0 and p_transport_t<1 then
 			add_ticker_text("dropship unavailable",true)
 			p_transport_t=1
@@ -111,7 +115,7 @@ function p_update()
 		if tile.occupant=="transport" and p_transport then
 			p_transport_t+=1
 
-			if p_transport_t==sec(8) then
+			if p_transport_t==sec(9) then
 				if eggs_collected>=20 then
 					victory_init()
 				else
@@ -499,6 +503,7 @@ function update_walker(self)
 			p_dead=true
 			level_list={}
 			make_blood()
+			p_spr=46
 			
 			gt=0
 			add_ticker_text("you are dead;press \142 to continue;you collected "..eggs_collected.." eggs;press \142 to continue",true)
@@ -516,7 +521,8 @@ function update_walker(self)
 
 			--hugger
 			if id==1 then
-				near=find_nearest(x,y, filter_tiles("body"))
+				printh("huggered")
+				near=find_nearest(self.x,self.y, filter_tiles("body"))
 				self.wpcount=5
 			end
 			
@@ -896,7 +902,9 @@ end
 function find_nearest(x,y,list)
 	local d=9999
 	local n=false
-
+	printh("find_nearest")
+	printh(#list)
+	
 	for t in all(list) do
 		local far=distance(t.x,t.y, x,y)
 
@@ -985,7 +993,7 @@ function generate_map(w,h)
 	while aliens_added<current_level.aliens do
 		local t=get_random_tile("empty")
 		
-		if not in_range(t.cx,t.cy, p_cx,p_cy, 100) then
+		if not in_range(t.tx,t.ty, p_tx,p_ty, 8) then
 			add_alien(t.tx,t.ty)
 			aliens_added+=1
 		end
@@ -1230,11 +1238,11 @@ function minimap_draw()
 	
 
 	rect(2,2, 125,114, 12) -- border frame
-	rect(4,4, 87,88, 12) --map frame
+	rect(4,4, 87,86, 12) --map frame
 	
 	rect(89,4, 123,76, 12) --sidebar border
 	
-	rect(4,90, 87,112, 12) -- info border
+	rect(4,88, 87,112, 12) -- info border
 	
 	--rectfill(80,75, 123,112, 1)
 	rectfill(89,78, 123,112, 1)
@@ -1243,8 +1251,8 @@ function minimap_draw()
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
 
-	print("eggs:"..minimap_txt_eggs.."\n\nbio:"..minimap_txt_bio.."\n\ncargo:"..eggs_collected.."\n\n\nnav:\n"..minimap_nav, 93, 9, 11)
-	print("planet:"..current_level.name.."\n\nitem:"..item, 7,93, 11)
+	print("eggs:"..minimap_txt_eggs.."\n\nbio:"..minimap_txt_bio.."\n\ncargo:\n15"..eggs_collected.."\n\nnav:\n"..minimap_nav, 93, 9, 11)
+	print("planet:"..current_level.name.."\n\nitem:"..item, 8,92, 11)
 	
 	
 	
@@ -1332,7 +1340,7 @@ end
 function make_blood()
 	blood_t=0
 	
-	if #blood<45
+	if #blood<45 then
 		for n=0,15 do
 			add(blood,{random(34,94),random(34,94),random(5,9)})
 		end
@@ -1397,27 +1405,30 @@ function game_update()
 
 		
 		-- #eggtimer
-		egg_timer-=1
-		if egg_timer<=0 then
-			local t=get_random_tile("egg")
-			
-			if t then
-				add_ticker_text("new life form detected",true)
+		if current_level.eggs>0 then
+			egg_timer-=1
+			if egg_timer<=0 then
+				local t=get_random_tile("egg")
 				
-				current_level.eggs-=1
-				if current_level.eggs<=0 then
-					add_ticker_text("no more eggs detected;return to transport beacon")
-				else
-					add_ticker_text(current_level.eggs.." eggs remaining")
+				if t then
+					add_ticker_text("new life form detected",true)
+					
+					current_level.eggs-=1
+					if current_level.eggs<=0 then
+						add_ticker_text("no more eggs detected;return to transport beacon")
+					else
+						add_ticker_text(current_level.eggs.." eggs remaining")
+					end
+					
+					add_hugger(t.tx,t.ty)
+					set_tile_occupant(t.tx,t.ty,"empty")
+					
 				end
 				
-				add_hugger(t.tx,t.ty)
-				set_tile_occupant(t.tx,t.ty,"empty")
-				
+				egg_timer=current_level.eggtimer	
 			end
-			
-			egg_timer=current_level.eggtimer	
 		end
+		
 		
 		if map_mode then
 			minimap_update()
@@ -1426,11 +1437,15 @@ function game_update()
 		bullet_update()
 		p_update()
 		
-		if gt>=sec(20) then -- toss in generic messages every 20 seconds 
-			if current_level.eggs<=0 then
-				add_ticker_text("no more eggs detected;return to transport beacon")
+		if gt>=sec(20) then -- toss in generic messages every 20 seconds
+			if eggs_collected>=20 then
+				add_ticker_text("mission accomplished;return to transport beacon",true)
 			else
-				ticker_common()
+				if current_level.eggs<=0 then
+					add_ticker_text("no more eggs detected;return to transport beacon")
+				else
+					ticker_common()
+				end
 			end
 			
 			gt=0
@@ -1471,12 +1486,16 @@ function game_draw()
 				spr(9,px,py+3,2,1)
 			end
 			
-			if plot.occupant=="transport" then
-				spr(12,px,py,2,2)
-			end
-			
 			if plot.occupant=="egg" then
 				spr(14,px,py,2,2)
+			end
+			
+			if plot.occupant=="transport" then
+				if p_transport then
+					pal(13,11)
+				end
+			
+				spr(12,px,py,2,2)
 			end
 			
 			if swap_bright then
@@ -1491,6 +1510,8 @@ function game_draw()
 			if plot.occupant=="sniper" then
 				spr(42, px, py, 2,2, plot.flip)
 			end
+			
+			
 		end
 	end
 	
@@ -1621,7 +1642,7 @@ function nextlevel_init()
 			numy+=8
 		end
 		
-		print("approaching planet\n\n"..current_level.name.."\n\n\n\ncalculating deorbital\napproach vector\n\ncommence landing\nsequence...\n\n\n\npress \142 to confirm", 7,8, 11)
+		print("approaching planet\n\n"..current_level.name.."\n\n\ncalculating lower\norbit path vector\n\ncommence with\nlanding sequence\n\nscanning surface\nbio readings\n\n\n\npress \142 to confirm", 7,8, 11)
 		
 		
 		if flr(scanlinev)==78 then scanlinev_dir=1 end
@@ -1659,18 +1680,44 @@ end
 
 -- #story
 function story_init()
+	local sx=1
+	local lspr=14
+	--local rspr=14
+
+	function story_update()
+		if btnxp or btnzp then
+			title_init()
+		end
+		
+		if gt>sec(18) then title_init() end
+		
+		if gt>sec(9) then
+			lspr=160
+			if sx>=90 then
+				lspr=128
+			else
+				
+			end
+			
+			sx=min(sx+.5,130)
+		end
+	end 
+
+	function story_draw()
+		print("dylan burke is finishing the\njob his father, carter, failed\nto finish on lv-426.\n\nyou know what that means. you\ncan't let him complete his\nmission.\n\nthanks to some old friends\nstill within the company, you\nknow where he's heading\nand you can make his\ngoal an impossibility.\n\nyou must travel to each location\nand collect 20 alien eggs before\nburke can get to them.",0,0,6)
+		palt(2,true)
+		spr(lspr,sx,105,2,2)
+		if sx<90 then spr(9,90,110,2,1) end
+		pal()
+		
+		
+	end
+
+
 	cart(story_update,story_draw)
 end
 
-function story_update()
-	if btnxp or btnzp then
-		title_init()
-	end
-end 
 
-function story_draw()
-	print("story of some sort",0,0,7)
-end
 
 
 
@@ -1690,7 +1737,7 @@ function title_init()
 	add(levels,{name="jl78",w=2,h=3,bodies=2,eggs=1,eggtimer=30,aliens=0,snipers=0,colors={11,3}})
 	add(levels,{name="col-b",w=3,h=4,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
 	add(levels,{name="gvh 1106",w=4,h=4,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=1,colors={9,4}})
-	add(levels,{name="roxi 9",w=5,h=4,bodies=5,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={11,4}})
+	add(levels,{name="roxi 9",w=5,h=4,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=2,colors={11,4}})
 	add(levels,{name="pv-418",w=5,h=5,bodies=7,eggs=5,eggtimer=50,aliens=5,snipers=5,colors={14,2}})
 	add(levels,{name="mf2018",w=3,h=7,bodies=10,eggs=6,eggtimer=35,aliens=5,snipers=5,colors={11,3}})
 	add(levels,{name="p-co 8",w=6,h=4,bodies=6,eggs=4,eggtimer=45,aliens=5,snipers=7,colors={14,2}})
@@ -1705,53 +1752,54 @@ function title_update()
 		nextlevel_init()
 	end
 	
-	if gt>sec(5) then
+	if gt>sec(7) then
 		story_init()	
 	end
 	
 end 
 
 function title_draw()
-	print("alien harvest",0,0,7)
+	print("alien harvest\n\npres \142 to start",0,0,7)
 end
 
 
 
 -- #intro
 intro_init=function()
-	
-	
 	local textc=0
+	local wait=sec(10)
 	
 	function intro_draw()
-		center_text("alien harvest "..ver,8,textc)
-		center_text("(c)2017 brian vaughn",16,textc)
+		center_text("alien harvest "..ver,4,textc)
+		center_text("(c)2017 brian vaughn",12,textc)
 		
-		center_text("design+code",35,textc)
-		center_text("brian vaughn",43,textc)
-		center_text("@morningtoast",51,textc)
+		center_text("design+code",25,textc)
+		center_text("brian vaughn",33,textc)
+		center_text("@morningtoast",41,textc)
 		
-		center_text("music+sound",70,textc)
-		center_text("brian follick",78,textc)
-		center_text("@gnarcade_vgm",86,textc)
+		center_text("music+sound",55,textc)
+		center_text("brian follick",63,textc)
+		center_text("@gnarcade_vgm",71,textc)
 		
-		center_text("animation",105,textc)
-		center_text("pinecone",113,textc)
-		center_text("@pinecone",121,textc)
+		center_text("art+animation",84,textc)
+		center_text("pinecone",92,textc)
+		center_text("@pinecone",100,textc)
 		
-		center_text("original sprites",105,textc)
-		center_text("http://bit.ly/h37fh",105,textc)
+		center_text("original sprites",113,textc)
+		center_text("http://bit.ly/h37fh",121,textc)
 	
 		
-		if gt>6 then textc=5 end
-		if gt>12 then textc=6 end
-		if gt>18 then textc=7 end
+		if gt>8 then textc=5 end
+		if gt>15 then textc=6 end
+		if gt>30 then textc=7 end
 		
-		if gt>130 then textc=6 end
-		if gt>136 then textc=5 end
-		if gt>142 then textc=0 end
+		if gt>wait-60 then textc=6 end
+		if gt>wait-60+15 then textc=5 end
+		if gt>wait-60+30 then textc=0 end
 		
-		if gt>160 then title_init() end
+		if gt>wait then 
+			title_init() 
+		end
 		
 		gt+=1
 	end
@@ -1768,7 +1816,7 @@ end
 function _init()
 	printh("\n\n=====new load================================================\n\n")
 	
-	
+	title_init()
 end
 
 function _update60()
@@ -1776,18 +1824,10 @@ function _update60()
 	btnr=btn(1)
 	btnu=btn(2)
 	btnd=btn(3)
-	--btnz=btn(4)
-	--btnx=btn(5)
-
-	--btnlp=btnp(0)
-	--btnrp=btnp(1)
-	--btnup=btnp(2)
-	--btndp=btnp(3)
 	btnzp=btnp(4)
 	btnxp=btnp(5)
 	
 	cart_update()
-	
 
 	gt+=1
 end
@@ -1799,7 +1839,7 @@ function _draw()
 	
 	-- debugging
 	camera(0,0)
-	local dbmem=flr((stat(0)/1024)*100).."% / "..flr(((flr(stat(1)*100))/200)*100).."%"
+	local dbmem=flr((stat(0)/1024)*100).."%m / "..flr(((flr(stat(1)*100))/200)*100).."%c"
 	print(dbmem,70,0,8)
 	if debug then print(debug,1,1,7) end
 end
@@ -2018,22 +2058,22 @@ end
 
 
 __gfx__
-0000000000000000000000000000000000000000000000000b0000000000000000000000a0a0000aaa2222220000060000000000000c00000000000000000000
-000000000000000b00000000000000000000000000300000bbb000000000000000000000a0a0aa0000222222000006000000000000c0c0000000000000000000
-000000000000300b00000000000000b0000000000033000bb0b000000000000030000000aa0aaaaa02222222000aaa00000000000ccc00000000000000000000
-000000000000300b000300b0000000bb00003300003330bb0bb00030003000303030030000000aaaa0aaa00a00aaaaa000000ddd00c000000000000000000000
-0000000000b0030bb00300b0000000bbb0033000003330bb0bb03330000000000000000020aa0aa00aaaaaaa000aa0a0000cc0ddd00000000000000dd0000000
-0000000000b0030bb0330bb0003330b0bb033000000000bbbb03303000000000000000002aa000aaa022222200aaaa0000cccc0d00000000000000dd0d000000
-0000000000bb030bb0330bb0000330bb0b00000000bbb00bb0330330000000000000000020a02222aa022222000aa00000c0ccc00d00000000000dddd0d00000
-00000000000b030bbb00bb000000300bb0bb00000bbbbbbbb00033000030030000000000220a02222aa022220000600000c0cccc0000000000b0dddd0d0d0000
-00000000000bb00bbb00bb0000000bbb0bbbb000bb0000bbbbb030303030300300030000bbbbbbb00000000000006000000c0ccccccc00000000ddddd00d00b0
-00000000000bb00bbb0bbb000000bb0bb0bbb0000bbbbbb0b0bb03300000000000000000b00000bb000dd0000006000000000000000000000b00dddd0d0d0000
-000000003000bb0bbbb0bb000000b0bbb00bbb0000bbbb00bb0bb0300000000000000000b0b0b0bb00dd0d000006000000000d0ddd00000000b00dd0d0d000b0
-000000000300bb0bbbb0b000000b0bbb03300b00000000b0bbb0b0000000000000000000b00000bb0dddd0d00006000000000000000000000b0b00dd0d000000
-000000000330bbb0bbb00030000bbb0003300000000bb0bb0bb0b0000000000000030000bbbbbbb00ddd0dd00060000000d0ddddddddd00000b000000000b0b0
-0000000000330bb0bbbb033000bb000000300000000b0bb000bbb0000000000003030030000000000dddd0d03060030000000000000000000000b000000b0000
-0000000000000bbb0bbb00000000000000000000000bbb00000bb00003000030030303000000000000dddd00306030030c0cc0ccc0cc0c00000000b0b0000000
-000000000000000000000000000000000000000000bbb000000b0000000000000000000000000000000000000333303000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000b0000000000000000000000a0a0000aaa2222222222262200000000000c00000000000000000000
+000000000000000b00000000000000000000000000300000bbb000000000000000000000a0a0aa0000222222222226220000000000c0c0000000000000000000
+000000000000300b00000000000000b0000000000033000bb0b000000000000030000000aa0aaaaa02222222222aaa22000000000ccc00000000000000000000
+000000000000300b000300b0000000bb00003300003330bb0bb00030003000303030030000000aaaa0aaa00a22aaaaa200000ddd00c000000000000000000000
+0000000000b0030bb00300b0000000bbb0033000003330bb0bb03330000000000000000020aa0aa00aaaaaaa220aa0a2000cc0ddd00000000000000dd0000000
+0000000000b0030bb0330bb0003330b0bb033000000000bbbb03303000000000000000002aa000aaa022222222aaaa2200cccc0d00000000000000dd0d000000
+0000000000bb030bb0330bb0000330bb0b00000000bbb00bb0330330000000000000000020a02222aa022222222aa22200c0ccc00d00000000000dddd0d00000
+00000000000b030bbb00bb000000300bb0bb00000bbbbbbbb00033000030030000000000220a02222aa022222222622200c0cccc0000000000b0dddd0d0d0000
+00000000000bb00bbb00bb0000000bbb0bbbb000bb0000bbbbb030303030300300030000bbbbbbb00000000022226222000c0ccccccc00000000ddddd00d00b0
+00000000000bb00bbb0bbb000000bb0bb0bbb0000bbbbbb0b0bb03300000000000000000b00000bb000dd0002226222200000000000000000b00dddd0d0d0000
+000000003000bb0bbbb0bb000000b0bbb00bbb0000bbbb00bb0bb0300000000000000000b0b0b0bb00dd0d002226222200000d0ddd00000000b00dd0d0d000b0
+000000000300bb0bbbb0b000000b0bbb03300b00000000b0bbb0b0000000000000000000b00000bb0dddd0d02226222200000000000000000b0b00dd0d000000
+000000000330bbb0bbb00030000bbb0003300000000bb0bb0bb0b0000000000000030000bbbbbbb00ddd0dd02262222200d0ddddddddd00000b000000000b0b0
+0000000000330bb0bbbb033000bb000000300000000b0bb000bbb0000000000003030030000000000dddd0d03262232200000000000000000000b000000b0000
+0000000000000bbb0bbb00000000000000000000000bbb00000bb00003000030030303000000000000dddd00326232230c0cc0ccc0cc0c00000000b0b0000000
+000000000000000000000000000000000000000000bbb000000b0000000000000000000000000000000000002333323200000000000000000000000000000000
 2222222aa22222220000000000000000000000000000000000000000000000000000000000000000000003333333000000000000000000000000000000000000
 222222aaaa2222220000000000000000000000000000000000000000000000000000000000000000000333333333330000000000000000000000000000000000
 222222aa002222220000000000000000000000000000000000000000000000000000000000000000003333333300333000000000000000000000000000000000
