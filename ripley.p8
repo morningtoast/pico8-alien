@@ -94,11 +94,13 @@ function p_update()
 		end
 		
 		if tile.occupant=="transport" and current_level.eggs>0 and p_transport_t<1 then
+			-- @sound buzzer
 			add_ticker_text("dropship unavailable",true)
 			p_transport_t=1
 		end
 		
 		if tile.occupant=="transport" and current_level.eggs<=0 and not p_transport then
+			-- @sound dropship call
 			add_ticker_text("dropship landing, stay at beacon;leaving "..current_level.name,true)
 			p_transport=true
 			p_transport_t=2
@@ -133,7 +135,7 @@ function p_update()
 				generate_minimap()
 				map_mode=true
 			else
-				-- #sound, "not allowed" buzzer
+				-- @sound buzzer
 				add_ticker_text("scanner battery recharging",true)
 			end
 		end
@@ -142,6 +144,7 @@ function p_update()
 		if btnxp then
 			-- beacon
 			if p_st==3 then
+				-- @sound bait noise
 				add_bait(p_tx,p_ty)
 				p_st=1
 				p_spr=32
@@ -151,7 +154,7 @@ function p_update()
 
 			-- fire gun
 			if p_st==2 then
-				-- #sound, bullet shot noise
+				-- @sound bullet shot
 				
 				-- create player bullet object
 				local targets={}
@@ -436,6 +439,7 @@ function add_sniper(tx,ty,flip)
 
 				if in_hitbox(p_cx,p_cy, ox,oy, 32,8) then
 					-- sniper bullet object
+					-- @sound sniper shot
 					local obj={
 						dx=4,x=self.x+16,
 						c=13,dy=0,
@@ -504,6 +508,8 @@ function update_walker(self)
 			level_list={}
 			make_blood()
 			p_spr=46
+			
+			-- @sound death blow, only once
 			
 			gt=0
 			add_ticker_text("you are dead;press \142 to continue;you collected "..eggs_collected.." eggs;press \142 to continue",true)
@@ -1251,7 +1257,7 @@ function minimap_draw()
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
 
-	print("eggs:"..minimap_txt_eggs.."\n\nbio:"..minimap_txt_bio.."\n\ncargo:\n15"..eggs_collected.."\n\nnav:\n"..minimap_nav, 93, 9, 11)
+	print("eggs:"..minimap_txt_eggs.."\n\ncargo:\n15"..eggs_collected.."\n\nnav:\n"..minimap_nav, 93, 9, 11)
 	print("planet:"..current_level.name.."\n\nitem:"..item, 8,92, 11)
 	
 	
@@ -1378,7 +1384,7 @@ function game_init()
 	add_bodies(current_level.bodies)
 	add_eggs(current_level.eggs)
 
-	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in vicinity;find eggs before they hatch",true)
+	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in range;find eggs before they hatch",true)
 
 	if level_id==1 then
 		add_ticker_text("press \142 to scan area;press \151 to use item")	
@@ -1411,6 +1417,7 @@ function game_update()
 				local t=get_random_tile("egg")
 				
 				if t then
+					-- @sound hatch alert
 					add_ticker_text("new life form detected",true)
 					
 					current_level.eggs-=1
@@ -1442,6 +1449,7 @@ function game_update()
 				add_ticker_text("mission accomplished;return to transport beacon",true)
 			else
 				if current_level.eggs<=0 then
+					-- @sound no egg alert
 					add_ticker_text("no more eggs detected;return to transport beacon")
 				else
 					ticker_common()
@@ -1582,15 +1590,16 @@ end
 -- #nextlevel
 function nextlevel_init()
 	level_id+=1
+	daysout+=1
 	p_transport=false
 	
 	
 	-- after level 5, maps are same always big, just new layout
 	if level_id>#levels then
 		local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
-		local name=rnd_table(abc)..rnd_table(abc).."-"..random(108,850)
+		local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
 		local colors={{3,4},{11,9},{11,4},{15,14}}
-	
+
 		current_level={name=name,w=6,h=6,bodies=10,eggs=5,eggtimer=45,aliens=6,snipers=6,colors=rnd_table(colors)}
 	else
 		current_level=levels[level_id]
@@ -1649,7 +1658,7 @@ function nextlevel_init()
 		end
 		
 		--print("approaching planet\n\n"..current_level.name.."\n\n\ncalculating lower\norbit path vector\n\ncommence with\nlanding sequence\n\nscanning surface\nbio readings\n\n\n\npress \142 to confirm", 7,8, 11)
-		print("next planet: "..current_level.name.."\n\ndays out: 1\n\nsearch zone: "..zonetext, 7,8, 7)
+		print("next planet: "..current_level.name.."\n\ndays out: "..daysout.."\n\nsearch zone: "..zonetext, 7,8, 7)
 		print("scans show "..current_level.eggs.." eggs\nand other life\nforms in range\n\n\npress \142 to start", 7,45, 7)
 		
 		print("cargo: "..eggs_collected.."/20",7,100,7)
@@ -1704,38 +1713,30 @@ end
 
 
 -- #story
-function story_init()
+story_init=function() --must be var for use in attract modes
 	local sx=1
 	local lspr=14
-	--local rspr=14
 
 	function story_update()
-		if btnxp or btnzp then
+		if (btnxp or btnzp) or (gt>sec(15)) then
+			attract=help_init;
 			title_init()
 		end
-		
-		if gt>sec(18) then title_init() end
-		
-		if gt>sec(9) then
+
+		if gt>sec(4) then
 			lspr=160
-			if sx>=90 then
-				lspr=128
-			else
-				
-			end
+			if sx>=90 then lspr=128	end
 			
 			sx=min(sx+.5,130)
 		end
 	end 
 
 	function story_draw()
-		print("dylan burke is finishing the\njob his father, carter, failed\nto finish on lv-426.\n\nyou know what that means. you\ncan't let him complete his\nmission.\n\nthanks to some old friends\nstill within the company, you\nknow where he's heading\nand you can make his\ngoal an impossibility.\n\nyou must travel to each location\nand collect 20 alien eggs before\nburke can get to them.",0,0,6)
+		print("dylan burke is finishing the\njob his father failed\nto finish on lv-426.\n\nyou know what that means and you\nmust stop him.\n\nthanks to some old friends\nstill within the company, you\nknow where he's heading.\n\nYou must travel to each planet\nand collect alien eggs before\nburke can get to them.",0,0,6)
 		palt(2,true)
 		spr(lspr,sx,105,2,2)
 		if sx<90 then spr(9,90,110,2,1) end
 		pal()
-		
-		
 	end
 
 
@@ -1744,13 +1745,50 @@ end
 
 
 
+-- #help
+help_init=function() --must be var for use in attract modes
+	function help_update()
+		if (btnxp or btnzp) or (gt>sec(15)) then
+			attract=story_init;
+			title_init()
+		end
+	end
+	
+	function help_draw()
+		-- left side
+		spr(14,8,8,2,2)
+		print("find & collect\nalien eggs",26,8,7)
+
+		spr(9,8,48,2,2)
+		print("search bodies to\nequip weapon",26,48,7)
+		
+		spr(12,8,28,2,2)
+		print("stand on beacon\nto call dropship",26,28,7)
+		
+		print("press \142 for map scan\n\npress \151 to use equipped weapon", 8,68, 7)
+		
+
+		-- right side		
+		print("avoid aliens", 64,8, 8)
+		spr(160, 64,18, 2,2)    spr(128, 82,18, 2,2)
+		spr(42, 64,36, 2,2)
+		
+		print("eggs hatch after time.\n\nsmall aliens look for\nbodies to grow.", 64,60, 8)
+	end
+	
+	cart(help_update, help_draw)
+end
+
+
+
 
 
 -- #title
+attract=story_init;
 function title_init()
 	level_id=0
 	eggs_collected=0 --total eggs collected by player for game session
-	
+	daysout=0
 	level_grid={}
 	level_list={}
 	blood={}
@@ -1761,11 +1799,11 @@ function title_init()
 	-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
 	add(levels,{name="jl78",w=2,h=3,bodies=2,eggs=1,eggtimer=30,aliens=0,snipers=0,colors={11,3}})
 	add(levels,{name="col-b",w=3,h=4,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
-	add(levels,{name="gvh 1106",w=4,h=4,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=1,colors={9,4}})
-	add(levels,{name="roxi 9",w=5,h=4,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=2,colors={11,4}})
-	add(levels,{name="pv-418",w=5,h=5,bodies=7,eggs=5,eggtimer=50,aliens=5,snipers=5,colors={14,2}})
-	add(levels,{name="mf2018",w=3,h=7,bodies=10,eggs=6,eggtimer=35,aliens=5,snipers=5,colors={11,3}})
-	add(levels,{name="p-co 8",w=6,h=4,bodies=6,eggs=4,eggtimer=45,aliens=5,snipers=7,colors={14,2}})
+	add(levels,{name="mf 2018",w=4,h=4,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={9,4}})
+	add(levels,{name="roxi 9",w=5,h=4,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=3,colors={11,4}})
+	add(levels,{name="pv-418",w=6,h=6,bodies=7,eggs=5,eggtimer=50,aliens=6,snipers=6,colors={14,2}})
+	--add(levels,{name="mf2018",w=3,h=7,bodies=10,eggs=6,eggtimer=35,aliens=5,snipers=5,colors={11,3}})
+	--add(levels,{name="p-co 8",w=6,h=4,bodies=6,eggs=4,eggtimer=45,aliens=5,snipers=7,colors={14,2}})
 	
 	
 	
@@ -1773,14 +1811,9 @@ function title_init()
 end
 
 function title_update()
-	if btnxp or btnzp then
-		nextlevel_init()
-	end
+	if btnxp or btnzp then nextlevel_init()	end
 	
-	if gt>sec(7) then
-		story_init()	
-	end
-	
+	if gt>sec(7) then abstract() end
 end 
 
 function title_draw()
@@ -1789,8 +1822,10 @@ end
 
 
 
+
 -- #intro
-intro_init=function()
+
+function intro_init()
 	local textc=0
 	local wait=sec(10)
 	
