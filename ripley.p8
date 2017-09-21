@@ -119,7 +119,7 @@ function p_update()
 
 			if p_transport_t==sec(9) then
 				if eggs_collected>=20 then
-					victory_init()
+					finale_init()
 				else
 					nextlevel_init()	
 				end
@@ -1334,12 +1334,12 @@ function ticker_draw()
 
 	-- battery
 	if minimap_battery>0 then pal(11,8) end
-	spr(25, 96,120)
+	spr(25, 94,120)
 	pal()
 
 	 --egg count
-	spr(26, 110,119)
-	print(egg_count,120,120, 6)
+	spr(26, 118,119)
+	print(current_level.eggs, 113,120, 6)
 end
 
 
@@ -1392,7 +1392,7 @@ function game_init()
 	
 	
 	
-	music(0)
+	--music(0)
 	cart(game_update,game_draw)
 end
 
@@ -1500,7 +1500,8 @@ function game_draw()
 			
 			if plot.occupant=="transport" then
 				if p_transport then
-					pal(13,11)
+					pal(13,8)
+					pal(12,8)
 				end
 			
 				spr(12,px,py,2,2)
@@ -1593,18 +1594,21 @@ function nextlevel_init()
 	daysout+=1
 	p_transport=false
 	
+	local colors={{3,4},{11,9},{11,4},{15,14}}
 	
 	-- after level 5, maps are same always big, just new layout
 	if level_id>#levels then
 		local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
 		local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
-		local colors={{3,4},{11,9},{11,4},{15,14}}
 
 		current_level={name=name,w=6,h=6,bodies=10,eggs=5,eggtimer=45,aliens=6,snipers=6,colors=rnd_table(colors)}
 	else
 		current_level=levels[level_id]
 	end
 	
+	if finale then
+		current_level={name="pco 8",w=6,h=5,bodies=10,eggs=7,eggtimer=25,aliens=6,snipers=6,colors=rnd_table(colors)}
+	end
 	
 	local scanlinev=78
 	local scanlinev_dir=1
@@ -1612,13 +1616,6 @@ function nextlevel_init()
 	local scanlineh_dir=1
 	local t=31
 	local nums={}
-	
-	local zonesize=max(current_level.w,current_level.h)
-	local zonetext="small"
-
-	if zonesize>3 then zonetext="medium" end
-	if zonesize>5 then zonetext="large" end
-	
 	
 	function nextlevel_update()
 		if btnzp or btnxp then
@@ -1657,10 +1654,31 @@ function nextlevel_init()
 			numy+=8
 		end
 		
-		--print("approaching planet\n\n"..current_level.name.."\n\n\ncalculating lower\norbit path vector\n\ncommence with\nlanding sequence\n\nscanning surface\nbio readings\n\n\n\npress \142 to confirm", 7,8, 11)
-		print("next planet: "..current_level.name.."\n\ndays out: "..daysout.."\n\nsearch zone: "..zonetext, 7,8, 7)
-		print("scans show "..current_level.eggs.." eggs\nand other life\nforms in range\n\n\npress \142 to start", 7,45, 7)
+		print("next planet: "..current_level.name, 7,8, 10)
 		
+		
+		if finale then
+			-- last level directions
+			spr(110, 5,18, 2,2)
+			print("find 3 bombs\nwait to arm", 24,18, 7)
+				
+			spr(108, 5,41, 2,2)
+			print("find detonator\nto start timer",24,41, 7)
+				
+			spr(12, 5,60, 2,2)
+			print("back to beacon\nto escape",24,61, 7)
+		else
+			-- normal directions
+			spr(14, 5,18, 2,2)
+			print("find alien eggs\n"..current_level.eggs.." detected", 24,22, 7)
+
+			spr(12, 5,41, 2,2)
+			print("stand on beacon\nwhen done",24,42, 7)
+		end
+		
+		
+		
+		print("press \142 to start",7,85, 7)
 		print("cargo: "..eggs_collected.."/20",7,100,7)
 		
 		local iconx=5
@@ -1668,7 +1686,7 @@ function nextlevel_init()
 		
 		for n=1,20 do
 			
-			if n<eggs_collected then pal(13,10) else pal(13,5) end
+			if n<=eggs_collected then pal(13,10) else pal(13,5) end
 			spr(26,iconx,icony,1,1)
 			iconx+=8
 			
@@ -1719,7 +1737,7 @@ story_init=function() --must be var for use in attract modes
 
 	function story_update()
 		if (btnxp or btnzp) or (gt>sec(15)) then
-			attract=help_init;
+			abstract=help_init
 			title_init()
 		end
 
@@ -1732,7 +1750,7 @@ story_init=function() --must be var for use in attract modes
 	end 
 
 	function story_draw()
-		print("dylan burke is finishing the\njob his father failed\nto finish on lv-426.\n\nyou know what that means and you\nmust stop him.\n\nthanks to some old friends\nstill within the company, you\nknow where he's heading.\n\nYou must travel to each planet\nand collect alien eggs before\nburke can get to them.",0,0,6)
+		print("dylan burke is finishing the\njob his father failed to finish\non lv-426.\n\nyou know what that means and you\nmust stop him.\n\nthanks to some old friends\nstill within the company, you\nknow where he's heading.\n\nyou must travel to each planet\nand collect alien eggs before\nburke can get to them, then\ndestroy them all.", 1,5, 6)
 		palt(2,true)
 		spr(lspr,sx,105,2,2)
 		if sx<90 then spr(9,90,110,2,1) end
@@ -1746,34 +1764,36 @@ end
 
 
 -- #help
-help_init=function() --must be var for use in attract modes
+help_init=function(nextinit) --must be var for use in attract modes
 	function help_update()
 		if (btnxp or btnzp) or (gt>sec(15)) then
-			attract=story_init;
-			title_init()
+			abstract=story_init
+			nextinit()
 		end
 	end
 	
 	function help_draw()
 		-- left side
-		spr(14,8,8,2,2)
-		print("find & collect\nalien eggs",26,8,7)
+		palt(2,true)
+		spr(14, 1,2, 2,2)
+		print("find and collect alien\neggs before they hatch", 22,6, 7)
 
-		spr(9,8,48,2,2)
-		print("search bodies to\nequip weapon",26,48,7)
+		spr(9, 1,25, 2,1)
+		print("search bodies to\nequip weapon",22, 24,7)
 		
-		spr(12,8,28,2,2)
-		print("stand on beacon\nto call dropship",26,28,7)
+		spr(12, 1,41, 2,2)
+		print("stand on beacon to call\ndropship when done",22,42, 7)
 		
-		print("press \142 for map scan\n\npress \151 to use equipped weapon", 8,68, 7)
+		print("press \142 for map scan\n\npress \151 to use weapon", 22,62, 7)
 		
 
 		-- right side		
-		print("avoid aliens", 64,8, 8)
-		spr(160, 64,18, 2,2)    spr(128, 82,18, 2,2)
-		spr(42, 64,36, 2,2)
+		print("avoid aliens", 22,88, 8)
 		
-		print("eggs hatch after time.\n\nsmall aliens look for\nbodies to grow.", 64,60, 8)
+		spr(160, 22,94, 2,2)    
+		spr(128, 42,97, 2,2)
+		spr(42, 65,97, 2,2)
+		pal()
 	end
 	
 	cart(help_update, help_draw)
@@ -1782,12 +1802,30 @@ end
 
 
 
+-- #finale
+function finale_init()
+	finale=true
+	
+	function finale_story()
+		print("story about having all the eggs", 1,1, 7)
+		
+		if btnzp or btnxp then
+			nextlevel_init()
+		end
+	end
+	
+	
+	cart(ef, finale_story)
+end
+
 
 -- #title
-attract=story_init;
+abstract=story_init
 function title_init()
+	finale=true
+	nextinit=title_init
 	level_id=0
-	eggs_collected=0 --total eggs collected by player for game session
+	eggs_collected=20 --total eggs collected by player for game session
 	daysout=0
 	level_grid={}
 	level_list={}
@@ -1811,7 +1849,10 @@ function title_init()
 end
 
 function title_update()
-	if btnxp or btnzp then nextlevel_init()	end
+	if btnxp or btnzp then
+		--help_init(nextlevel_init)
+		nextlevel_init()	
+	end
 	
 	if gt>sec(7) then abstract() end
 end 
@@ -1824,7 +1865,6 @@ end
 
 
 -- #intro
-
 function intro_init()
 	local textc=0
 	local wait=sec(10)
@@ -1877,6 +1917,8 @@ function _init()
 	printh("\n\n=====new load================================================\n\n")
 	
 	title_init()
+	--story_init()
+	--nextlevel_init()
 end
 
 function _update60()
@@ -2166,22 +2208,22 @@ aaa0aaaaaaaaaaa20000000000000000000000000000000000000000000000000000000000000000
 aa02222aaa2222220000000000000000000000000000000000000000000000000000000000000000000000000000000006666666605555000066666666055550
 0aa22222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000006666666605555000006666666055500
 22222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000066666605550000000006666050000
-222aa222222222a20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-22aaaa2222222a220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-22aa00222222a2220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005550000000005555550
-2a00aa22222a22220000000000000000000000000000000000000000000000000000000000000000000000000000000005555500000555755000555055555500
-aa0000a222a222220000000000000000000000000000000000000000000000000000000000000000000000000000555555555550005555555505555555555550
-aaa0aa0aaa2222220000000000000000000000000000000000000000000000000000000000000000000000000055555557575555555575555555757575555500
-20aa00000a2222220000000000000000000000000000000000000000000000000000000000000000000000000000005555555555555555555555555555555550
-200aaaaaa22222220000000000000000000000000000000000000000000000000000000000000000000000000555555555557575555555575555555055555500
-2000000aa22222220000000000000000000000000000000000000000000000000000000000000000000000000005555555555555555555555500000055555550
-20aa00a0022222220000000000000000000000000000000000000000000000000000000000000000000000000000055555555555000000575500000005555000
-20a00a20022222220000000000000000000000000000000000000000000000000000000000000000000000000555550550555550000000555500000000000000
-20a2a22a022222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055000000000000000
-2a02222aa22222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055000000000000000
-aa02222aaa2222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055500000000000000
-2aa22222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055500000000000000
-22222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000050000000000000000
+222aa222222222a200000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000c000000000cc00000000
+22aaaa2222222a22000000000000000000000000000000000000000000000000000000000000000000000000000000000cc0ccccc0cc000000000cccc0000000
+22aa00222222a222000000000000000000000000000000000000000000000000000000000000000000000000000000000ccc00000ccc000000000c1cc0000000
+2a00aa22222a22220000000000000000000000000000000000000000000000000000000000000000000000000000000000c0000000c000000000cc1ccc000000
+aa0000a222a22222000000000000000000000000000000000000000000000000000000000000000000000000000000000c000101000c00000000c1cccc000000
+aaa0aa0aaa222222000000000000000000000000000000000000000000000000000000000000000000000000000000000c0010c0100c0000000cc1ccccc00000
+20aa00000a222222000000000000000000000000000000000000000000000000000000000000000000000000000000000c000c0c000c0000000c11111cc00000
+200aaaaaa2222222000000000000000000000000000000000000000000000000000000000000000000000000000000000c0010c0100c00000000cccccc000000
+2000000aa2222222000000000000000000000000000000000000000000000000000000000000000000000000000000000c000101000c00000b000c1cc0000000
+20aa00a0022222220000000000000000000000000000000000000000000000000000000000000000000000000000000000c0000000c00000b0000c1cc0000b00
+20a00a2002222222000000000000000000000000000000000000000000000000000000000000000000000000000000000ccc00000ccc00000b000c1cc000b000
+20a2a22a02222222000000000000000000000000000000000000000000000000000000000000000000000000000000000cc0ccccc0cc00000000c111cc000000
+2a02222aa222222200000000000000000000000000000000000000000000000000000000000000000000000000000000c00000000000c0000b000000b00b00b0
+aa02222aaa222222000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b0b0000b00000
+2aa22222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+22222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 22222222ddddd2220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 2222222ddddddd220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 222222d2000dd0d20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
