@@ -100,6 +100,7 @@ function p_update()
 				if bomb_t==sec(4) then 
 					tile.bomb_st=2 
 					current_level.bombs=max(0,current_level.bombs-1)
+					add_ticker_text("bomb armed successfully",true) 
 					--@sound bomb armed success
 				end
 			else
@@ -118,22 +119,25 @@ function p_update()
 		-- #dentonaor
 		-- player must hover to trigger
 		-- detonator_st: 0=unarmed;1=onhover;2=armed
-		if tile.occupant=="detonator" and tile.detonator_st<2 then
-			if detonator_t==0 then add_ticker_text("entering detonation code, stand by",true) end
-			detonator_t+=1
-			
-			tile.detonator_st=1
-			
-			if detonator_t==sec(4) then 
-				tile.detonator_st=2 
-				add_ticker_text("countdown initiated;you have 30 seconds to reach transport beacon",true)
-				countdown=30
-				--@sound bomb armed success
+		
+		if tile.occupant=="detonator" then
+			if tile.detonator_st<2 then
+				if detonator_t==0 then add_ticker_text("entering detonation code, stand by",true) end
+				detonator_t+=1
+				
+				tile.detonator_st=1
+				
+				if detonator_t==sec(4) then 
+					tile.detonator_st=2 
+					add_ticker_text("countdown initiated;you have 30 seconds to reach transport beacon",true)
+					countdown=30
+					--@sound bomb armed success
+				end
+			else
+				add_ticker_text("countdown already started;get the hell out",true) 
 			end
 		else
-			if tile.bomb_st==2 then  end
-			bomb_t=0
-			tile.bomb_st=0
+			detonator_t=0
 		end
 		
 		
