@@ -74,7 +74,6 @@ function p_update()
 		-- when player gets to a body, switch modes
 		if tile.occupant=="egg" then
 			eggs_collected=min(eggs_collected+1,20)
-			egg_count+=1
 			current_level.eggs=max(current_level.eggs-1,0)
 
 			set_tile_occupant(p_tx,p_ty,"empty")
@@ -87,15 +86,61 @@ function p_update()
 			end
 		end
 		
-		-- #transport
-		-- player hits transport beacon
-		if tile.occupant=="transport" then
-			printh(current_level.eggs)
+		-- #bombarm
+		-- player must hover to arm bomb
+		-- bomb_st: 0=unarmed;1=onhover;2=armed
+		if tile.occupant=="bomb" and tile.bomb_st<2 then
+			if bomb_t==0 then add_ticker_text("arming bomb, stand by",true) end
+			bomb_t+=1
+			
+			tile.bomb_st=1
+			
+			if bomb_t==sec(4) then 
+				tile.bomb_st=2 
+				current_level.bombs=max(0,current_level.bombs-1)
+				--@sound bomb armed success
+			end
+		else
+			if tile.bomb_st==2 then 
+				add_ticker_text("bomb armed successfully",true) 
+				if current_level.bombs>0 then
+					add_ticker_text(current_level.bombs.." unarmed bombs remain") 
+				else
+					add_ticker_text("all bombs armed;find detonator to start countdown") 
+				end
+			end
+			bomb_t=0
+			tile.bomb_st=0
 		end
 		
+		
+		-- #dentonaor
+		-- player must hover to trigger
+		-- detonator_st: 0=unarmed;1=onhover;2=armed
+		if tile.occupant=="detonator" and tile.detonator_st<2 then
+			if detonator_t==0 then add_ticker_text("entering detonation code, stand by",true) end
+			detonator_t+=1
+			
+			tile.detonator_st=1
+			
+			if detonator_t==sec(4) then 
+				tile.detonator_st=2 
+				add_ticker_text("countdown initiated;you have 30 seconds to reach transport beacon",true)
+				countdown=30
+				--@sound bomb armed success
+			end
+		else
+			if tile.bomb_st==2 then  end
+			bomb_t=0
+			tile.bomb_st=0
+		end
+		
+		
+		-- #transport
+		-- player hits transport beacon
 		if tile.occupant=="transport" and current_level.eggs>0 and p_transport_t<1 then
 			-- @sound buzzer
-			add_ticker_text("dropship unavailable",true)
+			add_ticker_text("dropship unavailable;alien eggs remain",true)
 			p_transport_t=1
 		end
 		
@@ -709,35 +754,56 @@ end
 
 function add_eggs(q)
 	local c,try=0,0
-	
-	--printh("adding bodies: "..q)
+
+	-- eggs
 	while c<q and try<50 do
-		local t=get_random_tile("empty")
+		local t=get_random_tile("spawn")
 		local list=filter_tiles("egg")
 		
 		if #list>0 then
-			--printh("checking existinb bodies")
-		
 			for n in all(list) do
 				if not in_range(n.tx,n.ty, t.tx,t.ty, 6) then
 					if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
 						set_tile_occupant(t.tx,t.ty, "egg")
-						--printh("added at "..t.tx..","..t.ty)
 						c+=1
 					end
 				end
 			end
 		else
-			--printh("no existinb bodies")
-		
 			if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
-				--printh("added at "..t.tx..","..t.ty)
 				set_tile_occupant(t.tx,t.ty, "egg")
 				c+=1
 			end
 		end
 		
 		try+=1
+	end
+	
+	-- bombs for last level only
+	if finale then
+		local c,try=0,0
+		while c<current_level.bombs and try<50 do
+			local t=get_random_tile("spawn")
+			local list=filter_tiles("bomb")
+			
+			if #list>0 then
+				for n in all(list) do
+					if not in_range(n.tx,n.ty, t.tx,t.ty, 6) then
+						if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+							set_tile_occupant(t.tx,t.ty, "bomb")
+							c+=1
+						end
+					end
+				end
+			else
+				if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+					set_tile_occupant(t.tx,t.ty, "bomb")
+					c+=1
+				end
+			end
+			
+			try+=1
+		end
 	end
 end
 
@@ -970,7 +1036,16 @@ function generate_map(w,h)
 	end
 
 	-- add start screen, replace a random screen
-	create_screen(rand(map_w)+1,rand(map_h)+1, read_spritelayout(0,0))
+	if finale then
+		queen_x=map_w
+		queen_y=rand(map_h)+1
+		
+		create_screen(1,rand(map_h)+1, read_spritelayout(0,0)) --player start in first column, random row
+		create_screen(queen_x,queen_y, read_spritelayout(0,0)) --queen in last column, random row
+	else
+		create_screen(rand(map_w)+1,rand(map_h)+1, read_spritelayout(0,0))	
+	end
+	
 	
 	-- make a node list for pathfinding
 	-- this needs to come after map population unless you populate within initial creation above
@@ -1087,6 +1162,18 @@ function create_screen(mx,my, spritemap)
 			if pxc==15 then 
 				tile.occupant="spawn"
 			end
+			
+			-- bomb detonator
+			if pxc==14 then 
+				tile.occupant="detonator"
+			end
+			
+			-- queen
+			if pxc==9 then 
+				tile.occupant="queen"
+			end
+			
+			
 
 			-- player start; doesn't change tile attrs
 			if pxc==8 then
@@ -1376,7 +1463,7 @@ function game_init()
 	minimap_battery = 0
 	map_mode        = false
 	egg_timer       = sec(current_level.eggtimer)
-	egg_count       = 0
+	--egg_count       = 0
 	
 	
 	p_init()
@@ -1384,7 +1471,12 @@ function game_init()
 	add_bodies(current_level.bodies)
 	add_eggs(current_level.eggs)
 
-	add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in range;find eggs before they hatch",true)
+	if finale then
+		add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in range;find eggs before they hatch",true)	
+	else
+		add_ticker_text("arrival on "..current_level.name..";find and arm 3 bombs;find detonator",true)
+	end
+	
 
 	if level_id==1 then
 		add_ticker_text("press \142 to scan area;press \151 to use item")	
@@ -1445,16 +1537,16 @@ function game_update()
 		p_update()
 		
 		if gt>=sec(20) then -- toss in generic messages every 20 seconds
-			if eggs_collected>=20 then
-				add_ticker_text("mission accomplished;return to transport beacon",true)
-			else
+			--if eggs_collected>=20 then
+				--add_ticker_text("mission accomplished;return to transport beacon",true)
+			--else
 				if current_level.eggs<=0 then
 					-- @sound no egg alert
 					add_ticker_text("no more eggs detected;return to transport beacon")
 				else
 					ticker_common()
 				end
-			end
+			--end
 			
 			gt=0
 		end
@@ -1507,6 +1599,21 @@ function game_draw()
 				spr(12,px,py,2,2)
 			end
 			
+			if plot.occupant=="bomb" then
+				if plot.bomb_st==1 then pal(11,9) end --orange, hover arming
+				if plot.bomb_st==2 then pal(11,8) end --red, armed
+				spr(110, px, py, 2,2)
+			end
+			
+			if plot.occupant=="detonator" then
+				if plot.detonator_st==1 then pal(11,9) end --orange, hover arming
+				if plot.detonator_st==2 then pal(11,8) end --red, armed
+				spr(108, px, py, 2,2)
+			end
+			
+			
+			-- only things that need color swapped based on level colors go below here
+			--
 			if swap_bright then
 				pal(11,swap_bright)
 				pal(3,swap_dark)
@@ -1519,6 +1626,9 @@ function game_draw()
 			if plot.occupant=="sniper" then
 				spr(42, px, py, 2,2, plot.flip)
 			end
+			
+			
+			
 			
 			
 		end
@@ -1601,13 +1711,14 @@ function nextlevel_init()
 		local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
 		local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
 
-		current_level={name=name,w=6,h=6,bodies=10,eggs=5,eggtimer=45,aliens=6,snipers=6,colors=rnd_table(colors)}
+		current_level={name=name,w=5,h=6,bodies=10,eggs=5,eggtimer=45,aliens=6,snipers=6,colors=rnd_table(colors)}
 	else
 		current_level=levels[level_id]
 	end
 	
+	
 	if finale then
-		current_level={name="pco 8",w=6,h=5,bodies=10,eggs=7,eggtimer=25,aliens=6,snipers=6,colors=rnd_table(colors)}
+		current_level={name="pco 8",w=6,h=5,bombs=3,bodies=10,eggs=0,eggtimer=25,aliens=0,snipers=6,colors=rnd_table(colors)}
 	end
 	
 	local scanlinev=78
@@ -1666,7 +1777,7 @@ function nextlevel_init()
 			print("find detonator\nto start timer",24,41, 7)
 				
 			spr(12, 5,60, 2,2)
-			print("back to beacon\nto escape",24,61, 7)
+			print("wait on beacon\nto escape",24,61, 7)
 		else
 			-- normal directions
 			spr(14, 5,18, 2,2)
@@ -1835,11 +1946,11 @@ function title_init()
 	
 	-- #levels - define levels
 	-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
-	add(levels,{name="jl78",w=2,h=3,bodies=2,eggs=1,eggtimer=30,aliens=0,snipers=0,colors={11,3}})
-	add(levels,{name="col-b",w=3,h=4,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
-	add(levels,{name="mf 2018",w=4,h=4,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={9,4}})
-	add(levels,{name="roxi 9",w=5,h=4,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=3,colors={11,4}})
-	add(levels,{name="pv-418",w=6,h=6,bodies=7,eggs=5,eggtimer=50,aliens=6,snipers=6,colors={14,2}})
+	add(levels,{name="jl78",w=2,h=3,bombs=0,bodies=2,eggs=1,eggtimer=30,aliens=0,snipers=0,colors={11,3}})
+	add(levels,{name="col-b",w=3,h=4,bombs=0,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
+	add(levels,{name="mf 2018",w=4,h=4,bombs=0,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={9,4}})
+	add(levels,{name="roxi 9",w=5,h=4,bombs=0,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=3,colors={11,4}})
+	add(levels,{name="pv-418",w=6,h=6,bombs=0,bodies=7,eggs=5,eggtimer=50,aliens=6,snipers=6,colors={14,2}})
 	--add(levels,{name="mf2018",w=3,h=7,bodies=10,eggs=6,eggtimer=35,aliens=5,snipers=5,colors={11,3}})
 	--add(levels,{name="p-co 8",w=6,h=4,bodies=6,eggs=4,eggtimer=45,aliens=5,snipers=7,colors={14,2}})
 	
