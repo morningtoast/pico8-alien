@@ -791,6 +791,7 @@ function add_eggs(q)
 					if not in_range(n.tx,n.ty, t.tx,t.ty, 6) then
 						if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
 							set_tile_occupant(t.tx,t.ty, "bomb")
+							set_tile_attr(t.tx,t.ty, "bomb_st", 0)
 							c+=1
 						end
 					end
@@ -798,6 +799,7 @@ function add_eggs(q)
 			else
 				if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
 					set_tile_occupant(t.tx,t.ty, "bomb")
+					set_tile_attr(t.tx,t.ty, "bomb_st", 0)
 					c+=1
 				end
 			end
@@ -842,6 +844,12 @@ end
 -- set_tile_occupant(int_tilex,int_tiley, str_nameofoccupant)
 function set_tile_occupant(tx,ty, style)
 	level_grid[tx][ty].occupant=style
+	return level_grid[tx][ty]
+end
+
+
+function set_tile_attr(tx,ty, key, value)
+	level_grid[tx][ty][key]=value
 	return level_grid[tx][ty]
 end
 
@@ -1261,6 +1269,8 @@ function generate_minimap()
 			end
 			
 			if plot.occupant=="transport" then add(minimap, {x=x,y=y,c=12}) end
+			
+			if plot.occupant=="bomb" then add(minimap, {x=x,y=y,c=14}) end
 		end
 	end
 	
