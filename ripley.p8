@@ -89,19 +89,20 @@ function p_update()
 		-- #bombarm
 		-- player must hover to arm bomb
 		-- bomb_st: 0=unarmed;1=onhover;2=armed
-		if tile.occupant=="bomb" and tile.bomb_st<2 then
-			if bomb_t==0 then add_ticker_text("arming bomb, stand by",true) end
-			bomb_t+=1
+		if tile.occupant=="bomb" then
 			
-			tile.bomb_st=1
-			
-			if bomb_t==sec(4) then 
-				tile.bomb_st=2 
-				current_level.bombs=max(0,current_level.bombs-1)
-				--@sound bomb armed success
-			end
-		else
-			if tile.bomb_st==2 then 
+			if tile.bomb_st<2 then
+				if bomb_t==0 then add_ticker_text("arming bomb, stand by",true) end
+				bomb_t+=1
+				
+				tile.bomb_st=1
+				
+				if bomb_t==sec(4) then 
+					tile.bomb_st=2 
+					current_level.bombs=max(0,current_level.bombs-1)
+					--@sound bomb armed success
+				end
+			else
 				add_ticker_text("bomb armed successfully",true) 
 				if current_level.bombs>0 then
 					add_ticker_text(current_level.bombs.." unarmed bombs remain") 
@@ -109,8 +110,8 @@ function p_update()
 					add_ticker_text("all bombs armed;find detonator to start countdown") 
 				end
 			end
+		else
 			bomb_t=0
-			tile.bomb_st=0
 		end
 		
 		
@@ -1728,7 +1729,7 @@ function nextlevel_init()
 	
 	
 	if finale then
-		current_level={name="pco 8",w=6,h=5,bombs=3,bodies=10,eggs=0,eggtimer=25,aliens=0,snipers=6,colors=rnd_table(colors)}
+		current_level={name="pco 8",w=4,h=4,bombs=3,bodies=10,eggs=0,eggtimer=25,aliens=0,snipers=6,colors=rnd_table(colors)}
 	end
 	
 	local scanlinev=78
