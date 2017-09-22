@@ -90,25 +90,27 @@ function p_update()
 		-- player must hover to arm bomb
 		-- bomb_st: 0=unarmed;1=onhover;2=armed
 		if tile.occupant=="bomb" then
+			bomb_t+=1
 			
 			if tile.bomb_st<2 then
 				if bomb_t==0 then add_ticker_text("arming bomb, stand by",true) end
-				bomb_t+=1
-				
+
 				tile.bomb_st=1
 				
 				if bomb_t==sec(4) then 
 					tile.bomb_st=2 
 					current_level.bombs=max(0,current_level.bombs-1)
 					add_ticker_text("bomb armed successfully",true) 
+					if current_level.bombs>0 then
+						add_ticker_text(current_level.bombs.." unarmed bombs remain") 
+					else
+						add_ticker_text("all bombs armed;find detonator to start countdown") 
+					end
 					--@sound bomb armed success
 				end
 			else
-				add_ticker_text("bomb armed successfully",true) 
-				if current_level.bombs>0 then
-					add_ticker_text(current_level.bombs.." unarmed bombs remain") 
-				else
-					add_ticker_text("all bombs armed;find detonator to start countdown") 
+				if bomb_t==0 then 
+					add_ticker_text("bomb armed successfully",true) 
 				end
 			end
 		else
@@ -1440,8 +1442,12 @@ function ticker_draw()
 	pal()
 
 	 --egg count
-	spr(26, 118,119)
-	print(current_level.eggs, 113,120, 6)
+	if finale then
+		print("30:00", 106,120, 6)
+	else
+		spr(26, 118,119)
+		print(current_level.eggs, 113,120, 6)
+	end
 end
 
 
@@ -1494,7 +1500,7 @@ function game_init()
 	
 
 	if level_id==1 then
-		add_ticker_text("press \142 to scan area;press \151 to use item")	
+		add_ticker_text("press \142 to scan area;press \151 to use weapon")	
 	end
 	
 	
