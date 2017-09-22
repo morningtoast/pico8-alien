@@ -33,6 +33,7 @@ function p_update()
 	p_tx,p_ty=px_to_tile(p_cx,p_cy)
 	p_dx,p_dy=0,0
 	p_xdir,p_ydir=0,0
+	
 
 	local tile=get_tile(p_tx,p_ty)
 
@@ -73,31 +74,36 @@ function p_update()
 		
 		-- when player gets to a body, switch modes
 		if tile.occupant=="egg" then
+			
 			eggs_collected=min(eggs_collected+1,20)
 			current_level.eggs=max(current_level.eggs-1,0)
 
-			set_tile_occupant(p_tx,p_ty,"empty")
-			
-			add_ticker_text("alien egg collected",true)
-			
-			
-			if eggs_collected>=20 then
-				add_ticker_text("mission accomplished;return to transport beacon",true)
+			if eggs_collected<20 then
+				set_tile_occupant(p_tx,p_ty,"empty")
+
+				add_ticker_text("alien egg collected",true)
+			else
+				if tile_t==0 then
+					add_ticker_text("cargo bay is full;return to transport beacon",true)
+				end
 			end
+			tile_t+=1
+		else
+			tile_t=0
 		end
 		
 		-- #bombarm
 		-- player must hover to arm bomb
 		-- bomb_st: 0=unarmed;1=onhover;2=armed
 		if tile.occupant=="bomb" then
-			bomb_t+=1
-			
 			if tile.bomb_st<2 then
-				if bomb_t==0 then add_ticker_text("arming bomb, stand by",true) end
+				if bomb_t==0 then 
+					add_ticker_text("arming bomb, stand by",true) 
+				end
 
 				tile.bomb_st=1
 				
-				if bomb_t==sec(4) then 
+				if bomb_t==sec(3) then 
 					tile.bomb_st=2 
 					current_level.bombs=max(0,current_level.bombs-1)
 					add_ticker_text("bomb armed successfully",true) 
@@ -113,45 +119,57 @@ function p_update()
 					add_ticker_text("bomb armed successfully",true) 
 				end
 			end
+			
+			bomb_t+=1
 		else
 			bomb_t=0
 		end
 		
 		
-		-- #dentonaor
+		-- #detonator
 		-- player must hover to trigger
 		-- detonator_st: 0=unarmed;1=onhover;2=armed
 		
 		if tile.occupant=="detonator" then
-			if tile.detonator_st<2 then
-				if detonator_t==0 then add_ticker_text("entering detonation code, stand by",true) end
-				detonator_t+=1
-				
-				tile.detonator_st=1
-				
-				if detonator_t==sec(4) then 
-					tile.detonator_st=2 
-					add_ticker_text("countdown initiated;you have 30 seconds to reach transport beacon",true)
-					countdown=30
-					--@sound bomb armed success
+			if current_level.bombs==0 then
+				if detonator_st<2 then
+					if detonator_t==0 then add_ticker_text("entering detonation code",true) end
+
+					detonator_st=1
+
+					if detonator_t==sec(4) then 
+						detonator_st=2
+						detonator_t=0
+						add_ticker_text("countdown initiated;detonation in 30 seconds;return to transport beacon",true)
+						countdown=sec(30)
+						--@sound bomb armed success
+					end
+				else
+					if detonator_t==0 then add_ticker_text("countdown already started;return to transport beacon",true) end
 				end
-			else
-				add_ticker_text("countdown already started;get the hell out",true) 
+			else 
+				if detonator_t==0 then add_ticker_text("you must arm all bombs first",true) end
 			end
+			
+			detonator_t+=1
 		else
+			if detonator_st==1 then
+				add_ticker_text("detonation sequence canceled",true)
+				detonator_st=0
+			end
 			detonator_t=0
 		end
 		
 		
 		-- #transport
 		-- player hits transport beacon
-		if tile.occupant=="transport" and current_level.eggs>0 and p_transport_t<1 then
+		if tile.occupant=="transport" and current_level.eggs>0 and eggs_collected<20 and p_transport_t<1 then
 			-- @sound buzzer
 			add_ticker_text("dropship unavailable;alien eggs remain",true)
 			p_transport_t=1
 		end
 		
-		if tile.occupant=="transport" and current_level.eggs<=0 and not p_transport then
+		if tile.occupant=="transport" and (current_level.eggs<=0 or eggs_collected==20) and not p_transport then
 			-- @sound dropship call
 			add_ticker_text("dropship landing, stay at beacon;leaving "..current_level.name,true)
 			p_transport=true
@@ -579,7 +597,6 @@ function update_walker(self)
 
 			--hugger
 			if id==1 then
-				printh("huggered")
 				near=find_nearest(self.x,self.y, filter_tiles("body"))
 				self.wpcount=5
 			end
@@ -769,15 +786,15 @@ function add_eggs(q)
 		
 		if #list>0 then
 			for n in all(list) do
-				if not in_range(n.tx,n.ty, t.tx,t.ty, 6) then
-					if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+				if not in_range(n.tx,n.ty, t.tx,t.ty, 10) then
+					if not in_range(t.tx,t.ty, p_tx,p_ty, 10) then
 						set_tile_occupant(t.tx,t.ty, "egg")
 						c+=1
 					end
 				end
 			end
 		else
-			if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+			if not in_range(t.tx,t.ty, p_tx,p_ty, 10) then
 				set_tile_occupant(t.tx,t.ty, "egg")
 				c+=1
 			end
@@ -795,8 +812,8 @@ function add_eggs(q)
 			
 			if #list>0 then
 				for n in all(list) do
-					if not in_range(n.tx,n.ty, t.tx,t.ty, 6) then
-						if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+					if not in_range(n.tx,n.ty, t.tx,t.ty, 8) then
+						if not in_range(t.tx,t.ty, p_tx,p_ty, 8) then
 							set_tile_occupant(t.tx,t.ty, "bomb")
 							set_tile_attr(t.tx,t.ty, "bomb_st", 0)
 							c+=1
@@ -804,7 +821,7 @@ function add_eggs(q)
 					end
 				end
 			else
-				if not in_range(t.tx,t.ty, p_tx,p_ty, 6) then
+				if not in_range(t.tx,t.ty, p_tx,p_ty, 8) then
 					set_tile_occupant(t.tx,t.ty, "bomb")
 					set_tile_attr(t.tx,t.ty, "bomb_st", 0)
 					c+=1
@@ -989,8 +1006,6 @@ end
 function find_nearest(x,y,list)
 	local d=9999
 	local n=false
-	printh("find_nearest")
-	printh(#list)
 	
 	for t in all(list) do
 		local far=distance(t.x,t.y, x,y)
@@ -1021,6 +1036,7 @@ function generate_map(w,h)
 	map_w,map_h=w,h
 	map_wpx,map_hpx=map_w*128,map_h*128
 	map_tilew,map_tileh=map_w*8,map_h*8
+	force_eggs=0
 	
 	-- seed grid with all empty
 	-- coordinates are for 16x16px blocks; 8 per screen
@@ -1050,15 +1066,17 @@ function generate_map(w,h)
 		end
 	end
 
-	-- add start screen, replace a random screen
+	
 	if finale then
 		queen_x=map_w
 		queen_y=rand(map_h)+1
 		
+		printh("queen at "..queen_x..","..queen_y)
+		
 		create_screen(1,rand(map_h)+1, read_spritelayout(0,0)) --player start in first column, random row
-		create_screen(queen_x,queen_y, read_spritelayout(0,0)) --queen in last column, random row
+		create_screen(queen_x,queen_y, read_spritelayout(0,1)) --queen in last column, random row
 	else
-		create_screen(rand(map_w)+1,rand(map_h)+1, read_spritelayout(0,0))	
+		create_screen(rand(map_w)+1,rand(map_h)+1, read_spritelayout(0,0)) -- add start screen, replace a random screen
 	end
 	
 	
@@ -1178,9 +1196,18 @@ function create_screen(mx,my, spritemap)
 				tile.occupant="spawn"
 			end
 			
+			-- egg spawner
+			if pxc==2 then 
+				tile.occupant="egg"
+				--current_level.eggs+=1
+				force_eggs+=1
+			end
+			
 			-- bomb detonator
 			if pxc==14 then 
 				tile.occupant="detonator"
+				detonator_st=0
+				detonator_t=0
 			end
 			
 			-- queen
@@ -1277,7 +1304,10 @@ function generate_minimap()
 			
 			if plot.occupant=="transport" then add(minimap, {x=x,y=y,c=12}) end
 			
-			if plot.occupant=="bomb" then add(minimap, {x=x,y=y,c=14}) end
+			-- debug
+			if plot.occupant=="bomb" then add(minimap, {x=x,y=y,c=8}) end
+			if plot.occupant=="queen" then add(minimap, {x=x,y=y,c=9}) end
+			if plot.occupant=="detonator" then add(minimap, {x=x,y=y,c=14}) end
 		end
 	end
 	
@@ -1361,7 +1391,7 @@ function minimap_draw()
 	if p_st==2 then item="pulse rifle" end
 	if p_st==3 then item="alien bait" end
 
-	print("eggs:"..minimap_txt_eggs.."\n\ncargo:\n15"..eggs_collected.."\n\nnav:\n"..minimap_nav, 93, 9, 11)
+	print("eggs:"..minimap_txt_eggs.."\n\ncargo:\n"..eggs_collected.."\n\nnav:\n"..minimap_nav, 93, 9, 11)
 	print("planet:"..current_level.name.."\n\nitem:"..item, 8,92, 11)
 	
 	
@@ -1443,7 +1473,7 @@ function ticker_draw()
 
 	 --egg count
 	if finale then
-		print("30:00", 106,120, 6)
+		print(time_to_text(countdown), 106,120, 6)
 	else
 		spr(26, 118,119)
 		print(current_level.eggs, 113,120, 6)
@@ -1471,9 +1501,7 @@ end
 -- current_level set in nextlevel_init()
 function game_init()
 	--current_level=levels[levelid]
-	printh("level "..level_id)
-	printh("eggs "..current_level.eggs)
-	printh("bodies "..current_level.bodies)
+	
 
 	blood={}
 	ticker_text = {}
@@ -1491,11 +1519,12 @@ function game_init()
 	generate_map(current_level.w,current_level.h)
 	add_bodies(current_level.bodies)
 	add_eggs(current_level.eggs)
-
+	current_level.eggs+=force_eggs
+	
 	if finale then
-		add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in range;find eggs before they hatch",true)	
+		add_ticker_text("arrival on "..current_level.name..";find and arm 3 bombs;find detonator to start countdown",true)
 	else
-		add_ticker_text("arrival on "..current_level.name..";find and arm 3 bombs;find detonator",true)
+		add_ticker_text("arrival on "..current_level.name..";scan shows "..current_level.eggs.." eggs in range;find eggs before they hatch",true)	
 	end
 	
 
@@ -1503,7 +1532,9 @@ function game_init()
 		add_ticker_text("press \142 to scan area;press \151 to use weapon")	
 	end
 	
-	
+	printh("level "..level_id)
+	printh("eggs "..current_level.eggs)
+	printh("bodies "..current_level.bodies)
 	
 	--music(0)
 	cart(game_update,game_draw)
@@ -1529,26 +1560,33 @@ function game_update()
 			if egg_timer<=0 then
 				local t=get_random_tile("egg")
 				
-				if t then
+				--if t then
 					-- @sound hatch alert
+					printh("hatch")
 					add_ticker_text("new life form detected",true)
 					
 					current_level.eggs-=1
-					if current_level.eggs<=0 then
-						add_ticker_text("no more eggs detected;return to transport beacon")
-					else
-						add_ticker_text(current_level.eggs.." eggs remaining")
+					
+					if not finale then
+						if current_level.eggs<=0 then
+							add_ticker_text("no more eggs detected;return to transport beacon")
+						else
+							add_ticker_text(current_level.eggs.." eggs remaining")
+						end
 					end
 					
 					add_hugger(t.tx,t.ty)
 					set_tile_occupant(t.tx,t.ty,"empty")
 					
-				end
+				--end
 				
-				egg_timer=current_level.eggtimer	
+				egg_timer=sec(current_level.eggtimer)
 			end
 		end
 		
+		if finale and detonator_st==2 then
+			countdown-=1
+		end
 		
 		if map_mode then
 			minimap_update()
@@ -1558,16 +1596,16 @@ function game_update()
 		p_update()
 		
 		if gt>=sec(20) then -- toss in generic messages every 20 seconds
-			--if eggs_collected>=20 then
-				--add_ticker_text("mission accomplished;return to transport beacon",true)
-			--else
+			if eggs_collected>=20 then
+				--add_ticker_text("cargo bay full;return to transport beacon",true)
+			else
 				if current_level.eggs<=0 then
 					-- @sound no egg alert
 					add_ticker_text("no more eggs detected;return to transport beacon")
 				else
 					ticker_common()
 				end
-			--end
+			end
 			
 			gt=0
 		end
@@ -1630,6 +1668,11 @@ function game_draw()
 				if plot.detonator_st==1 then pal(11,9) end --orange, hover arming
 				if plot.detonator_st==2 then pal(11,8) end --red, armed
 				spr(108, px, py, 2,2)
+			end
+			
+			if plot.occupant=="queen" then
+				pal(11,1) pal(3,1)
+				zspr(42,2,2,px-16,py-8, 2, 1)
 			end
 			
 			
@@ -1722,7 +1765,6 @@ end
 -- #nextlevel
 function nextlevel_init()
 	level_id+=1
-	daysout+=1
 	p_transport=false
 	
 	local colors={{3,4},{11,9},{11,4},{15,14}}
@@ -1739,7 +1781,7 @@ function nextlevel_init()
 	
 	
 	if finale then
-		current_level={name="pco 8",w=4,h=4,bombs=3,bodies=10,eggs=0,eggtimer=25,aliens=0,snipers=6,colors=rnd_table(colors)}
+		current_level={name="pco 8",w=7,h=4,bombs=3,bodies=10,eggs=0,eggtimer=25,aliens=3,snipers=6,colors=rnd_table(colors)}
 	end
 	
 	local scanlinev=78
@@ -1954,11 +1996,11 @@ end
 -- #title
 abstract=story_init
 function title_init()
-	finale=true
+	finale=false
 	nextinit=title_init
 	level_id=0
-	eggs_collected=20 --total eggs collected by player for game session
-	daysout=0
+	eggs_collected=0 --total eggs collected by player for game session
+	countdown=sec(30)
 	level_grid={}
 	level_list={}
 	blood={}
@@ -1969,7 +2011,7 @@ function title_init()
 	-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
 	add(levels,{name="jl78",w=2,h=3,bombs=0,bodies=2,eggs=1,eggtimer=30,aliens=0,snipers=0,colors={11,3}})
 	add(levels,{name="col-b",w=3,h=4,bombs=0,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
-	add(levels,{name="mf 2018",w=4,h=4,bombs=0,bodies=4,eggs=3,eggtimer=40,aliens=3,snipers=2,colors={9,4}})
+	add(levels,{name="mf 2018",w=4,h=4,bombs=0,bodies=4,eggs=4,eggtimer=40,aliens=3,snipers=2,colors={9,4}})
 	add(levels,{name="roxi 9",w=5,h=4,bombs=0,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=3,colors={11,4}})
 	add(levels,{name="pv-418",w=6,h=6,bombs=0,bodies=7,eggs=5,eggtimer=50,aliens=6,snipers=6,colors={14,2}})
 	--add(levels,{name="mf2018",w=3,h=7,bodies=10,eggs=6,eggtimer=35,aliens=5,snipers=5,colors={11,3}})
@@ -2088,6 +2130,38 @@ end
 --
 -- #utility functions and libraries
 --
+function zspr(n,w,h,dx,dy,dz,fx,fy)
+  sx = 8 * (n % 16)
+  sy = 8 * flr(n / 16)
+  sw = 8 * w
+  sh = 8 * h
+  dw = sw * dz
+  dh = sh * dz
+
+  sspr(sx,sy,sw,sh, dx,dy,dw,dh, fx,fy)
+end
+
+function time_to_text(time)
+	local mins=0
+	local secs=flr(time/60) --seconds
+	local micro=time%60
+	
+	while secs>=60 do
+		mins+=1
+		secs-=60
+	end
+	
+	if micro<10 then micro="0"..micro end
+	if mins<10 then mins="0"..mins end
+	if secs<=0 then
+		secs="00" 
+	elseif secs<10 then 
+		secs="0"..secs
+	end
+
+	return secs..":"..micro
+end
+
 
 function chg_st(o,ns) o.t=0 o.st=ns end
 function rand(x) return flr(rnd(x)) end
@@ -2407,19 +2481,19 @@ d22dd000dd2222d20000000000000000000000000000000000000000000000000000000000000000
 bb0000bb0bb00bbb0000fffb0000000000000fbbbbb0000000b00000000bfbfb00000bbb00000000b000fffb0000000000000f60000000000000000000000000
 b000000bbff00fff0000ffb00000000000000ffb0000000000f3ffff0003fbfb00ff00000b0000b03000f3bb00bbbbb06ffffff00bbfbbb0bbb3ff6000000000
 00000000bff00000b300bb00000000000fff00000000000000fbbbbb000bfbfb00fb00000bfffbb0b0f0f0000bffff300f0fff000bb66bb000fffff000000000
-00000c0000000000000000000fff00000f6f0000000000000000000000000b000ff3000000bbb00000ffff0000f00fb00b0fb6000f36fff00fbbbbf000000000
+00000c00000000000000ff000fff00000f6f00000fff00000000000000000b000ff3000000bbb00000ffff0000f00fb00b0fb6000f36fff00fbbbbf000000000
 00080000000003000bb000000f6f000b0f6fff000bbb300b0bbbff00030000000ffb0b000fffff000ff6f0000ff00ff0000ff6f00fb6f0000ffffff000000000
-00000000bff00bfbbff0bbb00ffb30030fff6f000bfffffbbffb6f000fbff000bffbffbbbf6ffff300f6ff0303bfff000ffffff00ff6ff000fbfbbb000000000
-b000000bbff00bfb0f60fffb0003b00b000fff000bfffffb0ff3ff000ff6f000bf3fffb0bffff6fb0ffff00b000bbbb00f6fff6000f0f000003ffff000000000
-bb0000bbbbb00bb00ff0fffb0000000b000000000bb00bbb00b00000bbbff0b00b0000b0b000fffb0000000b000000000060000000000bb000b0000000000000
-0000000000b00b0b0000000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000bb0000b0000b0000000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00b66b00000bb00b00b0000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00b00b00000bbb0000b00bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000bbb000b0b000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-b000000b0006bb060b00000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-b0000bbb0000bb0b0000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0bbbb00000000b0bbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000bff00bfbbff0bbb00ffb30030fff6f000bfffffbbffb6ff00fbff000bffbffbbbf6ffff300f6ff0303bfff000ffffff00ff6ff000fbfbbb000000000
+b000000bbff00bfb0f60fffb0003bf0b000fff000bfffffb0ff3ff000ff6f000bf3fffb0bffff6fb0ffff00b000bbbb00f6fff6000f0f000003ffff000000000
+bb0000bbbbb00bb00ff0fffb0000ff0b000000000bb00bbb00b00000bbbff0b00b0000b0b000fffb0000000b000000000060000000000bb000b0000000000000
+b00000b000b00b0b0000000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0022000000b0000b0000000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+020000b0000bb00b00b0000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000009b0000bbb0000b00bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0e0000b0000bbb000b0b000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000020b00006bb060b00000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+020200000000bb0b0000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+b00000b000000b0bbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 __gff__
 0000000202000000000000000000000001000002020000000000000000000000000002020000020200000000000000000000020200000202000000000000000000000000020200000000000000000000000000000202000000000000000000000000000000000000000000000000000000000000000000000000000000000000
