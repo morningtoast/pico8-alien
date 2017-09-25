@@ -4,18 +4,17 @@ __lua__
 
 ver="v1.0"
 
-gt=0
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
 cart(ef,ef)
 
-
+-- constants
+p_hbox={y=4,x=4,w=7,h=7}
+gt=0
 
 
 -- #player
 function p_update()
-    
-
 	p_cx=p_x+8
 	p_cy=p_y+8
 	
@@ -37,6 +36,93 @@ function p_update()
 		p_y+=p_dy	
 	end
     
+    -- when player gets to a body, switch modes
+	if tile.o==4 then
+		if rnd()<.5 then
+			p_st,p_spr=2,64
+			--tckr("rifle equipped",true)
+		else
+			p_st,p_spr=3,96
+			--tckr("bait equipped",true)
+		end
+
+		tile_attr(p_tx,p_ty)
+	end
+	
+	
+	-- when player gets to a egg
+	if tile.o==3 then
+		eggs_collected=min(eggs_collected+1,20)
+		curlvl.eggs=max(curlvl.eggs-1,0)
+
+		if eggs_collected<20 then
+			tile_attr(p_tx,p_ty)
+
+			--tckr("alien egg collected",true)
+		else
+			if tile_t==0 then
+				--tckr("cargo bay is full;return to transport beacon",true)
+			end
+		end
+		tile_t+=1
+	else
+		tile_t=0
+	end
+	
+	
+	-- #transport
+	-- player hits transport beacon
+	if tile.o==6 then
+		transport_st=1
+		
+		if curlvl.eggs>0 and eggs_collected<20 and transport_t==0 then
+			-- @sound buzzer
+			--tckr("dropship unavailable;find remaining eggs",true)
+		end
+		
+		if (curlvl.eggs<=0 or eggs_collected==20) then
+			if transport_t==0 then
+				--tckr("dropship landing, stay at beacon;leaving "..curlvl.name,true)
+			end
+			
+			if transport_t==sec(9) then
+				if eggs_collected==20 then
+					--finale_init()
+				else
+					--nextlevel_init()	
+				end
+				
+			end
+		end
+		
+		transport_t+=1
+	else
+		if transport_st==1 then
+			--tckr("dropship canceled",true)
+			transport_st=0
+		end
+		
+		transport_t=0
+	end
+	
+	
+	
+	
+	
+	-- actions
+	if btnxp and p_st==2 then
+		-- @sound bullet noise
+		p_bullet()
+		p_st,p_spr=1,32
+	end
+
+	if btnxp and p_st==3 then
+		-- @sound bait noise
+		add_bait(p_cx,p_cy)
+		p_st,p_spr=1,32
+	end
+	
+	
     
 end
 
@@ -45,25 +131,84 @@ function p_draw()
 end
 
 
+function p_bullet()
+	-- create player bullet object
+	local targets={}
+	local obj={x=p_cx,y=p_y+5,c=10}
+	local heading=0
+	
+	if p_sflip then heading=.5 end
+
+	for a in all(actors) do
+		if a.id<3 then -- only target huggers and aliens, not snipers
+			if in_range(a.cx,a.cy, p_cx,p_cy, 60) then
+				add(targets,a)
+			end
+		end
+	end
+
+	if #targets>0 then
+		local target = find_nearest(p_cx,p_cy, targets)
+		heading      = atan2(target.cx-p_cx, target.cy-p_cy) 
+	end
+
+	obj.dx,obj.dy = dir_calc(heading, 3)
+	obj.update=function(self)
+		for a in all(actors) do
+			if a.id<3 and in_box(self.x,self.y, a.x,a.y, a.hbox) then
+				chg_st(a,99)
+				del(bullets,b)
+			end
+		end
+	end
+	
+
+	add(bullets,obj)	
+end
+
+
 
 -- #game play
 function play_init()
 	local colors={{3,4},{11,9},{11,4},{15,14}}
-	curlvl={name="foo",w=5,h=6,bodies=10,eggs=5,eggtimer=45,aliens=6,snipers=6,colors=rnd_table(colors)}
+	curlvl={name="foo",w=5,h=6,bodies=10,eggs=5,eggtimer=45,aliens=6,snipers=6,bombs=0,colors=rnd_table(colors)}
 	
+	-- vars that need reset per level
 	p_x,p_y,p_spd=64,64,1
 	p_cx,p_cy=p_x+8,p_y+8
 	p_st,p_flip=1,false -- state: 1=unarmed, 2=gun, 3=bait
-	p_hbox={y=4,x=4,w=7,h=7}
-    p_ltx,p_lty=999,999
+	egg_hatch=sec(curlvl.eggtimer)
+	transport_st=0
+	map_mode=false
 	
-	gen_map(6,6)
+	actors={}
+	bullets={}
+
+	gen_map(curlvl.w,curlvl.h)
 			
 	cart(play_update,play_draw)
 end
 
 function play_update()
+	if curlvl.eggs>0 then
+		egg_hatch-=1
+		if egg_hatch<=0 then
+			local t=get_random_tile(3)
+
+			curlvl.eggs-=1
+
+			add_hugger(t.tx,t.ty)
+			tile_attr(t.tx,t.ty)
+
+			egg_hatch=sec(curlvl.eggtimer)
+		end
+	end
+	
+	
+	
 	p_update()
+	
+	
 end
 
 function play_draw()
@@ -72,6 +217,331 @@ function play_draw()
 	palt(0,false)
 
 	
+	draw_map()
+	p_draw()
+
+	
+	pal()
+end
+
+
+-- #title
+function title_init()
+	finale=false
+	level_id=0
+	eggs_collected=0
+	grid={}
+	level_list={}
+	blood={}
+	levels={}
+	
+	-- #levels - define levels
+	-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
+	add(levels,{name="jl78",w=6,h=5,bombs=0,bodies=2,eggs=0,eggtimer=9999,aliens=0,snipers=0,colors={11,3}})
+	add(levels,{name="col-b",w=3,h=4,bombs=0,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
+	add(levels,{name="mf 2018",w=4,h=4,bombs=0,bodies=4,eggs=4,eggtimer=40,aliens=3,snipers=2,colors={9,4}})
+	add(levels,{name="roxi 9",w=5,h=4,bombs=0,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=3,colors={11,4}})
+	add(levels,{name="pv-418",w=6,h=6,bombs=0,bodies=7,eggs=5,eggtimer=50,aliens=6,snipers=6,colors={14,2}})	
+
+	
+	function title_update()
+		if btnzp then nextlevel_init() end
+		if btnxp then help_init() end
+	end 
+	
+	function title_draw()
+		print("alien harvest\n\npres \142 to start\npress \151 for help",0,0,7)
+	end
+	
+	cart(title_update,title_draw)
+end
+
+
+
+
+
+
+
+-- #actors
+
+-- #bullets
+function bullet_update()
+	for b in all(bullets) do
+		b.x+=b.dx
+		b.y+=b.dy
+
+		if if b.x<map_wpx and b.x>1 and b.y<map_hpx and b.y>1 then
+			local t=get_px_tile(b.x,b.y)
+			if t.o==1 then
+				local px,py,cx,cy=tile_to_px(t.tx,t.ty)
+				if in_range(b.x,b.y, cx,cy, 12) then
+					del(bullets,b)
+				end
+			end
+			
+			b.update(b)
+		else
+			del(bullets,b) 
+		end
+	end
+end
+
+
+function bullet_draw()
+	for b in all(bullets) do circfill(b.x,b.y, 2, b.c) end
+end
+
+
+-- #bait
+function add_bait(x,y)
+	--x,y=tile_to_px(tx,ty)
+	local obj={
+		id=3,
+		x=x,y=y,
+		cx=x+8,cy=y+8,
+		t=0,
+		update=function(self)
+			for a in all(actors) do
+				if a.id==2 then
+					if in_range(a.cx,a.cy, self.cx,self.cy, 50) then
+						local release=sec(5)-self.t
+						
+						chg_st(a,10)
+						a.bait={x=self.cx,y=self.cy,release=release}
+					end
+				end
+			end
+		
+			
+			if self.t>sec(6) then
+				del(actors,self)
+			end
+			
+			self.t+=1
+		end,
+		draw=function(self)
+			spr(11, self.x+4,self.y, 1,2)
+		end
+	}	
+
+	
+	add(actors,obj)
+end
+
+-- #sniper
+function add_sniper(tx,ty)
+	local obj={
+		id=4,
+		tx=tx,ty=ty,
+		flip=false,
+		st=1,t=1,
+		update=function(self)
+			local ox=self.x+16
+			local oy=self.y+4
+			
+			if flip then
+				ox=self.x-32
+				oy=self.y+4
+			end
+			
+			if self.st==1 then
+
+				if in_box(p_cx,p_cy, ox,oy, {x=0,w=32,y=0,h=8}) then
+					-- @sound sniper shot
+					local obj={
+						dx=4,x=self.x+16,y=self.y+8,
+						c=13,dy=0,
+						update=function(b)
+							if b.x>=p_cx-8 and b.x<=p_cx+8 then
+								del(bullets,b)
+								p_freeze=sec(3)
+							end
+						end
+					}
+				
+					if self.flip then 
+						obj.dx=-3 
+						obj.x=self.x
+					end
+
+					add(bullets,obj)
+					
+					chg_st(self,2)
+				end
+			end
+			
+			if self.st==2 then
+				if self.t>sec(1) then
+					local t=tile_attr(self.tx,self.ty,"o",1)
+					t.s=rnd_table(bush_sprites)
+					del(actors,self)
+				end
+			end
+			
+			self.t+=1
+		end,
+		draw=ef
+	}
+	
+	
+	if tx+1>map_tilew then
+		et={o=1}
+	else
+		et=grid[tx+1][ty]
+	end
+
+	if t.tx-1<1 then
+		wt={o=1}
+	else
+		wt=grid[tx-1][ty]
+	end
+
+	if et.o!=1 and wt.o!=1 then
+		if rnd()<.5 then t.flip=true end
+	else
+		if et.o==1 then 
+			if wt.o!=1 then
+				obj.flip=true 
+			end
+		end
+	end
+	
+	
+	obj.x,obj.y=tile_to_px(tx,ty)
+
+	add(actors, obj)
+end
+
+
+-- #hugger
+function add_hugger(tx,ty)
+	local obj={
+		id=1,
+		tx=tx,ty=ty,dx=0,dy=0,
+		flip=false,
+		detect=40,
+		wander_spd=.7,
+		chase_spd=1.3,
+		hbox={x=4,y=6,w=8,h=5}, -- used for movement collision
+		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		chase=false,
+		navpath={},
+		tile={},
+		update=function(self)
+			--update_walker(self)
+
+			if self.tile.o==4 then
+				tile_attr(self.tx,self.ty)
+				add_alien(self.tx,self.ty)
+				del(actors,self)
+			end
+			
+			if self.st==99 and self.t>sec(3) then
+				del(actors,self)
+			end
+			
+			self.t+=1
+		end,
+		draw=function(self)
+			if self.st!=99 then
+				if self.chase then pal(15,8) end -- switch to red hugger
+
+				spr(160,self.x,self.y,2,2,self.flip)
+			else
+				spr(44,self.x,self.y,2,2)
+			end
+		end
+	}
+	
+	obj.x,obj.y=tile_to_px(tx,ty)
+	obj.cx=obj.x+8
+	obj.cy=obj.y+8
+
+	add(actors, obj)
+end
+
+-- #alien
+function add_alien(tx,ty)
+	local obj={
+		id=2,
+		tx=tx,ty=ty,dx=0,dy=0,
+		flip=false,
+		hbox={x=4,y=4,w=8,h=8},
+		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		detect=50,
+		wander_spd=.5,
+		chase_spd=1.1,
+		chase=false,
+		navpath={},
+		bait=false,
+		update=function(self)
+			-- alien is always looking for player. this will skip the delay-find state of huggers
+			if self.st<10 then
+				if in_range(p_cx,p_cy, self.cx,self.cy, 50) then
+					if not self.chase then
+						chg_st(self,4)
+					end
+				else
+					self.chase=false
+				end
+			end
+		
+			--update_walker(self)
+			
+			-- within bait range, go there and sleep
+			if self.st==10 then
+				local heading   = atan2(self.bait.x-self.x, self.bait.y-self.y) 
+				self.dx,self.dy = dir_calc(heading, 1) -- wander speed
+				self.flip=sprite_flip(heading)
+				self.chase=false
+				
+				chg_st(self,11)
+			end
+			
+			if self.st==11 then
+				if not in_range(self.bait.x,self.bait.y, self.cx,self.cy, 10) then
+					if not move_is_blocked(self.x,self.y, self.dx,self.dy, self.hbox) then
+						self.x+=self.dx
+						self.y+=self.dy
+					end
+				end
+				
+				if self.t>=self.bait.release then
+					self.bait=false
+					chg_st(self,0)
+				end
+			end
+			
+			if self.st==99 and self.t>sec(3) then
+				del(actors,self)
+			end
+			
+			self.t+=1
+		end,
+		draw=function(self)
+			if self.st!=99 then
+				if self.chase then pal(13,8) end
+				spr(128,self.x,self.y,2,2,self.flip)
+			else
+				spr(44,self.x,self.y,2,2)
+			end
+		end
+	}
+	
+	obj.x,obj.y=tile_to_px(tx,ty)
+	obj.cx=obj.x+8
+	obj.cy=obj.y+8
+
+	add(actors, obj)
+end
+
+
+
+
+
+-- #map
+-- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;99=grass
+function draw_map()
 	for x=1,map_tilew do
 		for y=1,map_tileh do
 			local plot=grid[x][y]
@@ -96,120 +566,34 @@ function play_draw()
 			if plot.o==99 then
 				spr(7,px,py,2,2)
 			end
-			
 		end
 	end
 	
+	
+	-- map edges
 	for m=0,map_tileh do
 		spr(3, -15, (16*m), 2,2)
 		spr(3, map_wpx, (16*m), 2,2)
 	end
 	
-	--bun
 	for m=-1,map_tilew do
 		spr(3, (16*m), -15, 2,2)
 		spr(3, (16*m),map_hpx, 2,2)
 	end
-	
-	
-	p_draw()
-	
-	
-	
-	
-	
-	pal()
 end
 
 
-
-
--- #sniper
-function add_sniper(tx,ty,flip)
-	local obj={
-		id=4,
-		tx=tx,ty=ty,
-		flip=flip,
-		st=1,t=1,
-		update=function(self)
-			if flip then
-				ox=self.x-32
-				oy=self.y+4
-			else
-				ox=self.x+16
-				oy=self.y+4
-			end
-			
-			if self.st==1 then
-
-				if in_hitbox(p_cx,p_cy, ox,oy, 32,8) then
-					-- @sound sniper shot
-					local obj={
-						dx=4,x=self.x+16,
-						c=13,dy=0,
-						y=self.y+8,
-						update=function(b)
-							if b.x>=p_cx-8 and b.x<=p_cx+8 then
-								del(bullets,b)
-								p_freeze=200
-							end
-						end
-					}
-				
-					if self.flip then 
-						obj.dx=-3 
-						obj.x=self.x
-					end
-					
-					
-					
-					add(bullets,obj)
-					
-					chg_st(self,2)
-				end
-			end
-			
-			if self.st==2 then
-				if self.t>sec(1) then
-					local t=tile_occ(self.tx,self.ty, str_wall)
-					t.spr=rnd_table(bush_sprites)
-					del(actors,self)
-				end
-			end
-			
-			self.t+=1
-		end,
-		draw=ef
-	}
-	
-	
-	
-	obj.x,obj.y=tile_to_px(tx,ty)
-
-	add(actors, obj)
-end
-
-
-
-
-
-
-
-
--- #map
 function gen_map(w,h)
-	
-	-- map settings
 	map_w,map_h=w,h
 	map_wpx,map_hpx=map_w*128,map_h*128
 	map_tilew,map_tileh=map_w*8,map_h*8
-	force_eggs=0
+	map_eggs=0
+	grid={}
+	level_list={}
 	
 	-- seed grid with all empty
 	-- coordinates are for 16x16px blocks; 8 per screen
-	grid={}
-	level_list={}
-	local snipers={}
+	
 	
 	for x=1,map_tilew do
 		grid[x]={}
@@ -235,6 +619,7 @@ function gen_map(w,h)
 	
 	
 	local n=1
+	local snipers={}
 	for x=1,map_tilew do
 		for y=1,map_tileh do
 			local plot=grid[x][y]
@@ -243,41 +628,19 @@ function gen_map(w,h)
 			plot.n=n
 			n+=1
 			
-			-- add sniper aliens in places where there is dark green
-			if plot.o==5 then
-				add(snipers,plot)
-			end
+			-- build list of possible sniper tiles
+			if plot.o==5 then add(snipers,plot) end
 		end
 	end
     
+    
+    -- add sniper tiles, pull from pool
     if #snipers>0 then
 		for n=0,curlvl.snipers do
 			local t=rnd_table(snipers)
-			del(snipers,t)
 
-			if t.tx+1>map_tilew then
-				et={o=1}
-			else
-				et=grid[t.tx+1][t.ty]
-			end
-
-			if t.tx-1<1 then
-				wt={o=1}
-			else
-				wt=grid[t.tx-1][t.ty]
-			end
-
-			if et.o!=1 and wt.o!=1 then
-				if rnd()<.5 then t.flip=true end
-			else
-				if et.o==1 then 
-					if wt.o!=1 then
-						t.flip=true 
-					end
-				end
-			end
-
-            add_sniper(t.tx,t.tx,t.flip)
+            add_sniper(t.tx,t.tx)
+            del(snipers,t)
 		end
 		
 		-- turn left over sniper slots into bushes
@@ -288,13 +651,27 @@ function gen_map(w,h)
 	end
     
     
+    if finale then
+    	add_tiles(curlvl.bombs, 2,7, 150,256) --bombs
+    end
+
+    add_tiles(curlvl.bodies, 0,4, 100,80) --bodies
+    add_tiles(curlvl.eggs, 2,3, 100,100) --eggs
     
     
     
-	
-	
-    add_tiles(curlvl.bodies, 0, 4, 10, 8) --bodies
-    add_tiles(curlvl.eggs, 2,3, 10,10) --eggs
+    
+    
+    -- add random aliens, not too close to player
+	local ac=0
+	while ac<curlvl.aliens do
+		local t=get_random_tile(0)
+		
+		if not in_range(t.x,t.y, p_cx,p_cy, 150) then
+			add_alien(t.tx,t.ty)
+			ac+=1
+		end
+	end
     
     
     --grass
@@ -329,12 +706,12 @@ function create_screen(mx,my, lx,ly)
 	end
 	
 	
-	local spritemap=read_spritelayout(lx,ly)
+	local smap=read_spritelayout(lx,ly)
 	for spx=0,7 do
 		for spy=0,7 do
 			local tilex=spx+1 + (mx-1)*8
 			local tiley=spy+1 + (my-1)*8
-			local pxc=spritemap[spx+1][spy+1]
+			local pxc=smap[spx+1][spy+1]
 			local tile={o=0,w=true}
 			local bspr=rnd_table(bush_sprites)
 			
@@ -354,20 +731,20 @@ function create_screen(mx,my, lx,ly)
 				tile.w=false
 			end
 			
-			-- transport computer
+			-- transport beacon
 			if pxc==12 then 
 				tile.o=6
 			end
 			
-			-- egg spawner
+			-- egg spawn pool
 			if pxc==15 then 
 				tile.o=2
 			end
 			
-			-- egg spawner
+			-- egg
 			if pxc==2 then 
 				tile.o=2
-				force_eggs+=1
+				map_eggs+=1
 			end
 			
 			-- bomb detonator
@@ -384,14 +761,11 @@ function create_screen(mx,my, lx,ly)
 			
 			-- player start position
 			if pxc==8 then
-				printh("player at"..tilex..","..tiley)
 				p_x,p_y=tile_to_px(tilex,tiley)
 				p_tx,p_ty=tilex,tiley
 			end
 			
-			for k,v in pairs(tile) do
-				grid[tilex][tiley][k] = v
-			end
+			for k,v in pairs(tile) do grid[tilex][tiley][k]=v end
 
 		end
 	end	
@@ -404,7 +778,7 @@ end
 
 -- #loop
 function _init()
-	play_init()
+	title_init()
 	
 end
 
@@ -446,14 +820,22 @@ end
 
 -- #utilities
 
+function chg_st(o,ns) o.t=0 o.st=ns end
 function rand(x) return flr(rnd(x)) end
+function sec(f) return flr(f*60) end -- set fps here if you need
 
 function rnd_table(t)
 	local r=flr(rnd(#t))+1
 	return(t[r])
 end
 
--- #tile_to_px(int_tilex,int_tiley)
+function distance(ox,oy, px,py)
+	local a = abs(ox-px)/16
+	local b = abs(oy-py)/16
+	return sqrt(a^2+b^2)*16
+end
+
+-- tile_to_px(int_tilex,int_tiley)
 function tile_to_px(tx,ty)
 	local px=(tx*16)-16
 	local py=(ty*16)-16
@@ -479,14 +861,14 @@ function get_tile(tx,ty)
 	end
 end
 
-
+-- filter_tiles(occupantId)
 function filter_tiles(o)
 	local list={}
 	
 	for tx=1,map_tilew do
 		for ty=1,map_tileh do
 			local t=grid[tx][ty]
-			--t.x,t.y,t.cx,t.cy=tile_to_px(tx,ty)
+			t.x,t.y,t.cx,t.cy=tile_to_px(tx,ty)
 			
 			if t.o==o then
 				add(list,t)
@@ -495,6 +877,24 @@ function filter_tiles(o)
 	end
 
 	return list
+end
+
+
+-- find_nearest(int_pixelx,int_pixely, tbl_items)
+function find_nearest(x,y,list)
+	local d=9999
+	local n=false
+	
+	for t in all(list) do
+		local far=distance(t.x,t.y, x,y)
+
+		if far<d then
+			d=far
+			n=t
+		end
+	end
+
+	return n,d
 end
 
 
@@ -507,13 +907,15 @@ function in_range(ax,ay, bx,by, rng)
 	return false
 end
 
-
+-- tile_attr(x,y, keyName, value)
 function tile_attr(tx,ty, key, value)
+	if not key then	key="o" value=0 end
+	
 	grid[tx][ty][key]=value
 	return grid[tx][ty]
 end
 
-
+-- get_random_tile(occupantId)
 function get_random_tile(occ)
 	local list=filter_tiles(occ)
 	
@@ -524,7 +926,7 @@ function get_random_tile(occ)
 	return false
 end
 
--- (quantity, sourcetype, typeoccupant, distancefromtype, distancefromplayer, callback)
+-- add_tiles(quantity, sourceTileId, occupantId, distanceOccupantId, distanceFromPlayer, callback)
 function add_tiles(q, src, occ, od, pd, f)
 	for n=0,q do
 		local try=1
@@ -535,8 +937,8 @@ function add_tiles(q, src, occ, od, pd, f)
 			
 			if #list>0 then
 				for n in all(list) do
-					if not in_range(n.tx,n.ty, t.tx,t.ty, od) then
-						if not in_range(t.tx,t.ty, p_tx,p_ty, pd) then
+					if not in_range(n.x,n.y, t.x,t.y, od) then
+						if not in_range(t.x,t.y, p_cx,p_cy, pd) then
                             tile_attr(t.tx,t.ty, "o", occ)
 							if f then f(t.tx,t.ty) end
 							try=0
@@ -544,7 +946,7 @@ function add_tiles(q, src, occ, od, pd, f)
 					end
 				end
 			else
-				if not in_range(t.tx,t.ty, p_tx,p_ty, pd) then
+				if not in_range(t.x,t.y, p_cx,p_cy, pd) then
 					tile_attr(t.tx,t.ty, "o", occ)
 					if f then f(t.tx,t.ty) end
 					try=0
@@ -554,6 +956,21 @@ function add_tiles(q, src, occ, od, pd, f)
 	end
 end
 
+-- point in hitbox
+-- #in_box(x,y, objX,objY,objHitbox)
+function in_box(ax,ay, bx,by,bhb)
+	  local l = max(ax, bx+bhb.x)
+	  local r = min(ax, bx+bhb.x+bhb.w)
+	  local t = max(ay, by+bhb.y)
+	  local b = min(ay, by+bhb.y+bhb.h)
+
+	  -- they overlapped if the area of intersection is greater than 0
+	  if l < r and t < b then
+		return true
+	  end
+					
+	return false
+end
 
 -- #move_is_blocked(int_objpixelx,int_objpixely, int_objpixeldx,int_objpixeldy, tbl_objhitbox)
 function move_is_blocked(px,py, dx,dy, hbox)
