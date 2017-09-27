@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 8
+version 10
 __lua__
 
 ver="v1.0"
@@ -15,7 +15,7 @@ gt=0
 
 -- #player
 function p_update()
-	if not mini_mode and p_freeze<1 then
+	if not mini_mode and p_freeze==0 then
 		mini_batt=max(mini_batt-1,0)
 		
 		p_cx=p_x+8
@@ -24,7 +24,7 @@ function p_update()
 	    p_tx,p_ty=px_to_tile(p_cx,p_cy)
 		p_dx,p_dy,p_xdir,p_ydir=0,0,0,0
 	    
-		debug=p_tx..","..p_ty
+		--debug=p_tx..","..p_ty
 		
 	    local tile=get_tile(p_tx,p_ty)
 		
@@ -56,15 +56,17 @@ function p_update()
 			p_st,p_spr=1,32
 		end
 		
-		if btnzp and mini_batt<=0 then
-			mini_mode=true
-			gen_mini()
-		else
-			tkr("scanner battery recharging",true)
+		if btnzp then
+			if mini_batt<=0 then
+				mini_mode=true
+				gen_mini()
+			else
+				tkr("scanner battery recharging",true)
+			end
 		end
 	else
 		-- in mini mode
-		if btnzp and p_freeze<1 then
+		if btnzp and p_freeze==0 then
 			mini_mode=false
 			mini_batt=sec(7)
 		end
@@ -72,7 +74,7 @@ function p_update()
 	
 	
 	if p_freeze>0 then
-		p_freeze=min(0,p_freeze-1)
+		p_freeze=max(0,p_freeze-1)
 	end
 end
 
@@ -177,9 +179,9 @@ function p_bullet()
 	obj.dx,obj.dy = dir_calc(heading, 3)
 	obj.update=function(self)
 		for a in all(actors) do
-			if a.id<3 and in_box(self.x,self.y, a.x,a.y, a.hbox) then
+			if a.id<3 and in_range(self.x,self.y, a.cx,a.cy, 10) then
 				chg_st(a,99)
-				del(bullets,b)
+				del(bullets,self)
 			end
 		end
 	end
@@ -206,46 +208,38 @@ end
 function start_init()
 	level_id+=1
 	
-	local colors={{3,4},{11,9},{11,4},{15,14}}
-	local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
-	local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
-	local w={3,4} --min,max
-	local h={3,4}
+	local levels={
+		{name="tester",w=6,h=6,bombs=0,bodies=10,eggs=5,eggtimer=30,aliens=5,snipers=5,colors={11,3}},
+		{name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=1,eggtimer=40,aliens=0,snipers=0,colors={11,3}},
+		{name="col-b",w=4,h=4,bombs=0,bodies=3,eggs=2,eggtimer=35,aliens=1,snipers=0,colors={11,4}},
+		{name="pv-418",w=5,h=4,bombs=0,bodies=5,eggs=4,eggtimer=35,aliens=3,snipers=1,colors={14,2}},
+		{name="gva-1106",w=6,h=3,bombs=0,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=3,colors={9,4}}
+	}
 	
-	if level_id<15 then
-		-- small
-	end
 	
-	if level_id<10 then
-		w={3,4,5}
-		h={4,5,6,7}
-	end
-	
-	if level_id<5 then
-		w={4,5}
-		h={3,4,5}
-	end
-
-	if rnd()<.5 then 
-		mw=rnd_table(w)
-		mh=rnd_table(h)
+	if level_id>4 then
+		local colors={{3,4},{11,9},{11,4},{15,14}}
+		local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
+		local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
+		local mw=random(3,6)
+		local mh=random(3,6)
+		local me=random(4,6)
+		local mb=me+random(1,3)
+		local ma=random(2,5)
+		local ms=random(3,6)
+		
+		if level_id>10 then
+			--if mw<5 then mh=max(7,mh+1) end
+			if mh<5 then mw=max(7,mw+1) end
+			
+			me+=1
+			mb+=1
+		end
+		
+		curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,eggtimer=35,aliens=ma,snipers=ms,bombs=0,colors=rnd_table(colors)}	
 	else
-		mh=rnd_table(w)
-		mw=rnd_table(h)
+		curlvl=levels[level_id]
 	end
-	
-	
-	
-	if level==1 then
-		curlvl={name="pv-418",w=3,h=3,bodies=2,eggs=1,eggtimer=45,aliens=0,snipers=0,colors={3,4}}	
-	else
-		curlvl={name="foo",w=mw,h=mh,bodies=6,eggs=3,eggtimer=45,aliens=0,snipers=0,bombs=0,colors=rnd_table(colors)}	
-	end
-	
-	
-	
-	
-	
 	
 	
 	function start_update()
@@ -314,13 +308,14 @@ end
 
 
 -- #game play 
+memhi=0
 function play_init()
 	
 	
 	-- vars that need reset per level
 	p_x,p_y,p_spd,p_spr=64,64,1,32
 	p_cx,p_cy=p_x+8,p_y+8
-	p_st,p_flip,p_freeze=1,false,0 -- state: 1=unarmed, 2=gun, 3=bait
+	p_st,p_flip,p_freeze=0,false,0 -- state: 1=unarmed, 2=gun, 3=bait
 	egg_hatch=sec(curlvl.eggtimer)
 	transport_st=0
 	
@@ -336,6 +331,8 @@ function play_init()
 	bullets={}
 
 	gen_map(curlvl.w,curlvl.h)
+	
+	memhi=0
 	
 	local arrival="arrival on "..curlvl.name
 	if finale then
@@ -357,7 +354,8 @@ end
 
 function play_update()
 	if curlvl.eggs>0 then
-		egg_hatch=min(0,egg_hatch-1)
+		egg_hatch=max(0,egg_hatch-1)
+		
 		if egg_hatch<=0 then
 			local t=get_random_tile(3)
 
@@ -372,9 +370,9 @@ function play_update()
 			
 			if not finale then
 				if curlvl.eggs<=0 then
-					tckr("no eggs detected;return to transport beacon")
+					tkr("no eggs detected;return to transport beacon")
 				else
-					tckr(curlvl.eggs.." eggs remaining")
+					tkr(curlvl.eggs.." eggs remaining")
 				end
 			end
 		end
@@ -386,7 +384,7 @@ function play_update()
 			a.update(a)
 			a.t+=1
 		end
-		
+
 		p_update()
 	else
 		--#dead gameover
@@ -464,6 +462,7 @@ end
 function tkr_next()
 	tkr_txt=tkr_log[1][1]
 	tkr_end=0-tkr_log[1][2]
+	printh(tkr_txt)
 	del(tkr_log, tkr_log[1])
 	tkr_x=105 
 end
@@ -522,8 +521,6 @@ function gen_mini()
 	end
 	
 	add(minimap, {x=p_tx,y=p_ty,c=8})
-	
-	printh(#minimap)
 end
 
 
@@ -537,8 +534,6 @@ function draw_mini()
 		x1=((dot.x-1)*2)+mini_x+7
 		y1=((dot.y-1)*2)+mini_y+7
 		print("+",x1,y1-1,dot.c)
-		
-		mini_dot(mm.x,mm.y,mm.c) 
 	end
 	
 	print("+you",92,100,8)
@@ -561,11 +556,8 @@ function title_init()
 	
 	-- #levels - define levels
 	-- w/h=screen size; eggtimer=seconds to hatch; colors=array of primary,secondary
-	add(levels,{name="jl78",w=6,h=5,bombs=0,bodies=2,eggs=0,eggtimer=9999,aliens=0,snipers=0,colors={11,3}})
-	add(levels,{name="col-b",w=3,h=4,bombs=0,bodies=3,eggs=2,eggtimer=30,aliens=2,snipers=0,colors={11,4}})
-	add(levels,{name="mf 2018",w=4,h=4,bombs=0,bodies=4,eggs=4,eggtimer=40,aliens=3,snipers=2,colors={9,4}})
-	add(levels,{name="roxi 9",w=5,h=4,bombs=0,bodies=5,eggs=4,eggtimer=45,aliens=4,snipers=3,colors={11,4}})
-	add(levels,{name="pv-418",w=6,h=6,bombs=0,bodies=7,eggs=5,eggtimer=50,aliens=6,snipers=6,colors={14,2}})	
+	
+	
 
 	
 	function title_update()
@@ -714,22 +706,24 @@ function add_sniper(tx,ty)
 			local ox=self.x+16
 			local oy=self.y+4
 			
-			if flip then
+			if self.flip then
 				ox=self.x-32
 				oy=self.y+4
 			end
 			
 			if self.st==1 then
 
-				if in_box(p_cx,p_cy, ox,oy, {x=0,w=32,y=0,h=8}) then
+				if in_box(p_cx,p_cy, ox,oy, 32,8) then
+					--printh("sniped!")
+					
 					-- @sound sniper shot
 					local obj={
 						dx=4,x=self.x+16,y=self.y+8,
 						c=13,dy=0,
 						update=function(b)
-							if b.x>=p_cx-8 and b.x<=p_cx+8 then
-								del(bullets,b)
+							if in_range(b.x,b.y, p_cx,p_cy, 8) then
 								p_freeze=sec(3)
+								del(bullets,b)
 							end
 						end
 					}
@@ -740,6 +734,7 @@ function add_sniper(tx,ty)
 					end
 
 					add(bullets,obj)
+					
 					
 					chg_st(self,2)
 				end
@@ -799,7 +794,7 @@ function add_hugger(tx,ty)
 		navpath={},
 		tile={},
 		update=function(self)
-			--alien_update(self)
+			alien_update(self)
 
 			if self.tile.o==4 then
 				tile_attr(self.tx,self.ty)
@@ -855,7 +850,7 @@ function add_alien(tx,ty)
 				end
 			end
 		
-			--alien_update(self)
+			alien_update(self)
 			
 			-- within bait range, go there and sleep
 			if self.st==10 then
@@ -903,7 +898,6 @@ function add_alien(tx,ty)
 end
 
 
-
 -- #walker - common logic for alien actors that move around the map
 function alien_update(self)
 	-- self is actor object - id: 1=hugger, 2=alien
@@ -934,7 +928,7 @@ function alien_update(self)
 
 			--hugger
 			if id==1 then
-				near=find_nearest(self.x,self.y, filter_tiles("body"))
+				near=find_nearest(self.x,self.y, filter_tiles(4))
 				self.wpcount=5
 			end
 			
@@ -1077,7 +1071,10 @@ function draw_map()
 			local px,py=tile_to_px(x,y)
 			
 			if plot.o==1 then
+				pal(11,curlvl.colors[1])
+				pal(3,curlvl.colors[2])
 				spr(plot.s, px, py, 2,2)
+				
 			end
 			
 			if plot.o==4 then
@@ -1091,17 +1088,14 @@ function draw_map()
             if plot.o==5 then
 				spr(42,px,py, 2,2, plot.flip)
 			end
-			
-			if plot.o==5 then
-				spr(42,px,py, 2,2, plot.flip)
-			end
 				
 			if plot.o==6 then
+				if transport_st==1 then pal(12,8) pal(13,8) end
 				spr(12,px,py,2,2)
 			end
 			
 			if plot.o==99 then
-				spr(7,px,py,2,plot.h)
+				spr(7,px,py,2,1)
 			end
 		end
 	end
@@ -1198,7 +1192,7 @@ function gen_map(w,h)
     	add_tiles(curlvl.bombs, 2,7, 256,400) --bombs
     end
 
-    add_tiles(curlvl.bodies, 0,4, 100,100) --bodies
+    add_tiles(curlvl.bodies, 0,4, 100,70) --bodies
     add_tiles(curlvl.eggs, 2,3, 130,130) --eggs
 
     
@@ -1321,7 +1315,7 @@ end
 -- #loop
 
 function _init()
-	printh("BOOT -----")
+	printh("BOOT ----------------------------------------------")
 	title_init()
 	
 end
@@ -1351,7 +1345,9 @@ function _draw()
 	
 	-- debug memory
 	camera(0,0)
-	print(flr((stat(0)/1024)*100).."%m\n"..stat(1).."\n"..debug,100,0,8)
+	local mem=stat(1)
+	print(flr((stat(0)/1024)*100).."%m\n"..mem.."\n"..debug,100,0,8)
+	if mem>memhi then memhi=mem debug=mem end
 end
 
 
@@ -1391,6 +1387,27 @@ function dir_calc(angle,speed)
 	local dy=sin(angle)*speed
 	
 	return dx,dy
+end
+
+function split(s,dc)
+	dc=dc or ";"
+	local a={}
+	local ns=""
+	s=s..";"
+	
+	while #s>0 do
+		local d=sub(s,1,1)
+		if d==dc then
+			add(a,ns)
+			ns=""
+		else
+			ns=ns..d
+		end
+	
+		s=sub(s,2)
+	end
+	
+	return a
 end
 
 -- tile_to_px(int_tilex,int_tiley)
@@ -1463,9 +1480,20 @@ end
 
 -- #in_range(int_needlex,int_needley, int_haystackx,int_haystacky, int_distance)
 function in_range(ax,ay, bx,by, rng)
+	--[[
+	printh("seeing if "..ax..","..ay.." is in range of "..bx..","..by.." w distance of "..rng)
+	printh("...is "..ax..">="..bx-rng)
+	printh("...is "..ax.."<="..bx+rng)
+	printh("...is "..ay..">="..by-rng)
+	printh("...is "..ay.."<="..by+rng)
+	]]
+	
 	if ax>=bx-rng and ax<=bx+rng and ay>=by-rng and ay<=by+rng then
+		--printh("IN RANGE")
 		return true
 	end
+	
+	--printh("NOT in range")
 	
 	return false
 end
@@ -1489,6 +1517,17 @@ function get_random_tile(occ)
 	return false
 end
 
+function zspr(n,w,h,dx,dy,dz,fx,fy)
+  sx = 8 * (n % 16)
+  sy = 8 * flr(n / 16)
+  sw = 8 * w
+  sh = 8 * h
+  dw = sw * dz
+  dh = sh * dz
+
+  sspr(sx,sy,sw,sh, dx,dy,dw,dh, fx,fy)
+end
+
 -- add_tiles(quantity, sourceTileId, occupantId, distanceOccupantId, distanceFromPlayer, callback)
 function add_tiles(q, src, occ, od, pd, f)
 	for n=1,q do
@@ -1500,8 +1539,8 @@ function add_tiles(q, src, occ, od, pd, f)
 			if #list>0 then
 				for n in all(list) do
 					if try>0 then
-						if not in_range(t.x,t.y, n.x,n.y,od) then
-							if not in_range(t.x,t.y, p_cx,p_cy, pd) then
+						if not in_range(t.x,t.y, p_cx,p_cy, pd) then
+							if not in_range(t.x,t.y, n.x,n.y, od) then
 								tile_attr(t.tx,t.ty, "o", occ)
 								if f then f(t.tx,t.ty) end
 								try=0
@@ -1522,17 +1561,11 @@ end
 
 -- point in hitbox
 -- #in_box(x,y, objX,objY,objHitbox)
-function in_box(ax,ay, bx,by,bhb)
-	  local l = max(ax, bx+bhb.x)
-	  local r = min(ax, bx+bhb.x+bhb.w)
-	  local t = max(ay, by+bhb.y)
-	  local b = min(ay, by+bhb.y+bhb.h)
-
-	  -- they overlapped if the area of intersection is greater than 0
-	  if l < r and t < b then
+function in_box(x,y, ox,oy,ow,oh)
+	if x>=ox and x<=ox+ow and y>=oy and y<=oy+oh then
 		return true
-	  end
-					
+	end
+	
 	return false
 end
 
@@ -1844,7 +1877,7 @@ __sfx__
 010d000026365263002636526365003000030025365233652136021365253602536526360263652836028360283522835228342283422a3602a3602a3502a3522a3422a342253602536025352253522534225342
 010d00002d3352d3002d3352d3350000028305283352a3352d3302d3352f3302f33528330283352a3302a3302a3322a3322a3322a3322c3302c3352d3302d3302d3322d3322d3322d3322d3322d3322d3322d332
 010d00002f3352d3002f3352f33500000283052d3352c3352a3302a3352d3302d3352f3302f3352d3302d3302d3322d3322d3322d3322c3302c3302c3322c3322c3322c332283302833028332283322833228332
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000d7700c7700a7001270000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
