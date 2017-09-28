@@ -106,16 +106,16 @@ function p_tiles(tile)
 	
 	-- when player gets to a egg
 	if tile.o==3 then
-		sfx(16)
 		eggs_collected=min(eggs_collected+1,20)
 		curlvl.eggs=max(curlvl.eggs-1,0)
 
 		if eggs_collected<20 then
+            sfx(16)
 			tile_attr(p_tx,p_ty)
-
 			tkr("alien egg collected;"..curlvl.eggs.." eggs remaining",true)
 		else
 			if tile_t==0 then
+                sfx(12)
 				tkr("cargo bay is full;return to transport beacon",true)
 			end
 		end
@@ -144,7 +144,7 @@ function p_tiles(tile)
 			
 			if transport_t==sec(9) then
 				if eggs_collected==20 then
-					--finale_init()
+					finale_init()
 				else
 					start_init()	
 				end
@@ -215,40 +215,44 @@ end
 -- #level #start
 function start_init()
 	music(-1) playing=false
-	level_id+=1
-	
-	local levels={
-		--{name="tester",w=4,h=8,bombs=0,bodies=5,eggs=0,eggtimer=30,aliens=1,snipers=0,colors={11,3}},
-		{name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,eggtimer=30,aliens=0,snipers=0,colors={11,3}},
-		{name="col-b",w=4,h=4,bombs=0,bodies=3,eggs=4,eggtimer=30,aliens=1,snipers=0,colors={11,4}},
-		{name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,eggtimer=30,aliens=3,snipers=1,colors={14,2}},
-		{name="gva-1106",w=3,h=6,bombs=0,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=3,colors={9,4}}
-	}
-	
-	
-	if level_id>0 then
-		local colors={{3,4},{11,9},{11,4},{15,14}}
-		local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
-		local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
-		local mw=random(4,6)
-		local mh=random(4,6)
-		local me=random(4,6)
-		local mb=me+random(1,3)
-		local ma=random(2,5)
-		local ms=random(3,6)
-		
-		if level_id>6 then
-			--if mw<5 then mh=max(7,mh+1) end
-			if mh<5 then mw=max(8,mw+1) end
-			
-			me+=1
-			mb+=1
-		end
-		
-		curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,eggtimer=35,aliens=ma,snipers=ms,bombs=0,colors=rnd_table(colors)}	
-	else
-		curlvl=levels[level_id]
-	end
+    if not finale then
+        level_id+=1
+
+        local levels={
+            --{name="tester",w=4,h=8,bombs=0,bodies=5,eggs=0,eggtimer=30,aliens=1,snipers=0,colors={11,3}},
+            {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,eggtimer=30,aliens=0,snipers=0,colors={11,3}},
+            {name="col-b",w=4,h=4,bombs=0,bodies=3,eggs=4,eggtimer=30,aliens=1,snipers=0,colors={11,4}},
+            {name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,eggtimer=30,aliens=3,snipers=1,colors={14,2}},
+            {name="gva-1106",w=3,h=6,bombs=0,bodies=7,eggs=5,eggtimer=40,aliens=4,snipers=3,colors={9,4}}
+        }
+
+
+        if level_id>0 then
+            local colors={{3,4},{11,9},{11,4},{15,14}}
+            local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
+            local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
+            local mw=random(4,6)
+            local mh=random(4,6)
+            local me=random(4,6)
+            local mb=me+random(1,3)
+            local ma=random(2,5)
+            local ms=random(3,6)
+
+            if level_id>6 then
+                --if mw<5 then mh=max(7,mh+1) end
+                if mh<5 then mw=8 end
+
+                me+=1
+                mb+=1
+            end
+
+            curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,eggtimer=25,aliens=ma,snipers=ms,bombs=0,colors=rnd_table(colors)}	
+        else
+            curlvl=levels[level_id]
+        end
+    else 
+        curlvl={name="pco-8",w=8,h=4,bodies=10,eggs=6,eggtimer=25,aliens=6,snipers=6,bombs=3,colors={11,3}}	
+    end
 	
 	
 	function start_update()
@@ -415,6 +419,7 @@ function play_update()
 	else
 		--#dead gameover
 		if btnzp and gt>=sec(1) then
+            music(0,3000)
 			title_init()	
 		end
 		
@@ -461,7 +466,7 @@ end
 
 
 function make_blood()
-	if #blood<45 then
+	if #blood<100 then
 		for n=0,15 do
 			add(blood,{random(34,94),random(34,94),random(5,9)})
 		end
@@ -580,9 +585,27 @@ function draw_mini()
 	print("+bio",92,116,11)
 end
 
+
+function fade_init()
+    fade_colors={0,1,5,13,6,7}
+	fade_i=1
+	fade_c=fade_colors[fade_i]
+	fade_t=0
+end
+
+function fade_update()
+    if fade_i!=#fade_colors and fade_t==5 and fade_i<#fade_colors then
+        fade_i=min(#fade_colors,fade_i+1)
+        fade_c=fade_colors[fade_i]
+        fade_t=0
+    end
+
+    fade_t+=1
+end
+
+
 -- #title
 function title_init()
-	--if not playing then music(0) playing=true end
 	finale=false
 	level_id=0
 	eggs_collected=0
@@ -592,10 +615,7 @@ function title_init()
 	blood={}
 	levels={}
 	
-	local fade_colors={0,1,5,13,6,7}
-	local fade_i=1
-	local fade_c=fade_colors[fade_i]
-	local fade_t=0
+	fade_init()
 	
 	function title_update()
 		if btnzp then start_init() end
@@ -603,13 +623,7 @@ function title_init()
 		
 		if gt>sec(8) then story_init() end
 		if gt>sec(1) then
-			if fade_i!=#fade_colors and fade_t==5 and fade_i<#fade_colors then
-				fade_i=min(#fade_colors,fade_i+1)
-				fade_c=fade_colors[fade_i]
-				fade_t=0
-			end
-
-			fade_t+=1
+			fade_update()
 		end
 	end 
 	
@@ -685,6 +699,8 @@ end
 function story_init()
 	local sx=1
 	local lspr=14
+    
+    fade_init()
 
 	function story_update()
 		if btnxp or btnzp then title_init()	end
@@ -696,10 +712,12 @@ function story_init()
 			
 			sx=min(sx+.5,130)
 		end
+        
+        fade_update()
 	end 
 
 	function story_draw()
-		print("dylan burke is finishing the\njob his father failed to\ncomplete on lv-426.\n\nyou know what that means and he\nmust be stopped.\n\nexplore planets and collect\nalien eggs before burke can\nget to them.",0,8,6)
+		center_text("dylan burke is finishing the;job his father failed to;complete on lv-426.;;you know what that means and he;must be stopped.;;explore planets and collect;alien eggs before burke can;get to them.",8, fade_c)
 		palt(2,true)
 		spr(lspr,sx,105,2,2)
 		if sx<80 then spr(9, 80,111,2,1) end
@@ -711,6 +729,28 @@ function story_init()
 end
 
 
+
+-- #finale
+function finale_init()
+    music(0,2000)
+    finale=true
+    fade_init()
+
+    function finale_update()
+        fade_update()
+        if btnzp then start_level() end
+    end
+    
+    
+    function finale_draw()
+        center_text("with all eggs collected,;you must now stop the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;burke once and for all.",8, fade_c)
+        
+        if gt>sec(3) then center_text("press \142 to continue",100,6) end
+    end
+
+
+    cart(finale_update,finale_draw)
+end
 
 
 
@@ -1410,8 +1450,9 @@ end
 
 function _init()
 	printh("boot ----------------------------------------------")
+    music(0,3000)
 	title_init()
-	
+	--finale_init()
 	
 end
 
