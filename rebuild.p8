@@ -23,9 +23,7 @@ function p_update()
 		
 	    p_tx,p_ty=px_to_tile(p_cx,p_cy)
 		p_dx,p_dy,p_xdir,p_ydir=0,0,0,0
-	    
-		--debug=p_tx..","..p_ty
-		
+
 	    local tile=get_tile(p_tx,p_ty)
 		
 		if btnl	then p_xdir=-1 p_flip=true end
@@ -45,14 +43,12 @@ function p_update()
 
 		-- actions
 		if btnxp and p_st==2 then
-			-- @sound bullet noise
 			sfx(13)
 			p_bullet()
 			p_st,p_spr=1,32
 		end
 	
 		if btnxp and p_st==3 then
-			-- @sound bait noise
 			sfx(14)
 			add_bait(p_cx,p_cy)
 			p_st,p_spr=1,32
@@ -114,6 +110,7 @@ function p_tiles(tile)
 			tile_attr(p_tx,p_ty)
 			tkr("alien egg collected;"..curlvl.eggs.." eggs remaining",true)
 		else
+			music(0,3000)
 			if tile_t==0 then
                 sfx(12)
 				tkr("cargo bay is full;return to transport beacon",true)
@@ -131,7 +128,6 @@ function p_tiles(tile)
 		transport_st=1
 		
 		if curlvl.eggs>0 and eggs_collected<20 and transport_t==0 then
-			-- @sound buzzer
 			sfx(12)
 			tkr("dropship unavailable;find remaining eggs",true)
 		end
@@ -155,6 +151,7 @@ function p_tiles(tile)
 		transport_t+=1
 	else
 		if transport_st==1 then
+			sfx(12)
 			tkr("dropship canceled",true)
 			transport_st=0
 		end
@@ -205,7 +202,7 @@ function p_dead()
 	tkr("game over;press \142 to continue",true)
 	gt=0
 	gameover=true
-	level_list={}
+	pf_list={}
 	p_spr=46
 end
 
@@ -214,7 +211,7 @@ end
 
 -- #level #start
 function start_init()
-	music(-1) playing=false
+	music(-1)
     if not finale then
         level_id+=1
 
@@ -239,7 +236,7 @@ function start_init()
             local ms=random(3,6)
 
             if level_id>6 then
-                --if mw<5 then mh=max(7,mh+1) end
+                if mw<5 then mh=8 end
                 if mh<5 then mw=8 end
 
                 me+=1
@@ -335,7 +332,6 @@ function play_init()
 	tkr_end=105
 	tkr_log={}
 	
-	
 	sfx_n=3
 	sfx_t=sec(sfx_n)
 	
@@ -396,7 +392,8 @@ function play_update()
 	
 		sfx_n=3
 		
-		for a in all(actors) do 
+		for i=1,#actors do
+			local a=actors[i]
 			a.update(a)
 			a.t+=1
 			
@@ -448,7 +445,10 @@ function play_draw()
 	
 	bullet_draw()
 	p_draw()
-	for a in all(actors) do a.draw(a) end
+	for i=1,#actors do
+		local a=actors[i]
+		a.draw(a) 
+	end
 	pal()
 	
 	camera(0,0)
@@ -467,13 +467,8 @@ end
 
 function make_blood()
 	if #blood<100 then
-		for n=0,15 do
-			add(blood,{random(34,94),random(34,94),random(5,9)})
-		end
-	
-		for n=0,18 do
-			add(blood,{random(14,114),random(14,115),random(1,3)})
-		end
+		for n=0,15 do add(blood,{random(34,94),random(34,94),random(5,9)}) end
+		for n=0,18 do add(blood,{random(14,114),random(14,115),random(1,3)}) end
 	end	
 	
 	return 0
@@ -569,7 +564,8 @@ function draw_mini()
 	rectfill(mini_x+6,mini_y+6, (map_tilew*2)+mini_x+8,(map_tileh*2)+mini_y+8, 3)
 	rect(mini_x+6,mini_y+6, (map_tilew*2)+mini_x+8,(map_tileh*2)+mini_y+8, 11)
 
-	for dot in all(minimap) do
+	for i=1,#minimap do
+		local dot=minimap[i]
 		x1=((dot.x-1)*2)+mini_x+7
 		y1=((dot.y-1)*2)+mini_y+7
 		print("+",x1,y1-1,dot.c)
@@ -611,7 +607,6 @@ function title_init()
 	eggs_collected=0
 	gameover=false
 	grid={}
-	level_list={}
 	blood={}
 	levels={}
 	
@@ -1091,7 +1086,7 @@ function alien_update(self)
 	
 	-- get heading towards next waypoint
 	if self.st==1 then
-		self.dest=level_list[self.navpath[self.waypoint]]
+		self.dest=pf_list[self.navpath[self.waypoint]]
 		
 		if not self.dest then
 			chg_st(self,0)
@@ -1184,7 +1179,7 @@ end
 -- update logic for ai that finds targets and wanders: huggers and aliens
 function pathfind(startx,starty,goaltx,goalty)
 	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
-	local endpoint=level_list[navpath[#navpath]]
+	local endpoint=pf_list[navpath[#navpath]]
 	
 	return navpath,endpoint,1
 end
@@ -1260,7 +1255,7 @@ function gen_map(w,h)
 	map_tilew,map_tileh=map_w*8,map_h*8
 	map_eggs=0
 	grid={}
-	level_list={}
+	pf_list={}
 	
 	-- seed grid with all empty
 	-- coordinates are for 16x16px blocks; 8 per screen
@@ -1286,16 +1281,23 @@ function gen_map(w,h)
 	end
 	
 	
-	create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
-	
-	
+	if finale then
+		queen_x=map_w
+		queen_y=rand(map_h)+1
+		
+		create_screen(1,rand(map_h)+1, 0,0)
+		create_screen(queen_x,queen_y, 0,1)
+	else
+		create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
+	end
+
 	local n=1
 	local snipers={}
 	for x=1,map_tilew do
 		for y=1,map_tileh do
 			local plot=grid[x][y]
 			
-			level_list[n]=plot
+			pf_list[n]=plot
 			plot.n=n
 			n+=1
 			
@@ -1608,7 +1610,8 @@ function find_nearest(x,y,list)
 	local d=9999
 	local n=false
 	
-	for t in all(list) do
+	for i=1,#list do
+		local t=list[i]
 		local far=distance(t.x,t.y, x,y)
 
 		if far<d then
@@ -1760,7 +1763,8 @@ end
 function find_path(start_index,target_index)
 	local path={}
 	
-	for v in all(level_list) do
+	for i=1,#pf_list do
+		local v=pf_list[i]
 		v.p=0
 		v.status=0
 	end
@@ -1775,11 +1779,12 @@ function find_path(start_index,target_index)
 	start.status=1
 	
 	while #open>0 do
-		local current=level_list[open[1]]
+		local current=pf_list[open[1]]
 		
-		for n in all(open) do
-			if level_list[n].g+level_list[n].h<current.g+current.h then
-				current=level_list[n]
+		for i=1,#open do
+			local n=open[i]
+			if pf_list[n].g+pf_list[n].h<current.g+current.h then
+				current=pf_list[n]
 			end
 		end 
 	
@@ -1794,7 +1799,8 @@ function find_path(start_index,target_index)
 	        {x=current.tx-1, y=current.ty},        
 	    }
 
-		for cxy in all(nchecks) do
+		for i=1,#nchecks do
+			local cxy=nchecks[i]
 			
 			if cxy.x>=1 and cxy.x<=map_tilew and cxy.y>=1 and cxy.y<=map_tileh then
 				local neighbor=grid[cxy.x][cxy.y]
@@ -1809,7 +1815,7 @@ function find_path(start_index,target_index)
 					
 					while n!=start.n do
 						add(temp,n)
-						n=level_list[n].p
+						n=pf_list[n].p
 					end
 					
 					for i=#temp,1,-1 do
