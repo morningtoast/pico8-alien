@@ -187,7 +187,7 @@ function p_tiles(tile)
 					tkr("all bombs armed;find detonator to start countdown") 
 				end
 				
-				tile_attr(tile.x,tile.y)
+				tile_attr(p_tx,p_ty)
 			end
 		--else
 			--if bomb_t==0 then tkr(msg,true) end
@@ -207,7 +207,7 @@ function p_tiles(tile)
 		if curlvl.bombs==0 then
 			if det_st<2 then
 				if det_t==0 then
-					sfx(15)
+					-- @sound tick tick ding
 					tkr("intializing countdown, stand by",true) 
 				end
 
@@ -218,7 +218,7 @@ function p_tiles(tile)
 					tkr("detonation in 30 seconds;return to transport beacon",true)
 					--countdown=sec(30)
 					-- @sound warning alert buzzer, start escape music
-					tile_attr(tile.x,tile.y)
+					tile_attr(p_tx,p_ty)
 				end
 			end
 		else 
@@ -244,7 +244,7 @@ function p_bullet()
 	
 	if p_flip then heading=.5 end
 
-	for a in all(actors) do
+	for k,a in pairs(actors) do
 		if a.id<3 then -- only target huggers and aliens, not snipers
 			if in_range(a.cx,a.cy, p_cx,p_cy, 60) then add(tgt,a) end
 		end
@@ -257,7 +257,7 @@ function p_bullet()
 
 	obj.dx,obj.dy = dir_calc(heading, 3)
 	obj.update=function(self)
-		for a in all(actors) do
+		for k,a in pairs(actors) do
 			if a.id<3 and in_range(self.x,self.y, a.cx,a.cy, 12) then
 				chg_st(a,99)
 				del(bullets,self)
@@ -465,7 +465,7 @@ function play_update()
 	
 		sfx_n=3
 		
-        for a in all(actors) do
+        for k,a in pairs(actors) do
 			a.update(a)
 			a.t+=1
 			
@@ -498,7 +498,7 @@ function play_update()
 		end
 	else
 		--#dead gameover
-		if btnzp and gt>=sec(1) then
+		if btnzp and gt>=sec(2) then
             music(0,3000)
 			title_init()	
 		end
@@ -510,14 +510,10 @@ function play_update()
 			
 			if gt==sec(10) then
 				tkr("game over;press \142 to continue",true)
-				gt=sec(1)
+				gt=sec(2)
 			end
 			
 			blood_t+=1
-		end
-		
-		if gameover==2 then
-			nuke=min(150,nuke+.5)
 		end
 	end
 
@@ -547,17 +543,40 @@ function play_draw()
 	
 	
 	if gameover==1 then
-		for b in all(blood) do circfill(b[1],b[2],b[3], 8) end
+		for k,b in pairs(blood) do circfill(b[1],b[2],b[3], 8) end
 	end
 	
 	if gameover==2 then
-		circfill(64,64,nuke,7)	
-		if nuke==150 then
+		--circfill(64,64,nuke,7)	
+		--if nuke==150 then
+		if nukeit() then
 			center_text("game over;;press \142 to restart",50,2)	
 		end
+		--end
 	end
 end
 
+
+function nukeit()
+	if nuke<32 and (nuke%2==0) then
+		for x=0,127 do
+			for y=0,127 do
+				local pc=pget(x,y)
+				if pc!=7 then 
+					if pc<7 then 
+						pset(x,y,pc+1) 
+					else
+						pset(x,y,pc-1) 
+					end
+				end
+			end
+		end
+		nuke+=1
+		return false
+	else
+		return true
+	end
+end
 
 
 
@@ -576,7 +595,7 @@ end
 function tkr(t,c)
 	local l=split(t)
 	if c then tkr_log={} end
-	for t in all(l) do add(tkr_log,{t,(#t*4)}) end
+	for k,t in pairs(l) do add(tkr_log,{t,(#t*4)}) end
 	if c then tkr_next() end
 end
 
@@ -632,11 +651,12 @@ function gen_mini()
 			local plot=grid[x][y]
 
 			if plot.o==4 or plot.o==3 then add(minimap, {x=x,y=y,c=11}) end
-			if plot.o==6 or plot.o==7 then add(minimap, {x=x,y=y,c=12}) end
+			if plot.o==6 then add(minimap, {x=x,y=y,c=12}) end
+			if plot.o==8 or plot.o==7 then add(minimap, {x=x,y=y,c=14}) end --debug
 		end
 	end
 	
-	for a in all(actors) do
+	for k,a in pairs(actors) do
 		if a.id<3 then add(minimap, {x=a.tx,y=a.ty,c=11}) end
 	end
 	
@@ -645,10 +665,10 @@ end
 
 
 function draw_mini()
-	if btnl then mini_x-=2 end
-	if btnr then mini_x+=2 end
-	if btnu then mini_y-=2 end
-	if btnd then mini_y+=2 end
+	if btnl then mini_x+=2 end
+	if btnr then mini_x-=2 end
+	if btnu then mini_y+=2 end
+	if btnd then mini_y-=2 end
 	
 	rectfill(0,0,127,93,0)
 	
@@ -690,7 +710,9 @@ function title_init()
 	fd_init()
 	
 	function title_update()
-		if btnzp then start_init() end
+		if btnzp then 
+			if firstplay then story_init(true) else start_init() end
+		end
 		if btnxp then help_init() end
 		
 		if gt>sec(8) then story_init() end
@@ -765,16 +787,20 @@ help_init=function() --must be var for use in attract modes
 end
 
 -- #story
-function story_init()
+function story_init(go)
 	local sx=1
 	local lspr=14
     
     fd_init()
 
 	function story_update()
-		if btnxp or btnzp then title_init()	end
+		if btnxp or btnzp or gt>sec(12) then 
+			if go then 
+				start_init()
+				firstplay=false
+			else title_init() end 
+		end
 		
-		if gt>sec(12) then title_init() end
 		if gt>sec(5) then
 			lspr=160
 			if sx>=80 then lspr=128 end
@@ -811,7 +837,7 @@ function finale_init()
     
     
     function finale_draw()
-        center_text("with all eggs collected,;you must go to the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;burke once and for all.",8, fd_c)
+        center_text("with the eggs collect you must;now go to the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;burke once and for all.",8, fd_c)
         
         if gt>sec(3) then center_text("press \142 to continue",100,6) end
     end
@@ -827,15 +853,15 @@ function victory_init()
     -- @music victory
 
     function victory_update()
-        fd_update()
-        if btnzp then title_init() end
+        if btnzp and gt>sec(4) then title_init() end
     end
     
     
     function victory_draw()
-        center_text("mission accomplished",20, fd_c)
-        
-        if gt>sec(3) then center_text("press \142 to continue",95,6) end
+    	if gt>sec(3)
+    		fd_update()
+			center_text("mission accomplished;;congratulations;;;;press \142 to return home",20, fd_c)
+		end
     end
 
 
@@ -846,7 +872,7 @@ end
 
 -- #bullets
 function bullet_update()
-	for b in all(bullets) do
+	for k,b in pairs(bullets) do
 		b.x+=b.dx
 		b.y+=b.dy
 
@@ -868,7 +894,7 @@ end
 
 
 function bullet_draw()
-	for b in all(bullets) do circfill(b.x,b.y, 2, b.c) end
+	for k,b in pairs(bullets) do circfill(b.x,b.y, 2, b.c) end
 end
 
 
@@ -882,7 +908,7 @@ function add_bait(x,y)
 		cx=x+8,cy=y+8,
 		t=0,
 		update=function(self)
-			for a in all(actors) do
+			for k,a in pairs(actors) do
 				if a.id==2 and a.st<99 then
 					if a.st<10 and in_range(a.cx,a.cy, self.cx,self.cy, 60) then
 						local release=sec(5)-self.t
@@ -1418,7 +1444,7 @@ function gen_map(w,h)
 		end
 		
 		-- turn left over sniper slots into bushes
-		for t in all(snipers) do
+		for k,t in pairs(snipers) do
 			grid[t.tx][t.ty].o=1
 			grid[t.tx][t.ty].s=rnd_table(bush_sprites)
 		end
@@ -1557,7 +1583,7 @@ function intro_init()
 		fd_update()
 		
 		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
-		if gt>sec(3) then fd_out() end
+		if gt>sec(4) then fd_out() end
 	end
 	
 	cart(ef,intro_draw)
@@ -1566,7 +1592,7 @@ end
 
 
 -- #loop
-
+firstplay=true
 function _init()
     music(0,4000)
 	rb_i=0
@@ -1611,6 +1637,7 @@ function _draw()
 	--camera(0,0)
 	--print(flr((stat(0)/1024)*100).."%m\n"..stat(1).."\n"..debug,100,0,8)
 end
+
 
 
 
@@ -1688,7 +1715,7 @@ function fd_init(f)
 	fd_s=1
 	fd_f=f
 end
-function fd_out() fd_s=3 end
+function fd_out() if fd_s<3 then fd_s=3 end end
 function fd_update()
     if fd_s==1 and fd_t==5 and fd_i<#fd_cl then
         fd_i=min(#fd_cl,fd_i+1)
@@ -1856,7 +1883,7 @@ function add_tiles(q, src, occ, od, pd, f)
 			
 			if not in_range(t.cx,t.cy, p_cx,p_cy, pd) then
 				if #sim>0 then
-					for s in all(sim) do
+					for k,s in pairs(sim) do
                         if not in_range(t.cx,t.cy, s.cx,s.cy, od) then
                             safe+=1
                         end
@@ -1957,7 +1984,7 @@ function find_path(start_index,target_index)
 	while #open>0 do
 		local current=pf_list[open[1]]
 		
-        for n in all(open) do
+        for k,n in pairs(open) do
 			if pf_list[n].g+pf_list[n].h<current.g+current.h then
 				current=pf_list[n]
 			end
@@ -1974,7 +2001,7 @@ function find_path(start_index,target_index)
 	        {x=current.tx-1, y=current.ty},        
 	    }
 
-        for cxy in all(nchecks) do
+        for k,cxy in pairs(nchecks) do
 			
 			if cxy.x>=1 and cxy.x<=map_tilew and cxy.y>=1 and cxy.y<=map_tileh then
 				local neighbor=grid[cxy.x][cxy.y]
