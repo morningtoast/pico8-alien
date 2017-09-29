@@ -165,7 +165,7 @@ function p_tiles(tile)
 	-- bomb_st: 0=unarmed;1=onhover;2=armed
 	
 	if tile.o==7 then
-		local msg="bomb armed and ready"
+		--local msg="bomb armed and ready"
 		--if tile.bomb_st<2 then
 			if bomb_t==0 then 
 				-- @sound chime up
@@ -179,7 +179,7 @@ function p_tiles(tile)
 				curlvl.bombs=max(0,curlvl.bombs-1)
 				
 				sfx(11)
-				tkr(msg,true) 
+				tkr("bomb armed and ready",true) 
 
 				if curlvl.bombs>0 then
 					tkr(curlvl.bombs.." bombs remain") 
@@ -215,7 +215,7 @@ function p_tiles(tile)
 
 				if det_t==sec(5) then 
 					det_st,det_t=2,0
-					tkr("detonation in 30 seconds;return to transport beacon",true)
+					tkr("detonation in 30 seconds;use transport beacon to escape",true)
 					--countdown=sec(30)
 					-- @sound warning alert buzzer, start escape music
 					tile_attr(p_tx,p_ty)
@@ -582,8 +582,10 @@ end
 
 function make_blood()
 	if #blood<100 then
-		for n=0,15 do add(blood,{random(34,94),random(34,94),random(5,9)}) end
-		for n=0,18 do add(blood,{random(14,114),random(14,115),random(1,3)}) end
+		for n=0,15 do 
+			add(blood,{random(34,94),random(34,94),random(5,9)}) 
+			add(blood,{random(14,114),random(14,115),random(1,3)})
+		end
 	end	
 	
 	return 0
@@ -629,7 +631,7 @@ function tkr_draw()
 
 
 	if finale then
-		print(time_to_text(countdown), 106,120, 6)
+		print(clock(countdown), 106,120, 6)
 	else
 		spr(26, 118,119)
 		print(curlvl.eggs, 113,120, 6)
@@ -1351,6 +1353,11 @@ function draw_map()
 				spr(12,px,py,2,2)
 			end
 			
+			if plot.o==9 then
+				pal(11,1) pal(3,1)
+				zspr(42,2,2,px-16,py-8, 2, 1)
+			end
+			
 			if plot.o==99 then
 				spr(plot.s,px,py,2,1)
 			end
@@ -1850,7 +1857,7 @@ function zspr(n,w,h,dx,dy,dz,fx,fy)
 end
 
 
-function time_to_text(time)
+function clock(time)
 	local mins=0
 	local secs=flr(time/60) --seconds
 	local micro=time%60
