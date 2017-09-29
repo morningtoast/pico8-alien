@@ -141,7 +141,7 @@ function p_tiles(tile)
 						start_init()	
 					end
 				else
-					--victory_init()	
+					victory_init()	
 				end
 				
 			end
@@ -165,13 +165,16 @@ function p_tiles(tile)
 	-- bomb_st: 0=unarmed;1=onhover;2=armed
 	
 	if tile.o==7 then
-		local msg="bomb armed successfully"
-		if tile.bomb_st<2 then
-			if bomb_t==0 then tkr("arming bomb, stand by",true) end
+		local msg="bomb armed and ready"
+		--if tile.bomb_st<2 then
+			if bomb_t==0 then 
+				-- @sound chime up
+				tkr("arming bomb, stand by",true) 
+			end
 
 			tile.bomb_st=1
 			
-			if bomb_t==sec(3) then 
+			if bomb_t==sec(4) then 
 				tile.bomb_st=2 
 				curlvl.bombs=max(0,curlvl.bombs-1)
 				
@@ -181,13 +184,14 @@ function p_tiles(tile)
 				if curlvl.bombs>0 then
 					tkr(curlvl.bombs.." bombs remain") 
 				else
-					sfx(11)
 					tkr("all bombs armed;find detonator to start countdown") 
 				end
+				
+				tile_attr(tile.x,tile.y)
 			end
-		else
-			if bomb_t==0 then tkr(msg,true) end
-		end
+		--else
+			--if bomb_t==0 then tkr(msg,true) end
+		--end
 		
 		bomb_t+=1
 	else
@@ -202,16 +206,19 @@ function p_tiles(tile)
 	if tile.o==8 then
 		if curlvl.bombs==0 then
 			if det_st<2 then
-				if det_t==0 then tkr("intializing detonation",true) end
+				if det_t==0 then
+					sfx(15)
+					tkr("intializing countdown, stand by",true) 
+				end
 
 				det_st=1
 
-				if det_t==sec(4) then 
+				if det_t==sec(5) then 
 					det_st,det_t=2,0
 					tkr("detonation in 30 seconds;return to transport beacon",true)
-					countdown=sec(30)
+					--countdown=sec(30)
 					-- @sound warning alert buzzer, start escape music
-					
+					tile_attr(tile.x,tile.y)
 				end
 			end
 		else 
@@ -222,7 +229,7 @@ function p_tiles(tile)
 	else
 		if det_st==1 then
 			sfx(12)
-			tkr("detonation canceled",true)
+			tkr("countdown aborted",true)
 			det_st=0
 		end
 		det_t=0
@@ -526,11 +533,11 @@ function play_draw()
 	draw_map()
 	
 	bullet_draw()
-	p_draw()
 	for i=1,#actors do
 		local a=actors[i]
 		a.draw(a) 
 	end
+	p_draw()
 	pal()
 	
 	camera(0,0)
@@ -666,22 +673,7 @@ function draw_mini()
 end
 
 
-function fade_init()
-    fade_colors={0,1,5,13,6,7}
-	fade_i=1
-	fade_c=fade_colors[fade_i]
-	fade_t=0
-end
 
-function fade_update()
-    if fade_i!=#fade_colors and fade_t==5 and fade_i<#fade_colors then
-        fade_i=min(#fade_colors,fade_i+1)
-        fade_c=fade_colors[fade_i]
-        fade_t=0
-    end
-
-    fade_t+=1
-end
 
 
 -- #title
@@ -695,19 +687,19 @@ function title_init()
 	levels={}
 	countdown=sec(30)
 	
-	fade_init()
+	fd_init()
 	
 	function title_update()
 		if btnzp then start_init() end
 		if btnxp then help_init() end
 		
 		if gt>sec(8) then story_init() end
-		if gt>sec(.7) then fade_update() end
+		if gt>sec(.7) then fd_update() end
 	end 
 	
 	function title_draw()
 		center_text("a l i e n",60,12)
-		center_text("harvest",68,fade_c)
+		center_text("harvest",68,fd_c)
 		
 		if gt>sec(3) then
 			center_text("press \142 to start;press \151 for help",100,6)
@@ -777,7 +769,7 @@ function story_init()
 	local sx=1
 	local lspr=14
     
-    fade_init()
+    fd_init()
 
 	function story_update()
 		if btnxp or btnzp then title_init()	end
@@ -790,11 +782,11 @@ function story_init()
 			sx=min(sx+.5,130)
 		end
         
-        fade_update()
+        fd_update()
 	end 
 
 	function story_draw()
-		center_text("dylan burke is finishing the;job his father failed to;complete on lv-426.;;you know what that means and he;must be stopped.;;explore planets and collect;alien eggs before burke can;get to them.",8, fade_c)
+		center_text("dylan burke is finishing the;job his father failed to;complete on lv-426.;;you know what that means and he;must be stopped.;;explore planets and collect;alien eggs before burke can;get to them.",8, fd_c)
 		palt(2,true)
 		spr(lspr,sx,105,2,2)
 		if sx<80 then spr(9, 80,111,2,1) end
@@ -810,16 +802,16 @@ end
 -- #finale
 function finale_init()
     finale=true
-    fade_init()
+    fd_init()
 
     function finale_update()
-        fade_update()
+        fd_update()
         if btnzp then start_level() end
     end
     
     
     function finale_draw()
-        center_text("with all eggs collected,;you must go to the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;burke once and for all.",8, fade_c)
+        center_text("with all eggs collected,;you must go to the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;burke once and for all.",8, fd_c)
         
         if gt>sec(3) then center_text("press \142 to continue",100,6) end
     end
@@ -831,19 +823,19 @@ end
 
 -- #victory
 function victory_init()
-    fade_init()
+    fd_init()
     -- @music victory
 
     function victory_update()
-        fade_update()
+        fd_update()
         if btnzp then title_init() end
     end
     
     
     function victory_draw()
-        center_text("mission accomplished;;design+code;@morningtoast;;music;@gnarcade_vgm;;animation;@somedude",8, fade_c)
+        center_text("mission accomplished",20, fd_c)
         
-        if gt>sec(3) then center_text("press \142 to continue",100,6) end
+        if gt>sec(3) then center_text("press \142 to continue",95,6) end
     end
 
 
@@ -1303,11 +1295,17 @@ function draw_map()
 			end
             
             if plot.o==7 then
+            	if plot.bomb_st==1 then
+            		plot.bomb_st=0
+            		pal(12,8) 
+            	end
                 spr(110, px,py, 2,2)
+                
             end
             
             if plot.o==8 then
-                spr(110, px,py, 2,2)
+            	if det_st==1 then pal(12,8) end
+                spr(108, px,py, 2,2)
             end
 			
 			if plot.o==4 then
@@ -1551,17 +1549,34 @@ end
 
 
 
+-- #intro
+function intro_init()
+	fd_init(title_init)
+	
+	function intro_draw()
+		fd_update()
+		
+		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
+		if gt>sec(3) then fd_out() end
+	end
+	
+	cart(ef,intro_draw)
+end
+
 
 
 -- #loop
 
 function _init()
-    music(0,3000)
-	title_init()
+    music(0,4000)
+	rb_i=0
+	--title_init()
 end
 
 
 function _update60()
+	if rb_i==98 then intro_init() rb_i=99 end
+	
 	btnl=btn(0)
 	btnr=btn(1)
 	btnu=btn(2)
@@ -1576,12 +1591,25 @@ end
 
 
 function _draw()
-	cls()
-	cart_draw()
+	if rb_i<16 then
+		for x=0,127 do
+			for y=0,127 do
+				if pget(x,y)!=0 then 
+					pset(x,y,pget(x,y)-1) 
+				end
+			end
+		end
+		rb_i+=1
+	else
+		if rb_i<99 then rb_i=98 end
+		cls()
+		cart_draw()
+	end
+	
 	
 	-- debug memory
-	camera(0,0)
-	print(flr((stat(0)/1024)*100).."%m\n"..stat(1).."\n"..debug,100,0,8)
+	--camera(0,0)
+	--print(flr((stat(0)/1024)*100).."%m\n"..stat(1).."\n"..debug,100,0,8)
 end
 
 
@@ -1651,6 +1679,38 @@ function split(s,dc)
 	return a
 end
 
+--fd_s:0=non;1=fadein;2=hold;3=fadeout
+--manually set fd_s=3 in your loop; when fadeout is done, auto-runs func
+function fd_init(f)
+    fd_cl={0,1,5,13,6,7}
+	fd_i=1
+	fd_t=5
+	fd_s=1
+	fd_f=f
+end
+function fd_out() fd_s=3 end
+function fd_update()
+    if fd_s==1 and fd_t==5 and fd_i<#fd_cl then
+        fd_i=min(#fd_cl,fd_i+1)
+        fd_c=fd_cl[fd_i]
+        fd_t=0
+    end
+    
+    if fd_s==1 and fd_i==#fd_cl then fd_s=2 end
+    
+    if fd_s==3 and fd_t==5 and fd_i>1 then
+        fd_i=max(1,fd_i-1)
+        fd_c=fd_cl[fd_i]
+        fd_t=0
+        
+        if fd_i==1 then
+        	fd_s=0
+        	if fd_f then fd_f() end
+        end
+    end
+
+    if fd_s>0 then fd_t+=1 end
+end
 
 
 -- tile_to_px(int_tilex,int_tiley)
@@ -1724,7 +1784,8 @@ end
 
 -- #in_range(int_needlex,int_needley, int_haystackx,int_haystacky, int_distance)
 function in_range(ax,ay, bx,by, rng)
-	if ax>=bx-rng and ax<=bx+rng and ay>=by-rng and ay<=by+rng then
+	--if ax>=bx-rng and ax<=bx+rng and ay>=by-rng and ay<=by+rng then
+	if abs(ax-bx)<=rng and abs(ay-by)<=rng then
 		return true
 	else
 		return false
