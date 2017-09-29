@@ -112,14 +112,14 @@ function p_tiles(tile)
 		end
 		tile_t+=1
 	else
-		local tile_t=0
+		tile_t=0
 	end
 	
 	
 	-- #transport
 	-- player hits transport beacon
 	if tile.o==6 then
-		tran_st=1
+		if tran_st==0 then tran_st=1 end
 		
 		if curlvl.eggs>0 and p_eggs<20 and tran_t==0 then
 			sfx(12)
@@ -130,6 +130,7 @@ function p_tiles(tile)
 			if tran_t==0 then
 				sfx(15)
 				tkr("dropship landing, stay at beacon;leaving "..curlvl.name,true)
+                tran_st=2
 			end
 			
 			if tran_t==sec(8) then
@@ -148,11 +149,11 @@ function p_tiles(tile)
 		
 		tran_t+=1
 	else
-		if tran_st==1 then
+		if tran_st==2 then
 			sfx(12)
 			tkr("dropship canceled",true)
-			tran_st=0
 		end
+        tran_st=0
 		
 		tran_t=0
 	end
@@ -284,13 +285,13 @@ function start_init()
         local levels={
             --{name="tester",w=4,h=8,bombs=0,bodies=5,eggs=0,eggtimer=30,aliens=1,snipers=0,colors={11,3}},
             {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,eggtimer=30,aliens=0,snipers=0,colors={11,3}},
-            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=4,eggtimer=30,aliens=1,snipers=0,colors={11,4}},
+            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,eggtimer=30,aliens=1,snipers=0,colors={11,4}},
             {name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,eggtimer=25,aliens=3,snipers=1,colors={14,2}},
             {name="gva-1106",w=3,h=6,bombs=0,bodies=7,eggs=5,eggtimer=25,aliens=4,snipers=3,colors={9,4}}
         }
 
 
-        if level_id>0 then
+        if level_id>4 then
             local colors={{3,4},{11,9},{11,4},{15,14}}
             local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
             local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
@@ -314,7 +315,7 @@ function start_init()
             curlvl=levels[level_id]
         end
     else 
-        curlvl={name="pco-8",w=8,h=4,bodies=10,eggs=6,eggtimer=20,aliens=6,snipers=6,bombs=3,colors={11,3}}	
+        curlvl={name="pco-8",w=8,h=4,bodies=10,eggs=0,eggtimer=20,aliens=0,snipers=6,bombs=3,colors={11,3}}	
     end
 	
 	
@@ -457,8 +458,7 @@ function play_update()
 	
 		sfx_n=3
 		
-		for i=1,#actors do
-			local a=actors[i]
+        for a in all(actors) do
 			a.update(a)
 			a.t+=1
 			
@@ -480,7 +480,7 @@ function play_update()
 		p_update()
 		
 		-- last level countdown ends, blow up!
-		if finale then
+		if finale and det_st==2 then
 			countdown=max(-1,countdown-1) 
 			if countdown==0 then
 				-- @sound long nuke noise
@@ -625,7 +625,7 @@ function gen_mini()
 			local plot=grid[x][y]
 
 			if plot.o==4 or plot.o==3 then add(minimap, {x=x,y=y,c=11}) end
-			if plot.o==6 then add(minimap, {x=x,y=y,c=12}) end
+			if plot.o==6 or plot.o==7 then add(minimap, {x=x,y=y,c=12}) end
 		end
 	end
 	
@@ -686,14 +686,14 @@ end
 
 -- #title
 function title_init()
-	finale=false
+	finale=true
 	level_id=0
-	p_eggs=0
+	p_eggs=20
 	gameover=0
 	grid={}
 	blood={}
 	levels={}
-	countdown=1
+	countdown=sec(30)
 	
 	fade_init()
 	
@@ -1063,7 +1063,7 @@ function add_alien(tx,ty)
 		update=function(self)
 			-- alien is always looking for player. this will skip the delay-find state of huggers
 			if self.st<10 then
-				if in_range(p_cx,p_cy, self.cx,self.cy, 70) then
+				if in_range(p_cx,p_cy, self.cx,self.cy, 60) then
 					if not self.chase then
 						chg_st(self,4)
 					end
@@ -1301,6 +1301,14 @@ function draw_map()
 				spr(plot.s, px, py, 2,2)
 				
 			end
+            
+            if plot.o==7 then
+                spr(110, px,py, 2,2)
+            end
+            
+            if plot.o==8 then
+                spr(110, px,py, 2,2)
+            end
 			
 			if plot.o==4 then
 				spr(9,px,py+3,2,1)
@@ -1315,7 +1323,7 @@ function draw_map()
 			end
 				
 			if plot.o==6 then
-				if tran_st==1 then pal(12,8) pal(13,8) end
+				if tran_st>0 then pal(12,8) pal(13,8) end
 				spr(12,px,py,2,2)
 			end
 			
@@ -1421,7 +1429,7 @@ function gen_map(w,h)
     
     if finale then
     	add_tiles(curlvl.bombs, 2,7, 256,385,function(tx,ty)
-			set_tile_attr(tx,ty, "bomb_st", 0)
+			tile_attr(tx,ty, "bomb_st", 0)
 		end) --bombs
     end
 
@@ -1783,31 +1791,36 @@ function add_tiles(q, src, occ, od, pd, f)
 		local sim=filter_tiles(occ)
 		while try>0 do
 			local t=get_random_tile(src)
+            local safe=0
 			
 			if not in_range(t.cx,t.cy, p_cx,p_cy, pd) then
 				if #sim>0 then
 					for s in all(sim) do
-						if try>0 then
-							if not in_range(t.cx,t.cy, s.cx,s.cy, od) then
-								tile_attr(t.tx,t.ty, "o", occ)
-								if f then f(t.tx,t.ty) end
-								try=0
-							end
-						end
-					end
+                        if not in_range(t.cx,t.cy, s.cx,s.cy, od) then
+                            safe+=1
+                        end
+					end                    
+                    
+                    if safe==#sim then
+                        tile_attr(t.tx,t.ty, "o", occ)
+                        if f then f(t.tx,t.ty) end
+                        try=0
+                    end
 				else
 					tile_attr(t.tx,t.ty, "o", occ)
 					if f then f(t.tx,t.ty) end
 					try=0
 				end
 			end
+        
 		end
 	end
 end
 
+
 -- point in hitbox
 -- #in_rec(x,y, objx,objy,objhitbox)
-	function in_rec(x,y, ox,oy,ow,oh)
+function in_rec(x,y, ox,oy,ow,oh)
 	if x>=ox and x<=ox+ow and y>=oy and y<=oy+oh then
 		return true
 	end
@@ -1883,8 +1896,7 @@ function find_path(start_index,target_index)
 	while #open>0 do
 		local current=pf_list[open[1]]
 		
-		for i=1,#open do
-			local n=open[i]
+        for n in all(open) do
 			if pf_list[n].g+pf_list[n].h<current.g+current.h then
 				current=pf_list[n]
 			end
@@ -1901,8 +1913,7 @@ function find_path(start_index,target_index)
 	        {x=current.tx-1, y=current.ty},        
 	    }
 
-		for i=1,#nchecks do
-			local cxy=nchecks[i]
+        for cxy in all(nchecks) do
 			
 			if cxy.x>=1 and cxy.x<=map_tilew and cxy.y>=1 and cxy.y<=map_tileh then
 				local neighbor=grid[cxy.x][cxy.y]
