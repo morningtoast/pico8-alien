@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 10
+version 8
 __lua__
 
 ver="v1.0"
@@ -178,7 +178,7 @@ function p_tiles(tile)
 				tile.bomb_st=2 
 				curlvl.bombs=max(0,curlvl.bombs-1)
 				
-				sfx(11)
+				sfx(18)
 				tkr("bomb armed and ready",true) 
 
 				if curlvl.bombs>0 then
@@ -208,6 +208,7 @@ function p_tiles(tile)
 			if det_st<2 then
 				if det_t==0 then
 					-- @sound tick tick ding
+                    sfx(15)
 					tkr("intializing countdown, stand by",true) 
 				end
 
@@ -218,6 +219,7 @@ function p_tiles(tile)
 					tkr("detonation in 30 seconds;use transport beacon to escape",true)
 					--countdown=sec(30)
 					-- @sound warning alert buzzer, start escape music
+                    sfx(19)
 					tile_attr(p_tx,p_ty)
 				end
 			end
@@ -515,6 +517,10 @@ function play_update()
 			
 			blood_t+=1
 		end
+        
+        if gameover==2 then
+            nuke=max(150,nuke+1)
+        end
 	end
 
 	bullet_update()
@@ -547,34 +553,10 @@ function play_draw()
 	end
 	
 	if gameover==2 then
-		--circfill(64,64,nuke,7)	
-		--if nuke==150 then
-		if nukeit() then
+		circfill(64,64,nuke,7)	
+		if nuke==150 then
 			center_text("game over;;press \142 to restart",50,2)	
 		end
-		--end
-	end
-end
-
-
-function nukeit()
-	if nuke<32 and (nuke%2==0) then
-		for x=0,127 do
-			for y=0,127 do
-				local pc=pget(x,y)
-				if pc!=7 then 
-					if pc<7 then 
-						pset(x,y,pc+1) 
-					else
-						pset(x,y,pc-1) 
-					end
-				end
-			end
-		end
-		nuke+=1
-		return false
-	else
-		return true
 	end
 end
 
@@ -860,7 +842,7 @@ function victory_init()
     
     
     function victory_draw()
-    	if gt>sec(3)
+    	if gt>sec(2) then
     		fd_update()
 			center_text("mission accomplished;;congratulations;;;;press \142 to return home",20, fd_c)
 		end
@@ -1588,9 +1570,9 @@ function intro_init()
 	
 	function intro_draw()
 		fd_update()
-		
+		printh(fd_s)
 		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
-		if gt>sec(4) then fd_out() end
+		if gt==sec(4) then fd_out() music(0,4000) end
 	end
 	
 	cart(ef,intro_draw)
@@ -1601,7 +1583,7 @@ end
 -- #loop
 firstplay=true
 function _init()
-    music(0,4000)
+    
 	rb_i=0
 	--title_init()
 end
@@ -1718,11 +1700,12 @@ end
 function fd_init(f)
     fd_cl={0,1,5,13,6,7}
 	fd_i=1
-	fd_t=5
+	fd_t=0
 	fd_s=1
 	fd_f=f
+    fd_c=0
 end
-function fd_out() if fd_s<3 then fd_s=3 end end
+function fd_out() if fd_s<3 then fd_s=3 fd_t=0 end end
 function fd_update()
     if fd_s==1 and fd_t==5 and fd_i<#fd_cl then
         fd_i=min(#fd_cl,fd_i+1)
@@ -2241,8 +2224,8 @@ __sfx__
 000600003f4503f4503f4503f4503f4503f4503f4503f6503f6503f6503f6503f6503f6503f6503f6503f6503f6503f6502665026650266502665026650266502665026650067500f750157501c7502875034750
 000300001e3502035023350273502e350343502c30032300353002430024300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000700002e7503a700336003a75033600336003360000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000002c550000002c550000002c550000003355000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001200000725007250072500725000000000000000000000072500725007250072500000000000000000725007250072500725000000000000000007250072500725007250000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
