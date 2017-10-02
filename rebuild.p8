@@ -13,23 +13,6 @@ gt=0
 
 
 -- #player
-function animate(obj,rest)
-	if rest then
-		obj.r=0
-		obj.f=1
-	else
-		obj.r+=1
-		if obj.r==8 then
-			obj.f+=1
-			if obj.f>#obj.l then obj.f=1 end
-			obj.r=0
-		end
-	end
-	
-	return obj.l[obj.f]
-end
-
-
 function p_update()
 	if not mini_mode and p_freeze==0 then
 		mini_batt=max(mini_batt-1,0)
@@ -749,7 +732,8 @@ function title_init()
 	
 	function title_update()
 		if btnzp then 
-			if firstplay then story_init(true) else start_init() end
+			
+			start_init()
 		end
 		if btnxp then help_init() end
 		
@@ -824,42 +808,6 @@ help_init=function() --must be var for use in attract modes
 	cart(help_update, help_p1)
 end
 
--- #story
-function story_init(go)
-	local sx=1
-	local lspr=14
-    
-    fd_init()
-
-	function story_update()
-		if btnxp or btnzp or gt>sec(12) then 
-			if go then 
-				start_init()
-				firstplay=false
-			else title_init() end 
-		end
-		
-		if gt>sec(5) then
-			lspr=160
-			if sx>=80 then lspr=128 end
-			
-			sx=min(sx+.5,130)
-		end
-        
-        fd_update()
-	end 
-
-	function story_draw()
-		center_text("dylan burke is finishing the;job his father failed to;complete on lv-426.;;you know what that means and he;must be stopped.;;explore planets and collect;alien eggs before burke can;get to them.",8, fd_c)
-		palt(2,true)
-		spr(lspr,sx,105,2,2)
-		if sx<80 then spr(9, 80,111,2,1) end
-		pal()
-	end
-
-
-	cart(story_update,story_draw)
-end
 
 
 
@@ -1634,17 +1582,13 @@ end
 
 
 -- #loop
-firstplay=true
+
 function _init()
-    
-	rb_i=0
-	--title_init()
+	intro_init()
 end
 
 
 function _update60()
-	if rb_i==98 then title_init() rb_i=99 end
-	
 	btnl=btn(0)
 	btnr=btn(1)
 	btnu=btn(2)
@@ -1659,22 +1603,9 @@ end
 
 
 function _draw()
-	if rb_i<16 then
-		for x=0,127 do
-			for y=0,127 do
-				if pget(x,y)!=0 then 
-					pset(x,y,pget(x,y)-1) 
-				end
-			end
-		end
-		rb_i+=1
-	else
-		if rb_i<99 then rb_i=98 end
-		cls()
-		cart_draw()
-	end
-	
-	
+	cls()
+	cart_draw()
+
 	-- debug memory
 	--camera(0,0)
 	--print(flr((stat(0)/1024)*100).."%m\n"..stat(1).."\n"..debug,100,0,8)
@@ -1748,21 +1679,23 @@ function split(s,dc)
 	return a
 end
 
---anim(p1, 1, 8, 10, p1.flip) -- running
-function anim(o,x,y,sf,nf,sp,fl)
-	if(not o.a_ct) o.a_ct=0
-	if(not o.a_st) o.a_st=0
-	if(not sp) sp=1
-
-	o.a_ct+=2
-
-	if(o.a_ct%(60/sp)==0) then
-	 o.a_st+=2
-	 if(o.a_st==nf) o.a_st=0
+--anim(obj,doQuickReset)
+--obj.r=tick iterator;obj.f=frame position;obj.l=table of sprite IDs, each a frame
+--reset=force to first frame and reset counter
+function animate(obj,reset)
+	if reset then
+		obj.r=0
+		obj.f=1
+	else
+		obj.r+=1
+		if obj.r==8 then
+			obj.f+=1
+			if obj.f>#obj.l then obj.f=1 end
+			obj.r=0
+		end
 	end
-
-	o.a_fr=sf+o.a_st
-	spr(o.a_fr,x,y,2,2,fl)
+	
+	return obj.l[obj.f]
 end
 
 --fd_s:0=non;1=fadein;2=hold;3=fadeout
