@@ -1322,14 +1322,14 @@ function draw_map()
 				if tran_st>0 then pal(12,8) pal(13,8) end
 				spr(12,px,py,2,2)
 			end
+
+			if plot.o==99 then
+				spr(plot.s,px,py,2,1)
+			end
 			
 			if plot.o==9 then
 				pal(11,1) pal(3,1)
 				zspr(42,2,2,px-16,py-8, 2, 1)
-			end
-			
-			if plot.o==99 then
-				spr(plot.s,px,py,2,1)
 			end
 		end
 	end
