@@ -204,23 +204,24 @@ function p_tiles(tile)
 		--local msg="bomb armed and ready"
 		--if tile.bomb_st<2 then
 			if bomb_t==0 then 
-				-- @sound chime up
+				sfx(18)
 				tkr("arming bomb, stand by",true) 
 			end
 
 			tile.bomb_st=1
 			
-			if bomb_t==sec(4) then 
+			if bomb_t==sec(3) then 
 				tile.bomb_st=2 
 				curlvl.bombs=max(0,curlvl.bombs-1)
 				
-				sfx(18)
+				
+				sfx(11)
 				tkr("bomb armed and ready",true) 
 
 				if curlvl.bombs>0 then
-					tkr(curlvl.bombs.." bombs remain") 
+					tkr(curlvl.bombs.." bombs remaining") 
 				else
-					tkr("all bombs armed;find detonator to start countdown") 
+					tkr("all bombs armed;find detonator") 
 				end
 				
 				tile_attr(p_tx,p_ty)
@@ -231,7 +232,7 @@ function p_tiles(tile)
 		
 		bomb_t+=1
 	else
-		bomb_t=0
+		bomb_t,tile.bomb_st=0,0
 	end
 	
 	
@@ -243,13 +244,13 @@ function p_tiles(tile)
 		if curlvl.bombs==0 then
 			if det_st<2 then
 				if det_t==0 then
-                    sfx(15)
-					tkr("intializing countdown, stand by",true) 
+                    sfx(18)
+					tkr("intializing. stand by...",true) 
 				end
 
 				det_st=1
 
-				if det_t==sec(5) then 
+				if det_t==sec(4) then 
 					det_st,det_t=2,0
 					tkr("detonation in 30 seconds;use transport beacon to escape",true)
                     sfx(19)
@@ -334,7 +335,7 @@ function start_init()
 
 
         if level_id>4 then
-            local colors={{3,4},{11,9},{11,4},{15,14},{9,4},{11,3}}
+            local colors={{3,4},{11,9},{11,4},{15,14},{9,4},{11,3},{2,1}}
             local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
             local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
             local mw=random(4,6)
@@ -347,7 +348,6 @@ function start_init()
             if level_id>7 then
                 if mw<5 then mh=7 end
                 if mh<5 then mw=7 end
-				if mb<4 then mb=5 end
                 mb+=1
             end
 
@@ -357,7 +357,9 @@ function start_init()
         end
     else 
     	-- final level. eggs=eggs + 6 map eggs
-        curlvl={name="pco-8",w=8,h=4,bodies=12,eggs=5,hatch=25,aliens=5,snipers=6,bombs=3,colors={11,3}}	
+    	local mw,mh=9,3
+    	if rnd()<.5 then mw,mh=3,9 end 
+        curlvl={name="pco-8",w=mw,h=mh,bodies=12,eggs=5,hatch=20,aliens=5,snipers=6,bombs=3,colors={11,3}}	
     end
 	
 	
