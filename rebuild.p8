@@ -132,18 +132,26 @@ function p_tiles(tile)
 	
 	-- when player gets to a egg
 	if tile.o==3 then
-		p_eggs=min(p_eggs+1,20)
-		curlvl.eggs=max(curlvl.eggs-1,0)
-
+		local cargo="cargo bay is full;return to transport beacon"
 		if p_eggs<20 then
+			p_eggs=min(p_eggs+1,20)
+			curlvl.eggs=max(curlvl.eggs-1,0)
+			
             sfx(16)
 			tile_attr(p_tx,p_ty)
-			tkr("alien egg collected;"..curlvl.eggs.." eggs remaining",true)
+			tkr("alien egg collected",true)
+			
+			if p_eggs<20 then tkr(curlvl.eggs.." eggs remaining") end
+			
+			if curlvl.eggs<=0 or p_eggs==20 then
+				sfx(11)
+				tkr(cargo)
+			end
 		else
-			if not finale then music(0,3000) end
+			--if not finale then music(0,3000) end
 			if tile_t==0 then
                 sfx(12)
-				tkr("cargo bay is full",true)
+				tkr(cargo,true)
 			end
 		end
 		tile_t+=1
@@ -326,9 +334,9 @@ function start_init()
         level_id+=1
 
         local levels={
-            --{name="tester",w=4,h=8,bombs=0,bodies=5,eggs=0,hatch=30,aliens=1,snipers=0,colors={11,3}},
+            --{name="tester",w=4,h=4,bombs=0,bodies=0,eggs=3,hatch=30,aliens=0,snipers=4,colors={11,3}},
             {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=35,aliens=0,snipers=0,colors={11,3}},
-            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=30,aliens=1,snipers=0,colors={11,4}},
+            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=25,aliens=1,snipers=0,colors={11,4}},
             {name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,hatch=25,aliens=3,snipers=1,colors={14,2}},
             {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=25,aliens=4,snipers=3,colors={9,4}}
         }
@@ -374,7 +382,7 @@ function start_init()
 		center_text("landing on: "..curlvl.name, 8, 10)
 		
 		local ax=32
-		local txta="go to transport\nbeacon to leave planet"
+		local txta="return to transport\nbeacon to escape"
 		if finale then
 			spr(110, 8,17, 2,2)
 			print("find and arm\n3 remote bombs", ax,21, 7)
@@ -713,9 +721,9 @@ end
 
 -- #title
 function title_init()
-	finale=true
+	finale=false
 	level_id=0
-	p_eggs=20
+	p_eggs=0
 	map_eggs=0
 	gameover=0
 	grid={}
@@ -758,40 +766,40 @@ function help_init(auto)
 	
 	function help_p1()
 		palt(2,true)
-		spr(14, 1,2, 2,2)
-		print("find and collect alien\neggs before they hatch", 22,6, 7)
+		spr(14, 3,2, 2,2)
+		print("find and collect alien\neggs before they hatch", 24,6, 7)
 
-		spr(9, 1,25, 2,1)
-		print("search bodies to\nequip weapons",22, 24,7)
+		spr(9, 3,25, 2,1)
+		print("search bodies to\nequip weapons",24, 24,7)
 		
-		spr(12, 1,41, 2,2)
-		print("stand on beacon to\nleave planet",22,42, 7)
+		spr(12, 3,41, 2,2)
+		print("stand on beacon to\nleave planet",24,42, 7)
 		
-		print("press \142 for map scan\n\npress \151 to use weapon\n\n\nwatch message ticker\nfor help and tips", 22,65, 7)
+		print("press \142 for map scan\n\npress \151 to use weapon\n\n\nwatch message ticker\nfor help and tips", 24,65, 7)
 		
 		pal()
 	end
 	
 	function help_p2()
 		palt(2,true)
-		spr(64, 1,2, 2,2)
-		print("gun has one shot.\nauto-aims at aliens", 22,6, 7)
+		spr(64, 4,4, 2,2)
+		print("gun has one shot.\nauto-aims at aliens", 24,6, 7)
 
-		spr(96, 1,25, 2,2)
-		print("bait will distract\naliens briefly",22, 24,7)
+		spr(96, 5,25, 2,2)
+		print("bait will distract\naliens briefly",24, 24,7)
 		
-		print("avoid aliens", 22,44, 8)
+		print("avoid aliens", 24,44, 8)
 		
 		
-		spr(160, 1,53, 2,2) 
-		print("facehuggers find bodies\nto become aliens",22,55, 7)
+		spr(160, 3,53, 2,2) 
+		print("facehuggers find bodies\nto become aliens",24,55, 7)
 		
-		spr(128, 1,73, 2,2) 
-		print("aliens search and chase\nwhen you are near",22,73, 7)
+		spr(128, 3,73, 2,2) 
+		print("aliens search and chase\nwhen you are near",24,73, 7)
 
 		
-		spr(42, 1,93, 2,2) 
-		print("jungle alien attack\nparalyzes. cannot be killed.",22,93, 7)
+		spr(42, 3,93, 2,2) 
+		print("jungle alien attack\nparalyzes. invincible.",24,93, 7)
 
 		pal()
 	end
@@ -809,12 +817,12 @@ function finale_init()
 
     function finale_update()
         fd_update()
-        if btnzp then start_level() end
+        if btnzp then start_init() end
     end
     
     
     function finale_draw()
-        center_text("with burke's plans ruined you must;now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
+        center_text("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
         
         if gt>sec(3) then center_text("press \142 to continue",100,6) end
     end
@@ -926,11 +934,9 @@ function add_sniper(tx,ty)
 			
 			if self.f then
 				ox=self.x-32
-				oy=self.y+4
 			end
 			
 			if self.st==1 then
-
 				if in_rec(p_cx,p_cy, ox,oy, 32,8) then
 					sfx(13)
 					local obj={
@@ -964,7 +970,9 @@ function add_sniper(tx,ty)
 				end
 			end
 		end,
-		draw=ef
+		draw=function()
+			
+		end
 	}
 	
 	local et={o=1}
@@ -982,7 +990,7 @@ function add_sniper(tx,ty)
 	end
 	
 	obj.x,obj.y=tile_to_px(tx,ty)
-	tile_attr(tx,ty,"f",obj.flip)
+	tile_attr(tx,ty,"f",obj.f)
 
 	add(actors, obj)
 end
@@ -1102,8 +1110,6 @@ function add_alien(tx,ty)
 		end,
 		draw=function(self)
 			if self.st!=99 then
-				--if self.chase then pal(13,8) end
-				
 				if self.st==2 or self.st==4 then 
 					self.spr=anim(self.anim)
 				else
@@ -1315,7 +1321,7 @@ function draw_map()
 			end
             
             if plot.o==5 then
-				spr(42,px,py, 2,2, plot.flip)
+				spr(42,px,py, 2,2, plot.f)
 			end
 				
 			if plot.o==6 then
@@ -1374,7 +1380,7 @@ function gen_map(w,h)
 	
 	for mx=1,map_w do
 		for my=1,map_h do
-			create_screen(mx,my, flr(rnd(14))+1,0)
+			create_screen(mx,my, rand(9)+2,rand(2))
 		end
 	end
 	
@@ -1384,7 +1390,7 @@ function gen_map(w,h)
 		queen_y=rand(map_h)+1
 		
 		create_screen(1,rand(map_h)+1, 0,0)
-		create_screen(queen_x,queen_y, 0,1)
+		create_screen(queen_x,queen_y, 1,0)
 	else
 		create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
 	end
@@ -1585,10 +1591,6 @@ end
 function _draw()
 	cls()
 	cart_draw()
-
-	-- debug memory
-	--camera(0,0)
-	--print(flr((stat(0)/1024)*100).."%m\n"..stat(1).."\n"..debug,100,0,8)
 end
 
 
@@ -2139,22 +2141,22 @@ d22dd000dd2222d2d22dd000dd0222d2d22dd220ddd2222200000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-bb0000bb0bb00bbb0000fffb0000000000000fbbbbb0000000b00000000bfbfb00000bbb00000000b000fffb0000000000000f60000000000000000000000000
-b000000bbff00fff0000ffb00000000000000ffb0000000000f3ffff0003fbfb00ff00000b0000b03000f3bb00bbbbb06ffffff00bbfbbb0bbb3ff6000000000
-00000000bff00000b300bb00000000000fff00000000000000fbbbbb000bfbfb00fb00000bfffbb0b0f0f0000bffff300f0fff000bb66bb000fffff000000000
-00000c00000000000000ff000fff00000f6f00000fff00000000000000000b000ff3000000bbb00000ffff0000f00fb00b0fb6000f36fff00fbbbbf000000000
-00080000000003000bb000000f6f000b0f6fff000bbb300b0bbbff00030000000ffb0b000fffff000ff6f0000ff00ff0000ff6f00fb6f0000ffffff000000000
-00000000bff00bfbbff0bbb00ffb30030fff6f000bfffffbbffb6ff00fbff000bffbffbbbf6ffff300f6ff0303bfff000ffffff00ff6ff000fbfbbb000000000
-b000000bbff00bfb0f60fffb0003bf0b000fff000bfffffb0ff3ff000ff6f000bf3fffb0bffff6fb0ffff00b000bbbb00f6fff6000f0f000003ffff000000000
-bb0000bbbbb00bb00ff0fffb0000ff0b000000000bb00bbb00b00000bbbff0b00b0000b0b000fffb0000000b000000000060000000000bb000b0000000000000
-b00000b000b00b0b0000000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0022000000b0000b0000000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-020000b0000bb00b00b0000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000009b0000bbb0000b00bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0e0000b0000bbb000b0b000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000020b00006bb060b00000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-020200000000bb0b0000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-b00000b000000b0bbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+bb0000bbb00000b00000fffb0000000000600fbbbbb0000000b00000000bfbfb00000bbb00000000b000fffb0000000000000000000000000000000000000000
+b000000b002200000000ffb0b0000b00000000fb0000000000f3ffff0003fbfb00ff00000b0000b0300003bb00bbbbb000000000000000000000000000000000
+00000000020000b0b300bb0000000000000f00000000000000ffbbbb000bfbf300fb00000bf0fbb0b00000000bffff3000000000000000000000000000000000
+00000c00000009b00000ff0000000000006f00000fff00000b0000b000000b0b0003000000bbb00000ffff00000000b000000000000000000000000000000000
+000800000e0000b00bb00000006f000b006ff00000bb300b0bbbff0003000b0000fb0b00000ff0000006f0000ff00ff000000000000000000000000000000000
+00000000000020b0bff0bbb000fb3f03b00f60000b0f00fbbffb6ff00fb00000bffbffbbbf6ff00300f6ff0303bfff0000000000000000000000000000000000
+b000000b020200000f60fffb00f3bf0b000f00b00bf00fb000f3ff000ff60000bf3f00b0bffff6fb00ff060b000bbbb000000000000000000000000000000000
+bb0000bbb00000b00ff0fffb000f000b0000000000b00b0000b00000bbbf00b00b0000b0b000fffb0000000b0000000000000000000000000000000000000000
+0000006000000b0b0000000b0000000b0b000b000bb00bbb00000000000000000000b000000000000000000000000f6000000000000000000000000000000000
+03000000003fff0b00000b00bbbbb00b0b000b0bbff00fffb030b0000bb00000b00b0060bbb3f0600bbfbbb06f06000000000000000000000000000000000000
+0b0000b000fbb00b00300b0000ff300b0006f00bbf3000000fbfbfbb0b30f6000b0fbff000fff0000bbf6bb00f0fff0600000000000000000000000000000000
+0f3fbbf00bfbb0000fbff030000fbb000b0ffb00006000000fbfffb00ff0f0000bfffb0000bbbbf00f36fff00b0fb60000000000000000000000000000000000
+0fbb6bf0000b30000bf3f0fbb300f600b3fbf30b00000300bbbf3fb0000b3000003fffb000f000f00fb6f000000006f000000000000000000000000000000000
+0fbfff300bf6bb060bf000fb0000fb00000b000bbff00bfb0000b0b0000bbfbb000b00b00bbfbbb000f6f00000fffff000000000000000000000000000000000
+00bf0000000fb30b0b000f600000bb000b000b00bff00bfb0060b0b0bb0fffbb0f00b000003ff00000000000606f006000000000000000000000000000000000
+b00000000000000b0bb00300000000000b000b00bbb00bb000000000b30000000600000000b0000000b00bb00066000000000000000000000000000000000000
 
 __gff__
 0000000202000000000000000000000001000002020000000000000000000000000002020000020200000000000000000000020200000202000000000000000000000000020200000000000000000000000000000202000000000000000000000000000000000000000000000000000000000000000000000000000000000000
