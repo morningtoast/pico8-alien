@@ -2,15 +2,23 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
-ver="v1.0"
+--alien harvest
+--brian vaughn, 2017
 
+--code+design+additional art: brian vaughn, @morningtoast
+--character animations: @pineconegraphic
+
+--sprite sources:
+--http://androidarts.com/xcom/rebelstar_1-2_rip_color.gif
+--http://zxart.ee/zxscreen/border:0/palette:pulsar/mode:mix/type:standard/id:18157/
+
+ver="v1.0"
+char_z="z" --\142
+char_x="x" --\151
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
 cart(ef,ef)
-
--- constants
 gt=0
-
 
 -- #player
 function p_update()
@@ -48,7 +56,6 @@ function p_update()
 	    
 	    p_tiles(tile)
 
-		-- actions
 		if btnxp then
 			if p_st==2 then
 				sfx(13)
@@ -64,15 +71,6 @@ function p_update()
 			p_anim={l={32,34,36,34},f=1,r=8}
 			p_spr=anim(p_anim,true)
 		end
-		--[[
-		if btnxp and p_st==3 then
-			sfx(14)
-			add_bait(p_cx,p_cy)
-			--p_st,p_spr=1,32
-			p_st=1
-			p_anim={l={32,34,36,34},f=1,r=8}
-		end
-		]]
 		
 		if btnzp then
 			if mini_batt<=0 then
@@ -85,12 +83,11 @@ function p_update()
 			end
 		end
 	else
-		-- in mini mode
 		if btnzp and p_freeze==0 then
 			mini_mode=false
 			mini_batt=sec(7)
 		end
-	end --end mini_mode check
+	end
 	
 	
 	if p_freeze>0 then p_freeze-=1 end
@@ -101,17 +98,11 @@ p_af=1
 
 function p_draw()
 	if p_freeze>0 then pal(10,13) end
-	--
-	--local frames={32,34,36,34}
-	
 	spr(p_spr, p_x,p_y, 2,2, p_flip)
-	
-	--anim(player,p_x,p_y,32,8,p_ani,p_flip)
 end
 
 
 function p_tiles(tile)
-	-- when player gets to a body, switch modes
 	if tile.o==4 then
 		sfx(16)
 		if rnd()<.5 then
@@ -129,8 +120,6 @@ function p_tiles(tile)
 		tile_attr(p_tx,p_ty)
 	end
 	
-	
-	-- when player gets to a egg
 	if tile.o==3 then
 		local cargo="cargo bay is full;return to transport beacon"
 		if p_eggs<20 then
@@ -148,7 +137,6 @@ function p_tiles(tile)
 				tkr(cargo)
 			end
 		else
-			--if not finale then music(0,3000) end
 			if tile_t==0 then
                 sfx(12)
 				tkr(cargo,true)
@@ -161,7 +149,6 @@ function p_tiles(tile)
 	
 	
 	-- #transport
-	-- player hits transport beacon
 	if tile.o==6 then
 		if tran_st==0 then tran_st=1 end
 		
@@ -205,38 +192,31 @@ function p_tiles(tile)
 	
 	
 	-- #bombarm
-	-- player must hover to arm bomb
-	-- bomb_st: 0=unarmed;1=onhover;2=armed
+	-- bomb_st:0=unarmed;1=onhover
 	
 	if tile.o==7 then
-		--local msg="bomb armed and ready"
-		--if tile.bomb_st<2 then
-			if bomb_t==0 then 
-				sfx(18)
-				tkr("arming bomb, stand by",true) 
+		if bomb_t==0 then 
+			sfx(18)
+			tkr("arming bomb, stand by",true) 
+		end
+
+		tile.bomb_st=1
+
+		if bomb_t==sec(3) then 
+			curlvl.bombs=max(0,curlvl.bombs-1)
+
+
+			sfx(11)
+			tkr("bomb armed and ready",true) 
+
+			if curlvl.bombs>0 then
+				tkr(curlvl.bombs.." bombs remaining") 
+			else
+				tkr("all bombs armed;find detonator") 
 			end
 
-			tile.bomb_st=1
-			
-			if bomb_t==sec(3) then 
-				tile.bomb_st=2 
-				curlvl.bombs=max(0,curlvl.bombs-1)
-				
-				
-				sfx(11)
-				tkr("bomb armed and ready",true) 
-
-				if curlvl.bombs>0 then
-					tkr(curlvl.bombs.." bombs remaining") 
-				else
-					tkr("all bombs armed;find detonator") 
-				end
-				
-				tile_attr(p_tx,p_ty)
-			end
-		--else
-			--if bomb_t==0 then tkr(msg,true) end
-		--end
+			tile_attr(p_tx,p_ty)
+		end
 		
 		bomb_t+=1
 	else
@@ -245,9 +225,7 @@ function p_tiles(tile)
 	
 	
 	-- #detonator
-	-- player must hover to trigger
-	-- det_st: 0=unarmed;1=onhover;2=armed
-	
+	-- det_st: 0=unarmed;1=onhover
 	if tile.o==8 then
 		if curlvl.bombs==0 then
 			if det_st<2 then
@@ -259,7 +237,6 @@ function p_tiles(tile)
 				det_st=1
 
 				if det_t==sec(4) then 
-					det_st,det_t=2,0
 					tkr("detonation in 30 seconds;use transport beacon to escape",true)
                     sfx(19)
 					music(3,6000)
@@ -282,7 +259,6 @@ function p_tiles(tile)
 end
 
 function p_bullet()
-	-- create player bullet object
 	local tgt={}
 	local obj={x=p_cx,y=p_y+5,c=10}
 	local heading=0
@@ -290,7 +266,7 @@ function p_bullet()
 	if p_flip then heading=.5 end
 
 	for k,a in pairs(actors) do
-		if a.id<3 then -- only target huggers and aliens, not snipers
+		if a.id<3 then
 			if in_range(a.cx,a.cy, p_cx,p_cy, 60) then add(tgt,a) end
 		end
 	end
@@ -318,7 +294,8 @@ end
 function p_dead()
 	blood_t=sec(5)
 	gt=0
-	tkr("game over;press \142 to continue",true)
+	music(-1)
+	tkr("game over;press "..char_z.." to continue",true)
 	gameover=1
 	pf_list={}
 	p_spr=46
@@ -327,18 +304,17 @@ end
 
 
 
--- #level #start
+-- #levels
 function start_init()
 	music(-1)
     if not finale then
         level_id+=1
 
         local levels={
-            --{name="tester",w=4,h=4,bombs=0,bodies=0,eggs=3,hatch=30,aliens=0,snipers=4,colors={11,3}},
             {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=35,aliens=0,snipers=0,colors={11,3}},
-            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=25,aliens=1,snipers=0,colors={11,4}},
-            {name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,hatch=25,aliens=3,snipers=1,colors={14,2}},
-            {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=25,aliens=4,snipers=3,colors={9,4}}
+            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=25,aliens=1,snipers=1,colors={11,4}},
+            {name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,hatch=25,aliens=3,snipers=2,colors={14,2}},
+            {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=20,aliens=4,snipers=3,colors={9,4}}
         }
 
 
@@ -359,7 +335,7 @@ function start_init()
                 mb+=1
             end
 
-            curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=25,aliens=ma,snipers=ms,bombs=0,colors=rnd_table(colors)}	
+            curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rnd_table(colors)}	
         else
             curlvl=levels[level_id]
         end
@@ -400,7 +376,7 @@ function start_init()
 			print(txta,ax,42, 7)
 		end
 		
-		print("press \142 to start",ax,83, 7)
+		print("press "..char_z.." to start",ax,83, 7)
 	end
 	
 	cart(start_update,start_draw)
@@ -437,11 +413,10 @@ end
 
 -- #game play 
 function play_init()
-	-- vars that need reset per level
 	p_x,p_y,p_spr=64,64,32
 	p_anim={l={32,34,36,34},f=1,r=8}
 	p_cx,p_cy=p_x+8,p_y+8
-	p_st,p_flip,p_freeze=0,false,0 -- state: 1=unarmed, 2=gun, 3=bait
+	p_st,p_flip,p_freeze=0,false,0 --p_st:1=unarmed,2=gun,3=bait
 	egg_t=sec(curlvl.hatch)
 	tran_st=0
 	
@@ -468,7 +443,7 @@ function play_init()
 	end
 
 	if level_id==1 then
-		tkr("press \142 for map scan;press \151 to use weapon")	
+		tkr("press "..char_z.." for map scan;press "..char_x.." to use weapon")	
 	end
 
 	cart(play_update,play_draw)
@@ -538,7 +513,7 @@ function play_update()
 			end
 		end
 	else
-		--#dead gameover
+		--#gameover
 		if btnzp and gt>=sec(2) then
             music(0,3000)
 			title_init()	
@@ -550,7 +525,7 @@ function play_update()
 			end
 			
 			if gt==sec(10) then
-				tkr("game over;press \142 to restart",true)
+				tkr("game over;press "..char_z.." to restart",true)
 				gt=sec(2)
 			end
 			
@@ -594,7 +569,7 @@ function play_draw()
 	if gameover==2 then
 		circfill(64,64,nuke,7)	
 		if nuke==150 then
-			center_text("game over;;press \142 to restart",50,2)	
+			center_text("game over;;press "..char_z.." to restart",50,2)	
 		end
 	end
 end
@@ -614,7 +589,6 @@ end
 
 
 -- #ticker
-
 function tkr(t,c)
 	local l=split(t)
 	if c then tkr_log={} end
@@ -663,7 +637,6 @@ end
 
 
 -- #minimap
--- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;99=grass
 function gen_mini() 
 	minimap={}
 
@@ -675,7 +648,6 @@ function gen_mini()
 
 			if plot.o==4 or plot.o==3 then add(minimap, {x=x,y=y,c=11}) end
 			if plot.o==6 then add(minimap, {x=x,y=y,c=12}) end
-			--if plot.o==8 or plot.o==7 then add(minimap, {x=x,y=y,c=14}) end --debug
 		end
 	end
 	
@@ -688,10 +660,12 @@ end
 
 
 function draw_mini()
-	if btnl then mini_x+=2 end
-	if btnr then mini_x-=2 end
-	if btnu then mini_y+=2 end
-	if btnd then mini_y-=2 end
+	if map_w>5 or map_h>5 then
+		if btnl then mini_x+=2 end
+		if btnr then mini_x-=2 end
+		if btnu then mini_y+=2 end
+		if btnd then mini_y-=2 end
+	end
 	
 	rectfill(0,0,127,93,0)
 	
@@ -719,140 +693,6 @@ end
 
 
 
--- #title
-function title_init()
-	finale=false
-	level_id=0
-	p_eggs=0
-	map_eggs=0
-	gameover=0
-	grid={}
-	blood={}
-	levels={}
-	countdown=sec(30)
-	
-	fd_init()
-	
-	function title_update()
-		if btnzp then start_init() end
-		if btnxp then help_init() end
-		
-		if gt>sec(.7) then fd_update() end
-	end 
-	
-	function title_draw()
-		center_text("a l i e n",60,12)
-		center_text("harvest",68,fd_c)
-		
-		if gt>sec(3) then
-			center_text("press \142 to start;press \151 for help",100,6)
-		end
-	end
-	
-	cart(title_update,title_draw)
-end
-
-
-
--- #help
-function help_init(auto)
-	function help_update()
-		if btnxp or btnzp then cart(help_last, help_p2) end
-	end
-	
-	function help_last()
-		if btnxp or btnzp then title_init() end
-	end
-	
-	function help_p1()
-		palt(2,true)
-		spr(14, 3,2, 2,2)
-		print("find and collect alien\neggs before they hatch", 24,6, 7)
-
-		spr(9, 3,25, 2,1)
-		print("search bodies to\nequip weapons",24, 24,7)
-		
-		spr(12, 3,41, 2,2)
-		print("stand on beacon to\nleave planet",24,42, 7)
-		
-		print("press \142 for map scan\n\npress \151 to use weapon\n\n\nwatch message ticker\nfor help and tips", 24,65, 7)
-		
-		pal()
-	end
-	
-	function help_p2()
-		palt(2,true)
-		spr(64, 4,4, 2,2)
-		print("gun has one shot.\nauto-aims at aliens", 24,6, 7)
-
-		spr(96, 5,25, 2,2)
-		print("bait will distract\naliens briefly",24, 24,7)
-		
-		print("avoid aliens", 24,44, 8)
-		
-		
-		spr(160, 3,53, 2,2) 
-		print("facehuggers find bodies\nto become aliens",24,55, 7)
-		
-		spr(128, 3,73, 2,2) 
-		print("aliens search and chase\nwhen you are near",24,73, 7)
-
-		
-		spr(42, 3,93, 2,2) 
-		print("jungle alien attack\nparalyzes. invincible.",24,93, 7)
-
-		pal()
-	end
-	
-	cart(help_update, help_p1)
-end
-
-
-
-
--- #finale
-function finale_init()
-    finale=true
-    fd_init()
-
-    function finale_update()
-        fd_update()
-        if btnzp then start_init() end
-    end
-    
-    
-    function finale_draw()
-        center_text("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
-        
-        if gt>sec(3) then center_text("press \142 to continue",100,6) end
-    end
-
-
-    cart(finale_update,finale_draw)
-end
-
-
--- #victory
-function victory_init()
-    fd_init()
-    music(-1)
-
-    function victory_update()
-        if btnzp and gt>sec(4) then title_init() music(0,3000) end
-    end
-    
-    
-    function victory_draw()
-    	if gt>sec(1) then
-    		fd_update()
-			center_text("mission accomplished;;congratulations;;;;press \142 to return home",20, fd_c)
-		end
-    end
-
-
-    cart(victory_update,victory_draw)	
-end
-
 
 
 -- #bullets
@@ -862,18 +702,11 @@ function bullet_update()
 		b.y+=b.dy
 
 		if b.x<map_wpx and b.x>1 and b.y<map_hpx and b.y>1 then
-			--local t=get_px_tile(b.x,b.y)
-			
 			local tx,ty=px_to_tile(b.x,b.y)
 			local t=get_tile(tx,ty)
 			
 			
-			if t.o==1 then
-				--local px,py,cx,cy=tile_to_px(t.tx,t.ty)
-				--if in_range(b.x,b.y, cx,cy, 12) then
-					del(bullets,b)
-				--end
-			end
+			if t.o==1 then del(bullets,b) end
 			
 			b.update(b)
 		else
@@ -889,8 +722,7 @@ end
 
 
 
--- #actors
--- #bait3
+-- #bait
 function add_bait(x,y)
 	local obj={
 		id=3,
@@ -932,9 +764,7 @@ function add_sniper(tx,ty)
 			local ox=self.x+16
 			local oy=self.y+4
 			
-			if self.f then
-				ox=self.x-32
-			end
+			if self.f then ox=self.x-32 end
 			
 			if self.st==1 then
 				if in_rec(p_cx,p_cy, ox,oy, 32,8) then
@@ -1006,7 +836,7 @@ function add_hugger(tx,ty)
 		wander_spd=.7,
 		chase_spd=1.3,
 		hbox={x=4,y=6,w=8,h=5},
-		st=0,t=1, --1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		st=0,t=1,
 		chase=false,
 		navpath={},
 		tile={},
@@ -1032,8 +862,6 @@ function add_hugger(tx,ty)
 		end,
 		draw=function(self)
 			if self.st!=99 then
-				--if self.chase then pal(15,8) end
-
 				if self.st==2 or self.st==4 then 
 					self.spr=anim(self.anim)
 				else
@@ -1060,7 +888,7 @@ function add_alien(tx,ty)
 		tx=tx,ty=ty,dx=0,dy=0,
 		flip=false,
 		hbox={x=4,y=4,w=8,h=8},
-		st=0,t=1,
+		st=0,t=1, --st:1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
 		detect=50,
 		wander_spd=.5,
 		chase_spd=1.1,
@@ -1137,7 +965,7 @@ function alien_update(self)
 		return
 	end
 	
-	-- self is actor object - id: 1=hugger, 2=alien
+	-- self is actor object - id:1=hugger,2=alien
 	local id=self.id
 	local dest={}
 	
@@ -1341,7 +1169,6 @@ function draw_map()
 	end
 	
 	
-	-- map edges
 	for m=0,map_tileh do
 		spr(3, -15, (16*m), 2,2)
 		spr(3, map_wpx, (16*m), 2,2)
@@ -1361,10 +1188,7 @@ function gen_map(w,h)
 	grid={}
 	pf_list={}
 	
-	-- seed grid with all empty
 	-- coordinates are for 16x16px blocks; 8 per screen
-	
-	
 	for x=1,map_tilew do
 		grid[x]={}
 		
@@ -1386,10 +1210,19 @@ function gen_map(w,h)
 	
 	
 	if finale then
-		queen_x=map_w
-		queen_y=rand(map_h)+1
+		local queen_x=map_w
+		local queen_y=rand(map_h)+1
+		local ps_x=1
+		local ps_y=rand(map_h)+1
 		
-		create_screen(1,rand(map_h)+1, 0,0)
+		if map_h>map_w then
+			local queen_x=rand(map_w)+1
+			local queen_y=map_h
+			local ps_x=rand(map_w)+1
+			local ps_y=1
+		end
+		
+		create_screen(1, ps_x,ps_y, 0,0)
 		create_screen(queen_x,queen_y, 1,0)
 	else
 		create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
@@ -1405,12 +1238,10 @@ function gen_map(w,h)
 			plot.n=n
 			n+=1
 			
-			-- build list of possible sniper tiles
 			if plot.o==5 then add(snipers,plot) end
 		end
 	end
     
-    -- add sniper tiles, pull from pool
     if #snipers>0 then
 		for n=1,curlvl.snipers do
 			local t=rnd_table(snipers)
@@ -1436,7 +1267,6 @@ function gen_map(w,h)
     add_tiles(curlvl.eggs, 2,3, 130,130)
 	curlvl.eggs+=map_eggs
     
-    -- add random aliens, not too close to player
 	local ac=0
 	while ac<curlvl.aliens do
 		local t=get_random_tile(0)
@@ -1448,7 +1278,6 @@ function gen_map(w,h)
 	end
     
     
-    --grass
 	local empty=filter_tiles(0)
 	local half=flr(((map_w*8)*(map_h*8))*.2)
 	for n=0,half do
@@ -1566,6 +1395,218 @@ function intro_init()
 end
 
 
+-- #story
+function story_init(go)
+	local sx=1
+	local lspr=14
+	--local ty=-8
+	local hug={l={160,162,164,162},f=1,r=8}
+	local al={l={128,130,132,130},f=1,r=8}
+	local hugspr=anim(hug,true)
+	local alspr=anim(al,true)
+	--local hugx=-16    
+	
+    fd_init()
+
+	function story_update()
+		if btnxp or btnzp or gt>sec(15) then 
+			if go then 
+				start_init()
+				firstplay=false
+			else title_init() end 
+		end
+		
+		
+		
+		if gt>sec(3) then
+			lspr=anim(hug)
+			if sx>=80 then lspr=anim(al) end
+			
+			sx=min(sx+.5,130)
+		end
+        
+        fd_update()
+		
+		
+	end 
+
+	function story_draw()
+		center_text("dylan burke is finishing the;job his father failed to;complete on lv-426.;;he must be stopped.;;;explore planets and collect;alien eggs before burke can;get to them.",8, fd_c)
+		palt(2,true)
+		spr(lspr,sx,105,2,2)
+		if sx<80 then spr(9, 80,111,2,1) end
+		pal()
+	end
+
+
+	cart(story_update,story_draw)
+end
+
+
+
+
+
+-- #title
+firstplay=true
+function title_init()
+	finale=false
+	level_id=0
+	p_eggs=0
+	map_eggs=0
+	gameover=0
+	grid={}
+	blood={}
+	levels={}
+	countdown=sec(30)
+	
+	local ty=-8
+	local hug={l={160,162,164,162},f=1,r=8}
+	local hugspr=anim(hug,true)
+	local hugx=-16
+	
+	fd_init()
+	
+	function title_update()
+		if btnzp then if firstplay then story_init(true) else start_init() end end
+		if btnxp then help_init() end
+		
+		if gt>sec(1.5) then fd_update() end
+		hugspr=anim(hug)
+	end 
+	
+	function title_draw()
+		ty=min(60,ty+1)
+		center_text("a l i e n",ty,12)
+		center_text("harvest",68,fd_c)
+		
+		if gt>sec(2.5) then
+			center_text("press "..char_z.." to start;press "..char_x.." for help",100,6)
+		end
+		palt(2,true)
+		
+		if gt>sec(4) then 
+			hugx=min(135,hugx+.5) 
+			spr(hugspr,hugx,80,2,2)
+		end
+		
+		
+		
+	end
+	
+	cart(title_update,title_draw)
+end
+
+
+
+-- #help
+function help_init(auto)
+	function help_update()
+		if btnxp or btnzp then cart(help_last, help_p2) end
+	end
+	
+	function help_last()
+		if btnxp or btnzp then title_init() end
+	end
+	
+	function help_p1()
+		palt(2,true)
+		spr(14, 3,2, 2,2)
+		print("find and collect alien\neggs before they hatch", 24,6, 7)
+
+		spr(9, 3,25, 2,1)
+		print("search bodies to\nequip weapons",24, 24,7)
+		
+		spr(12, 3,41, 2,2)
+		print("stand on beacon to\nleave planet",24,42, 7)
+		
+		print("press "..char_z.." for map scan\n\npress "..char_x.." to use weapon\n\n\nwatch message ticker\nfor help and tips", 24,65, 7)
+		
+		pal()
+	end
+	
+	function help_p2()
+		palt(2,true)
+		spr(64, 4,4, 2,2)
+		print("gun has one shot.\nauto-aims at aliens", 24,6, 7)
+
+		spr(96, 5,25, 2,2)
+		print("bait will distract\naliens briefly",24, 24,7)
+		
+		print("avoid aliens", 24,44, 8)
+		
+		
+		spr(160, 3,53, 2,2) 
+		print("facehuggers find bodies\nto become aliens",24,55, 7)
+		
+		spr(128, 3,73, 2,2) 
+		print("aliens search and chase\nwhen you are near",24,73, 7)
+
+		
+		spr(42, 3,93, 2,2) 
+		print("jungle alien attack\nparalyzes. invincible.",24,93, 7)
+
+		pal()
+	end
+	
+	cart(help_update, help_p1)
+end
+
+
+
+
+-- #finale
+function finale_init()
+    finale=true
+    fd_init()
+
+    function finale_update()
+        fd_update()
+        if btnzp then start_init() end
+    end
+    
+    
+    function finale_draw()
+        center_text("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
+        
+        if gt>sec(3) then center_text("press "..char_z.." to continue",100,6) end
+    end
+
+
+    cart(finale_update,finale_draw)
+end
+
+
+-- #victory
+function victory_init()
+    fd_init()
+    music(-1)
+	music(0,2000)
+
+    function victory_update()
+        if btnzp and gt>sec(4) then title_init() end
+    end
+    
+    
+    function victory_draw()
+		local tc=fd_c
+		
+    	if gt>sec(3) then
+    		fd_update()
+			if fd_s==2 and fd_c==7 then tc=12 end
+			center_text("mission accomplished",15, tc)
+			center_text("burke and the company have;been stopped once again;;;;but for how long?;;;press "..char_z.." to return home",40, fd_c)
+			
+		end
+		
+		spr(14,55,55,2,2)
+    end
+
+
+    cart(victory_update,victory_draw)	
+end
+
+
+
 
 -- #loop
 
@@ -1598,11 +1639,9 @@ end
 
 
 -- #utilities
-debug=0
-
 function chg_st(o,ns) o.t=0 o.st=ns end
 function rand(x) return flr(rnd(x)) end
-function sec(f) return flr(f*60) end -- set fps here if you need
+function sec(f) return flr(f*60) end
 function center_text(s,y,c) 
 	local all=split(s)
 	for n=1,#all do
@@ -1709,7 +1748,6 @@ function fd_update()
 end
 
 
--- tile_to_px(int_tilex,int_tiley)
 function tile_to_px(tx,ty)
 	local px=(tx*16)-16
 	local py=(ty*16)-16
@@ -1718,14 +1756,12 @@ function tile_to_px(tx,ty)
 	return px,py,cx,cy
 end
 
--- px_to_tile(int_pixelx,int_pixely)
 function px_to_tile(pxx,pxy)
 	local tx=flr(pxx/16)+1
 	local ty=flr(pxy/16)+1
 	return tx,ty
 end
 
--- get_tile(int_tilex,int_tiley)
 function get_tile(tx,ty)
 	if tx<=map_tilew and tx>0 and ty<=map_tileh and ty>0 then
 		local t=grid[tx][ty]
@@ -1733,14 +1769,7 @@ function get_tile(tx,ty)
 		return t
 	end
 end
---[[
-function get_px_tile(pxx,pxy)
-	tx,ty=px_to_tile(pxx,pxy)
-	return get_tile(tx,ty)
-end
-]]
 
--- filter_tiles(occupantid)
 function filter_tiles(o)
 	local list={}
 	
@@ -1759,7 +1788,6 @@ function filter_tiles(o)
 end
 
 
--- find_nearest(int_pixelx,int_pixely, tbl_items)
 function find_nearest(x,y,list)
 	local d=9999
 	local n=false
@@ -1780,7 +1808,6 @@ function find_nearest(x,y,list)
 end
 
 
--- #in_range(int_needlex,int_needley, int_haystackx,int_haystacky, int_distance)
 function in_range(ax,ay, bx,by, rng)
 	if abs(ax-bx)<=rng and abs(ay-by)<=rng then
 		return true
@@ -1789,15 +1816,13 @@ function in_range(ax,ay, bx,by, rng)
 	end
 end
 
--- tile_attr(x,y, keyname, value)
-function tile_attr(tx,ty, key, value)
-	if not key then	key="o" value=0 end
+function tile_attr(tx,ty, key, val)
+	if not key then	key="o" val=0 end
 	
-	grid[tx][ty][key]=value
+	grid[tx][ty][key]=val
 	return grid[tx][ty]
 end
 
--- get_random_tile(occupantid)
 function get_random_tile(occ)
 	local list=filter_tiles(occ)
 	
@@ -1822,7 +1847,7 @@ end
 
 function clock(time)
 	local mins=0
-	local secs=flr(time/60) --seconds
+	local secs=flr(time/60)
 	local micro=time%60
 	
 	while secs>=60 do
@@ -1842,7 +1867,6 @@ function clock(time)
 end
 
 -- add_tiles(quantity, sourcetileid, occupantid, distanceoccupantid, distancefromplayer, callback)
---add_tiles(curlvl.bodies, 0,4, 100,70) --bodies
 function add_tiles(q, src, occ, od, pd, f)
 	for i=1,q do
 		local try=1
@@ -1876,8 +1900,6 @@ function add_tiles(q, src, occ, od, pd, f)
 end
 
 
--- point in hitbox
--- #in_rec(x,y, objx,objy,objhitbox)
 function in_rec(x,y, ox,oy,ow,oh)
 	if x>=ox and x<=ox+ow and y>=oy and y<=oy+oh then
 		return true
@@ -1886,7 +1908,6 @@ function in_rec(x,y, ox,oy,ow,oh)
 	return false
 end
 
--- #blocked(int_objpixelx,int_objpixely, int_objpixeldx,int_objpixeldy, tbl_objhitbox)
 function blocked(px,py, dx,dy, hbox)
 	function wall(t) 
 		if t.o==1 or t.o==5 then return true end
@@ -1933,7 +1954,6 @@ end
 
 
 -- #astar
--- update logic for ai that finds targets and wanders: huggers and aliens
 function pathfind(startx,starty,goaltx,goalty)
 	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
 	local endpoint=pf_list[navpath[#navpath]]
