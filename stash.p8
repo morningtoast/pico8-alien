@@ -1,3 +1,20 @@
+function ticker_common()
+	local list=split("bait only works on adult aliens;"..current_level.eggs.." eggs remaining;use \142 to scan area;camo aliens cannot be killed;camo alien attack paralyzes;scanner will recharge over time;scanning uses battery power;bait only lasts a few moments;baby aliens search for bodies;use your items wisely;aliens will attack if you get too close")
+	add_ticker_text(rnd_table(list)..";")
+	printh("generic text")
+end
+
+if gt>=1200 then -- toss in generic messages every 8 seconds 
+		if current_level.eggs<=0 then
+			add_ticker_text("no more eggs detected;return to transport beacon immediately")
+		else
+			ticker_common()
+		end
+		
+		gt=0
+	end
+
+
 firstplay=true
 if firstplay then story_init(true) else start_init() end
 

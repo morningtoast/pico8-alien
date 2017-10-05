@@ -5,13 +5,6 @@ __lua__
 --alien harvest
 --brian vaughn, 2017
 
---code+design+additional art: brian vaughn, @morningtoast
---character animations: @pineconegraphic
-
---sprite sources:
---http://androidarts.com/xcom/rebelstar_1-2_rip_color.gif
---http://zxart.ee/zxscreen/border:0/palette:pulsar/mode:mix/type:standard/id:18157/
-
 ver="v1.0"
 char_z="z" --\142
 char_x="x" --\151
@@ -160,7 +153,7 @@ function p_tiles(tile)
 		if (curlvl.eggs<=0 or p_eggs==20) then
 			if tran_t==0 then
 				sfx(15)
-				tkr("dropship landing, stay at beacon;leaving "..curlvl.name,true)
+				tkr("wait at beacon, dropship landing;leaving "..curlvl.name,true)
                 tran_st=2
 			end
 			
@@ -182,7 +175,7 @@ function p_tiles(tile)
 	else
 		if tran_st==2 then
 			sfx(12)
-			tkr("dropship canceled",true)
+			tkr("dropship canceled;wait at beacon",true)
 		end
         tran_st=0
 		
@@ -197,7 +190,7 @@ function p_tiles(tile)
 	if tile.o==7 then
 		if bomb_t==0 then 
 			sfx(18)
-			tkr("arming bomb, stand by",true) 
+			tkr("wait while arming bomb...",true) 
 		end
 
 		tile.bomb_st=1
@@ -231,7 +224,7 @@ function p_tiles(tile)
 			if det_st<2 then
 				if det_t==0 then
                     sfx(18)
-					tkr("intializing. stand by...",true) 
+					tkr("stand by, intializing...",true) 
 				end
 
 				det_st=1
@@ -244,14 +237,14 @@ function p_tiles(tile)
 				end
 			end
 		else 
-			if det_t==0 then sfx(12) tkr("bombs not armed",true) end
+			if det_t==0 then sfx(12) tkr("arm all bombs first",true) end
 		end
 		
 		det_t+=1
 	else
 		if det_st==1 then
 			sfx(12)
-			tkr("countdown aborted",true)
+			tkr("countdown aborted;move to detonator",true)
 			det_st=0
 		end
 		det_t=0
@@ -314,11 +307,13 @@ function start_init()
             {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=35,aliens=0,snipers=0,colors={11,3}},
             {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=25,aliens=1,snipers=1,colors={11,4}},
             {name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,hatch=25,aliens=3,snipers=2,colors={14,2}},
-            {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=20,aliens=4,snipers=3,colors={9,4}}
+            {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=20,aliens=4,snipers=3,colors={9,4}},
+            {name="bv-1031",w=5,h=5,bombs=0,bodies=7,eggs=5,hatch=20,aliens=5,snipers=5,colors={4,3}},
+            {name="al-18",w=2,h=9,bombs=0,bodies=10,eggs=7,hatch=25,aliens=5,snipers=8,colors={2,1}}
         }
 
 
-        if level_id>4 then
+        if level_id>5 then
             local colors={{3,4},{11,9},{11,4},{15,14},{9,4},{11,3},{2,1}}
             local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
             local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
@@ -358,22 +353,21 @@ function start_init()
 		center_text("landing on: "..curlvl.name, 8, 10)
 		
 		local ax=32
-		local txta="return to transport\nbeacon to escape"
 		if finale then
 			spr(110, 8,17, 2,2)
 			print("find and arm\n3 remote bombs", ax,21, 7)
 				
 			spr(108, 8,38, 2,2)
-			print("find detonator to\nstart countdown",ax,41, 7)
+			print("then find detonator\nto start countdown",ax,41, 7)
 				
 			spr(12, 8,60, 2,2)
-			print(txta,ax,61, 7)
+			print("wait at transport\nbeacon to escape",ax,61, 7)
 		else
 			spr(14, 8,18, 2,2)
-			print("find "..curlvl.eggs.." alien eggs\nbefore they hatch", ax,22, 7)
+			print("collect as many eggs as\nyou can before they hatch\n\n"..curlvl.eggs.." eggs detected", ax,22, 7)
 
 			spr(12, 8,41, 2,2)
-			print(txta,ax,42, 7)
+			print("wait at transport beacon\nwhen all eggs are gone",ax,42, 7)
 		end
 		
 		print("press "..char_z.." to start",ax,83, 7)
@@ -393,7 +387,7 @@ function draw_console(nologo)
 
 	if not nologo then zspr(74,2,2,90,103, 2, 1) end
 	
-	print("cargo: "..p_eggs.."/20",7,100,7)
+	print("collected: "..p_eggs.."/20",7,100,7)
 		
 	local ix=5
 	local iy=107
@@ -450,6 +444,15 @@ function play_init()
 end
 
 function play_update()
+	function _t()
+		if curlvl.eggs<=0 then
+			sfx(11)
+			tkr("no more eggs detected;return to transport beacon")
+		else
+			tkr(curlvl.eggs.." eggs remaining")
+		end	
+	end
+	
 	if gameover<1 then
 		if curlvl.eggs>0 then
 			egg_t=max(0,egg_t-1)
@@ -463,20 +466,14 @@ function play_update()
 				add_hugger(t.tx,t.ty)
 				tile_attr(t.tx,t.ty)
 
-
 				tkr("new life form detected",true)
 				sfx(11)
 
-				if not finale then
-					if curlvl.eggs<=0 then
-						sfx(11)
-						tkr("no eggs detected;return to transport beacon")
-					else
-						tkr(curlvl.eggs.." eggs remaining")
-					end
-				end
+				if not finale then _t() end
 			end
 		end
+		
+		
 	
 		sfx_n=3
 		
@@ -502,13 +499,25 @@ function play_update()
 		p_update()
 		
 		-- last level countdown ends, blow up!
-		if finale and det_st==2 then
-			countdown=max(-1,countdown-1) 
-			if countdown==0 then
-				sfx(20)
-				music(-1)
-				gameover=2
-				nuke=0
+		if finale then
+			if det_st==2 then
+				countdown=max(-1,countdown-1) 
+				if countdown==0 then
+					sfx(20)
+					music(-1)
+					gameover=2
+					nuke=0
+					gt=0
+				end
+			else
+				if gt>=sec(8) then
+					tkr(curlvl.bombs.." bombs remaining",true)
+					gt=0
+				end
+			end
+		else
+			if gt>=sec(8) then
+				_t()
 				gt=0
 			end
 		end
@@ -1511,15 +1520,15 @@ function help_init(auto)
 	function help_p1()
 		palt(2,true)
 		spr(14, 3,2, 2,2)
-		print("find and collect alien\neggs before they hatch", 24,6, 7)
+		print("find alien eggs hidden\nin each level", 24,6, 7)
 
 		spr(9, 3,25, 2,1)
 		print("search bodies to\nequip weapons",24, 24,7)
 		
 		spr(12, 3,41, 2,2)
-		print("stand on beacon to\nleave planet",24,42, 7)
+		print("stand on beacon to\nleave planet when\nthere are no more eggs",24,42, 7)
 		
-		print("press "..char_z.." for map scan\n\npress "..char_x.." to use weapon\n\n\nwatch message ticker\nfor help and tips", 24,65, 7)
+		print("press "..char_z.." for map scan\n\npress "..char_x.." to use weapon\n\n\nlook to the message\nticker for help and guideance.", 24,65, 7)
 		
 		pal()
 	end
@@ -1532,9 +1541,9 @@ function help_init(auto)
 		spr(96, 5,25, 2,2)
 		print("bait will distract\naliens briefly",24, 24,7)
 		
-		print("avoid aliens", 24,44, 8)
-		
-		
+
+		center_text("avoid aliens", 44, 8)
+
 		spr(160, 3,53, 2,2) 
 		print("facehuggers find bodies\nto become aliens",24,55, 7)
 		
@@ -1609,7 +1618,7 @@ end
 
 
 -- #loop
-
+cartdata("ahmt2017")
 function _init()
 	intro_init()
 end
