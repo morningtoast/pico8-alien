@@ -11,7 +11,7 @@ char_x="x" --\151
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
 cart(ef,ef)
-gt=0
+tm,tmo,gt=0,false,0
 
 -- #player
 function p_update()
@@ -40,7 +40,7 @@ function p_update()
 			p_spr=anim(p_anim,true)
 		end
 
-		if not blocked(p_x,p_y, p_dx,p_dy, {y=4,x=4,w=7,h=7}) then
+		if not blocked(p_x,p_y, p_dx,p_dy, {y=6,x=6,w=4,h=4}) then
 			p_x+=p_dx
 			p_y+=p_dy
 		end
@@ -66,13 +66,18 @@ function p_update()
 		end
 		
 		if btnzp then
-			if mini_batt<=0 then
-				sfx(17)
-				mini_mode=true
-				gen_mini()
+			if not tmo then
+				if mini_batt<=0 then
+					sfx(17)
+					mini_mode=true
+					gen_mini()
+				else
+					sfx(12)
+					tkr("scanner battery recharging",true)
+				end
 			else
 				sfx(12)
-				tkr("scanner battery recharging",true)
+				tkr("scanner broken",true)
 			end
 		end
 	else
@@ -125,9 +130,16 @@ function p_tiles(tile)
 			
 			if p_eggs<20 then tkr(curlvl.eggs.." eggs remaining") end
 			
-			if curlvl.eggs<=0 or p_eggs==20 then
+			if curlvl.eggs<=0 then
 				sfx(11)
-				tkr(cargo)
+				
+				if p_eggs==20 then
+					tkr(cargo)	
+				else
+					tkr("return to transport beacon")
+				end
+				
+				
 			end
 		else
 			if tile_t==0 then
@@ -364,13 +376,13 @@ function start_init()
 			print("wait at transport\nbeacon to escape",ax,61, 7)
 		else
 			spr(14, 8,18, 2,2)
-			print("collect as many eggs as\nyou can before they hatch\n\n"..curlvl.eggs.." eggs detected", ax,22, 7)
+			print(curlvl.eggs.." eggs detected.\ncollect as many as you\ncan before they hatch.", ax,22, 7)
 
-			spr(12, 8,41, 2,2)
-			print("wait at transport beacon\nwhen all eggs are gone",ax,42, 7)
+			spr(12, 8,53, 2,2)
+			print("wait at beacon when\neggs are all gone\n",ax,55, 7)
 		end
 		
-		print("press "..char_z.." to start",ax,83, 7)
+		print("press "..char_z.." to start",ax,83, 11)
 	end
 	
 	cart(start_update,start_draw)
@@ -516,7 +528,7 @@ function play_update()
 				end
 			end
 		else
-			if gt>=sec(8) then
+			if gt>=sec(10) then
 				_t()
 				gt=0
 			end
@@ -1472,6 +1484,9 @@ function title_init()
 	local hug={l={160,162,164,162},f=1,r=8}
 	local hugspr=anim(hug,true)
 	local hugx=-16
+	local tc=12
+	
+	if tmo then tc=8 end
 	
 	fd_init()
 	
@@ -1479,13 +1494,15 @@ function title_init()
 		if btnzp then if firstplay then story_init(true) else start_init() end end
 		if btnxp then help_init() end
 		
+		if btnp(2) and tm>0 then if tc==8 then tc=12 tmo=false else tc=8  tmo=true end end
+		
 		if gt>sec(1.5) then fd_update() end
 		hugspr=anim(hug)
 	end 
 	
 	function title_draw()
 		ty=min(60,ty+1)
-		center_text("a l i e n",ty,12)
+		center_text("a l i e n",ty,tc)
 		center_text("harvest",68,fd_c)
 		
 		if gt>sec(2.5) then
@@ -1519,42 +1536,47 @@ function help_init(auto)
 	
 	function help_p1()
 		palt(2,true)
-		spr(14, 3,2, 2,2)
-		print("find alien eggs hidden\nin each level", 24,6, 7)
+		spr(14, 5,6, 2,2)
+		print("find alien eggs in\neach level. you need\n20 eggs to finish.", 26,8, 7)
 
-		spr(9, 3,25, 2,1)
-		print("search bodies to\nequip weapons",24, 24,7)
+		spr(12, 5,34, 2,2)
+		print("stand on beacon when\nthere are no more eggs\nto go to next level",26,34, 7)
 		
-		spr(12, 3,41, 2,2)
-		print("stand on beacon to\nleave planet when\nthere are no more eggs",24,42, 7)
+		spr(9, 6,62, 2,1)
+		print("search bodies to find\nequip weapons\n\n\nwatch the scrolling\nmessages for help\n\n\nuse "..char_z.." to see map\nuse "..char_x.." to use weapon", 26,60,7)
+				
 		
-		print("press "..char_z.." for map scan\n\npress "..char_x.." to use weapon\n\n\nlook to the message\nticker for help and guideance.", 24,65, 7)
 		
 		pal()
+		rect(0,0,127,127,12)
+		rect(2,2,125,125,12)
 	end
 	
 	function help_p2()
 		palt(2,true)
-		spr(64, 4,4, 2,2)
-		print("gun has one shot.\nauto-aims at aliens", 24,6, 7)
+		spr(64, 7,8, 2,2)
+		print("gun has one shot.\nauto-aims at aliens", 28,8, 7)
 
-		spr(96, 5,25, 2,2)
-		print("bait will distract\naliens briefly",24, 24,7)
+		spr(96, 7,30, 2,2)
+		print("bait will distract\naliens briefly", 28,30,7)
 		
 
-		center_text("avoid aliens", 44, 8)
+		center_text("avoid aliens", 52, 8)
 
-		spr(160, 3,53, 2,2) 
-		print("facehuggers find bodies\nto become aliens",24,55, 7)
+		spr(160, 6,60, 2,2) 
+		print("facehuggers find bodies\nto become aliens",28,62, 7)
 		
-		spr(128, 3,73, 2,2) 
-		print("aliens search and chase\nwhen you are near",24,73, 7)
+		spr(128, 5,80, 2,2) 
+		print("aliens search and chase\nwhen you are near",28,80, 7)
 
 		
-		spr(42, 3,93, 2,2) 
-		print("jungle alien attack\nparalyzes. invincible.",24,93, 7)
+		spr(42, 6,100, 2,2) 
+		print("jungle alien attack\nparalyzes. invincible.",28,100, 7)
 
 		pal()
+		
+		rect(0,0,127,127,12)
+		rect(2,2,125,125,12)
 	end
 	
 	cart(help_update, help_p1)
@@ -1590,20 +1612,30 @@ function victory_init()
     fd_init()
     music(-1)
 	music(0,2000)
+	
+	local tmt=""
+		
+	if tm<1 then 
+		tmt="+ terror mode unlocked +"
+		tm=1
+		dset(0,1) 
+	end
+	
 
     function victory_update()
         if btnzp and gt>sec(4) then title_init() end
     end
     
-    
     function victory_draw()
 		local tc=fd_c
+		
 		
     	if gt>sec(3) then
     		fd_update()
 			if fd_s==2 and fd_c==7 then tc=12 end
-			center_text("mission accomplished",15, tc)
-			center_text("burke and the company have;been stopped once again;;;;but for how long?;;;press "..char_z.." to return home",40, fd_c)
+			
+			center_text("mission accomplished",10, tc)
+			center_text("burke and the company have;been stopped once again.;but for how long?;;;;;press "..char_z.." to return home;;;"..tmt,30, fd_c)
 			
 		end
 		
@@ -1620,6 +1652,8 @@ end
 -- #loop
 cartdata("ahmt2017")
 function _init()
+	tm=dget(0)
+	
 	intro_init()
 end
 
