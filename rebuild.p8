@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 8
+version 10
 __lua__
 
 --alien harvest
@@ -241,7 +241,8 @@ function p_tiles(tile)
 
 				det_st=1
 
-				if det_t==sec(4) then 
+				if det_t==sec(4) then
+					det_st=2
 					tkr("detonation in 30 seconds;use transport beacon to escape",true)
                     sfx(19)
 					music(3,6000)
@@ -325,7 +326,7 @@ function start_init()
         }
 
 
-        if level_id>5 then
+        if level_id>5 or tmo then
             local colors={{3,4},{11,9},{11,4},{15,14},{9,4},{11,3},{2,1}}
             local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
             local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
@@ -348,9 +349,9 @@ function start_init()
         end
     else 
     	-- final level. eggs=eggs + 6 map eggs
-    	local mw,mh=9,3
-    	if rnd()<.5 then mw,mh=3,9 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=12,eggs=5,hatch=20,aliens=5,snipers=6,bombs=3,colors={11,3}}	
+    	local mw,mh=8,4
+    	if rnd()<.5 then mw,mh=4,8 end 
+        curlvl={name="pco-8",w=mw,h=mh,bodies=18,eggs=5,hatch=15,aliens=2,snipers=5,bombs=3,colors={11,3}}	
     end
 	
 	
@@ -818,12 +819,13 @@ function add_sniper(tx,ty)
 					local t=tile_attr(self.tx,self.ty,"o",1)
 					t.s=rnd_table(bush_sprites)
 					del(actors,self)
+					
+					local loc=get_random_tile(1)
+					add_sniper(loc.tx,loc.ty)
 				end
 			end
 		end,
-		draw=function()
-			
-		end
+		draw=ef
 	}
 	
 	local et={o=1}
@@ -842,6 +844,7 @@ function add_sniper(tx,ty)
 	
 	obj.x,obj.y=tile_to_px(tx,ty)
 	tile_attr(tx,ty,"f",obj.f)
+	tile_attr(tx,ty,"o",5)
 
 	add(actors, obj)
 end
@@ -974,6 +977,11 @@ function add_alien(tx,ty)
 	obj.x,obj.y=tile_to_px(tx,ty)
 	obj.cx=obj.x+8
 	obj.cy=obj.y+8
+	
+	if tmo then
+		obj.chase_spd=1.3
+		obj.detect=60
+	end
 
 	add(actors, obj)
 end
@@ -1192,11 +1200,11 @@ function draw_map()
 	
 	for m=0,map_tileh do
 		spr(3, -15, (16*m), 2,2)
-		spr(3, map_wpx, (16*m), 2,2)
+		spr(1, map_wpx, (16*m), 2,2)
 	end
 	
 	for m=-1,map_tilew do
-		spr(3, (16*m), -15, 2,2)
+		spr(5, (16*m), -15, 2,2)
 		spr(3, (16*m),map_hpx, 2,2)
 	end
 end
@@ -1237,13 +1245,17 @@ function gen_map(w,h)
 		local ps_y=rand(map_h)+1
 		
 		if map_h>map_w then
-			local queen_x=rand(map_w)+1
-			local queen_y=map_h
-			local ps_x=rand(map_w)+1
-			local ps_y=1
+			queen_x=rand(map_w)+1
+			queen_y=map_h
+			ps_x=rand(map_w)+1
+			ps_y=1
 		end
 		
-		create_screen(1, ps_x,ps_y, 0,0)
+		printh("size is "..map_w..","..map_h)
+		printh("player at"..ps_x..","..ps_y)
+		printh("queen at"..queen_x..","..queen_y)
+		
+		create_screen(ps_x,ps_y, 0,0)
 		create_screen(queen_x,queen_y, 1,0)
 	else
 		create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
@@ -1470,15 +1482,15 @@ end
 -- #title
 firstplay=true
 function title_init()
-	finale=false
+	finale=true
 	level_id=0
-	p_eggs=0
+	p_eggs=20
 	map_eggs=0
 	gameover=0
 	grid={}
 	blood={}
 	levels={}
-	countdown=sec(30)
+	countdown=sec(40)
 	
 	local ty=-8
 	local hug={l={160,162,164,162},f=1,r=8}
@@ -1911,12 +1923,20 @@ end
 
 -- add_tiles(quantity, sourcetileid, occupantid, distanceoccupantid, distancefromplayer, callback)
 function add_tiles(q, src, occ, od, pd, f)
+	printh("=== seeding "..occ.." qty="..q)
+	local try=1
+	local esc=1
 	for i=1,q do
-		local try=1
+		printh("--- qty "..i)
+		try,esc=1,1
+		
 		local sim=filter_tiles(occ)
-		while try>0 do
+		while try>0 and esc<50 do
+			printh("try #"..esc)
 			local t=get_random_tile(src)
             local safe=0
+			
+			try+=1
 			
 			if not in_range(t.cx,t.cy, p_cx,p_cy, pd) then
 				if #sim>0 then
@@ -1930,14 +1950,17 @@ function add_tiles(q, src, occ, od, pd, f)
                         tile_attr(t.tx,t.ty, "o", occ)
                         if f then f(t.tx,t.ty) end
                         try=0
+						printh("placed*")
                     end
 				else
 					tile_attr(t.tx,t.ty, "o", occ)
 					if f then f(t.tx,t.ty) end
 					try=0
+					printh("placed")
 				end
 			end
-        
+        	
+			esc+=1
 		end
 	end
 end
@@ -2210,10 +2233,10 @@ b000000b002200000000ffb0b0000b00000000fb0000000000f3ffff0003fbfb00ff00000b0000b0
 00000c00000009b00000ff0000000000006f00000fff00000b0000b000000b0b0003000000bbb00000ffff00000000b000000000000000000000000000000000
 000800000e0000b00bb00000006f000b006ff00000bb300b0bbbff0003000b0000fb0b00000ff0000006f0000ff00ff000000000000000000000000000000000
 00000000000020b0bff0bbb000fb3f03b00f60000b0f00fbbffb6ff00fb00000bffbffbbbf6ff00300f6ff0303bfff0000000000000000000000000000000000
-b000000b020200000f60fffb00f3bf0b000f00b00bf00fb000f3ff000ff60000bf3f00b0bffff6fb00ff060b000bbbb000000000000000000000000000000000
-bb0000bbb00000b00ff0fffb000f000b0000000000b00b0000b00000bbbf00b00b0000b0b000fffb0000000b0000000000000000000000000000000000000000
-0000006000000b0b0000000b0000000b0b000b000bb00bbb00000000000000000000b000000000000000000000000f6000000000000000000000000000000000
-03000000003fff0b00000b00bbbbb00b0b000b0bbff00fffb030b0000bb00000b00b0060bbb3f0600bbfbbb06f06000000000000000000000000000000000000
+b000000b020200000f60fffb00f3bf0b000f00b00bf00f0b00f0ff000ff60000bf3f00b0bffff6fb00ff060b000bbbb000000000000000000000000000000000
+bb0000bbb00000b00ff0fffb000f000b0000000000b00b0000300000bbbf00b00b0000b0b000fffb0000000b0000000000000000000000000000000000000000
+0000006000000b0b0000000b0000000b0b000b000bb00bbb000000000000000000000000000000000000000000000f6000000000000000000000000000000000
+03000000003fff0b00000b00bbbbb00b0b000b0bbff00fffb030b0000bb00000000b0060bbb3f0600bbfbbb06f06000000000000000000000000000000000000
 0b0000b000fbb00b00300b0000ff300b0006f00bbf3000000fbfbfbb0b30f6000b0fbff000fff0000bbf6bb00f0fff0600000000000000000000000000000000
 0f3fbbf00bfbb0000fbff030000fbb000b0ffb00006000000fbfffb00ff0f0000bfffb0000bbbbf00f36fff00b0fb60000000000000000000000000000000000
 0fbb6bf0000b30000bf3f0fbb300f600b3fbf30b00000300bbbf3fb0000b3000003fffb000f000f00fb6f000000006f000000000000000000000000000000000
