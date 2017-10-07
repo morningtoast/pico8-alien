@@ -159,13 +159,13 @@ function p_tiles(tile)
 		
 		if curlvl.eggs>0 and p_eggs<20 and tran_t==0 then
 			sfx(12)
-			tkr("dropship unavailable;find remaining eggs",true)
+			tkr("shuttle unavailable;find remaining eggs",true)
 		end
 		
 		if (curlvl.eggs<=0 or p_eggs==20) then
 			if tran_t==0 then
 				sfx(15)
-				tkr("wait at beacon, dropship landing;leaving "..curlvl.name,true)
+				tkr("wait at beacon. shuttle landing;leaving "..curlvl.name,true)
                 tran_st=2
 			end
 			
@@ -187,7 +187,7 @@ function p_tiles(tile)
 	else
 		if tran_st==2 then
 			sfx(12)
-			tkr("dropship canceled;wait at beacon",true)
+			tkr("shuttle canceled. return to beacon",true)
 		end
         tran_st=0
 		
@@ -202,7 +202,7 @@ function p_tiles(tile)
 	if tile.o==7 then
 		if bomb_t==0 then 
 			sfx(18)
-			tkr("wait while arming bomb...",true) 
+			tkr("arming bomb, stand by",true) 
 		end
 
 		tile.bomb_st=1
@@ -256,7 +256,7 @@ function p_tiles(tile)
 	else
 		if det_st==1 then
 			sfx(12)
-			tkr("countdown aborted;move to detonator",true)
+			tkr("countdown aborted. return to detonator",true)
 			det_st=0
 		end
 		det_t=0
@@ -399,7 +399,7 @@ function draw_console(nologo)
 
 	if not nologo then zspr(74,2,2,90,103, 2, 1) end
 	
-	print("collected: "..p_eggs.."/20",7,100,7)
+	print("cargo bay: "..p_eggs.."/20",7,100,7)
 		
 	local ix=5
 	local iy=107
