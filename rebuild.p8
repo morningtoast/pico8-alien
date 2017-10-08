@@ -159,13 +159,13 @@ function p_tiles(tile)
 		
 		if curlvl.eggs>0 and p_eggs<20 and tran_t==0 then
 			sfx(12)
-			tkr("shuttle unavailable;find remaining eggs",true)
+			tkr("dropship unavailable;find remaining eggs",true)
 		end
 		
 		if (curlvl.eggs<=0 or p_eggs==20) then
 			if tran_t==0 then
 				sfx(15)
-				tkr("wait at beacon. shuttle landing;leaving "..curlvl.name,true)
+				tkr("wait at beacon. dropship landing;leaving "..curlvl.name,true)
                 tran_st=2
 			end
 			
@@ -187,7 +187,7 @@ function p_tiles(tile)
 	else
 		if tran_st==2 then
 			sfx(12)
-			tkr("shuttle canceled. return to beacon",true)
+			tkr("dropship canceled. return to beacon",true)
 		end
         tran_st=0
 		
@@ -243,7 +243,7 @@ function p_tiles(tile)
 
 				if det_t==sec(4) then
 					det_st=2
-					tkr("detonation in 30 seconds;use transport beacon to escape",true)
+					tkr("detonation in 40 seconds;use transport beacon to escape",true)
                     sfx(19)
 					music(3,6000)
 					tile_attr(p_tx,p_ty)
@@ -319,10 +319,10 @@ function start_init()
         local levels={
             {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=35,aliens=0,snipers=0,colors={11,3}},
             {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=25,aliens=1,snipers=1,colors={11,4}},
-            {name="pv-418",w=5,h=3,bombs=0,bodies=5,eggs=4,hatch=25,aliens=3,snipers=2,colors={14,2}},
-            {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=20,aliens=4,snipers=3,colors={9,4}},
-            {name="bv-1031",w=5,h=5,bombs=0,bodies=7,eggs=5,hatch=20,aliens=5,snipers=5,colors={4,3}},
-            {name="al-18",w=2,h=9,bombs=0,bodies=10,eggs=7,hatch=25,aliens=5,snipers=8,colors={2,1}}
+            {name="pv-418",w=5,h=3,bombs=0,bodies=7,eggs=5,hatch=25,aliens=3,snipers=2,colors={14,2}},
+            {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=20,aliens=3,snipers=3,colors={9,4}},
+            {name="bv-1031",w=5,h=5,bombs=0,bodies=8,eggs=6,hatch=20,aliens=3,snipers=5,colors={4,3}},
+            {name="al-18",w=3,h=9,bombs=0,bodies=10,eggs=7,hatch=20,aliens=3,snipers=5,colors={2,1}}
         }
 
 
@@ -332,10 +332,10 @@ function start_init()
             local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
             local mw=random(4,6)
             local mh=random(4,6)
-            local me=random(4,6)
-            local mb=me+random(1,3)
-            local ma=random(2,5)
-            local ms=random(3,6)
+            local me=random(3,7)
+            local mb=me+random(1,4)
+            local ma=random(2,4)
+            local ms=random(2,5)
 
             if level_id>7 then
                 if mw<5 then mh=7 end
@@ -536,7 +536,7 @@ function play_update()
 		end
 	else
 		--#gameover
-		if btnzp and gt>=sec(2) then
+		if btnzp and gt>=sec(1) then
             music(0,3000)
 			title_init()	
 		end
@@ -1233,7 +1233,7 @@ function gen_map(w,h)
 	
 	for mx=1,map_w do
 		for my=1,map_h do
-			create_screen(mx,my, rand(9)+2,rand(2))
+			create_screen(mx,my, rand(9)+3,rand(2))
 		end
 	end
 	
@@ -1482,9 +1482,9 @@ end
 -- #title
 firstplay=true
 function title_init()
-	finale=true
+	finale=false
 	level_id=0
-	p_eggs=20
+	p_eggs=0
 	map_eggs=0
 	gameover=0
 	grid={}
