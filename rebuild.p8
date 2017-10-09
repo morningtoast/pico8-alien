@@ -319,10 +319,10 @@ function start_init()
         local levels={
             {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=35,aliens=0,snipers=0,colors={11,3}},
             {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=25,aliens=1,snipers=1,colors={11,4}},
-            {name="pv-418",w=5,h=3,bombs=0,bodies=7,eggs=5,hatch=25,aliens=3,snipers=2,colors={14,2}},
-            {name="gva-1106",w=3,h=6,bombs=0,bodies=5,eggs=5,hatch=20,aliens=3,snipers=3,colors={9,4}},
-            {name="bv-1031",w=5,h=5,bombs=0,bodies=8,eggs=6,hatch=20,aliens=3,snipers=5,colors={4,3}},
-            {name="al-18",w=3,h=9,bombs=0,bodies=10,eggs=7,hatch=20,aliens=3,snipers=5,colors={2,1}}
+            {name="pv-418",w=5,h=3,bombs=0,bodies=7,eggs=5,hatch=25,aliens=2,snipers=2,colors={14,2}},
+            {name="gva-1106",w=3,h=6,bombs=0,bodies=7,eggs=5,hatch=20,aliens=3,snipers=3,colors={9,4}},
+            {name="bv-1031",w=5,h=5,bombs=0,bodies=9,eggs=6,hatch=20,aliens=3,snipers=5,colors={4,3}},
+            {name="al-18",w=3,h=7,bombs=0,bodies=10,eggs=6,hatch=20,aliens=2,snipers=5,colors={2,1}}
         }
 
 
@@ -332,15 +332,14 @@ function start_init()
             local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
             local mw=random(4,6)
             local mh=random(4,6)
-            local me=random(3,7)
-            local mb=me+random(1,4)
-            local ma=random(2,4)
+            local me=min(mw,mh)
+            local mb=me+random(2,4)
+            local ma=random(1,3)
             local ms=random(2,5)
 
             if level_id>7 then
                 if mw<5 then mh=7 end
                 if mh<5 then mw=7 end
-                mb+=1
             end
 
             curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rnd_table(colors)}	
@@ -348,10 +347,9 @@ function start_init()
             curlvl=levels[level_id]
         end
     else 
-    	-- final level. eggs=eggs + 6 map eggs
     	local mw,mh=8,4
     	if rnd()<.5 then mw,mh=4,8 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=18,eggs=5,hatch=15,aliens=2,snipers=5,bombs=3,colors={11,3}}	
+        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=5,hatch=15,aliens=1,snipers=5,bombs=3,colors={11,3}}	
     end
 	
 	
@@ -431,7 +429,7 @@ function play_init()
 	tkr_end=105
 	tkr_log={}
 	
-	sfx_n=3
+	sfx_n,sfx_l=3,3
 	sfx_t=sec(sfx_n)
 	
 	mini_mode=false
@@ -473,20 +471,18 @@ function play_update()
 			egg_t=max(0,egg_t-1)
 
 			if egg_t<=0 then
-				if few() then
-					local t=get_random_tile(3)
-	
-					curlvl.eggs-=1
-	
-					add_hugger(t.tx,t.ty)
-					tile_attr(t.tx,t.ty)
-	
-					tkr("new life form detected",true)
-					sfx(11)
-	
-					if not finale then _t() end
-				end
-				
+				local t=get_random_tile(3)
+
+				curlvl.eggs-=1
+
+				if few() then add_hugger(t.tx,t.ty) end
+				tile_attr(t.tx,t.ty)
+
+				tkr("egg hatch detected",true)
+				sfx(11)
+
+				if not finale then _t() end
+
 				egg_t=sec(curlvl.hatch)
 			end
 		end
@@ -499,7 +495,7 @@ function play_update()
 			a.update(a)
 			a.t+=1
 			
-			if a.id<3 and a.st<99 and in_range(p_cx,p_cy, a.x,a.y,130) then
+			if a.id<3 and a.st<99 and in_range(p_cx,p_cy, a.x,a.y,140) then
 				if in_range(p_cx,p_cy, a.x,a.y,75) then
 					sfx_n=min(.3,sfx_n)
 				else
@@ -508,10 +504,12 @@ function play_update()
 			end
 		end
 		
+		if sfx_n!=sfx_l then sfx_t=0 sfx_l=sfx_n end
+		
 		sfx_t=max(sfx_t-1,0)
 		if sfx_t==0 then 
 			sfx(10)
-			sfx_t=sec(sfx_n) 
+			sfx_t=sec(sfx_n)
 		end
 
 		p_update()
