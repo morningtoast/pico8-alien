@@ -437,6 +437,8 @@ function play_init()
 	mini_mode=false
 	mini_batt=0
 	
+	a_count=0
+	
 	actors={}
 	bullets={}
 
@@ -471,18 +473,21 @@ function play_update()
 			egg_t=max(0,egg_t-1)
 
 			if egg_t<=0 then
-				local t=get_random_tile(3)
-
-				curlvl.eggs-=1
+				if few() then
+					local t=get_random_tile(3)
+	
+					curlvl.eggs-=1
+	
+					add_hugger(t.tx,t.ty)
+					tile_attr(t.tx,t.ty)
+	
+					tkr("new life form detected",true)
+					sfx(11)
+	
+					if not finale then _t() end
+				end
+				
 				egg_t=sec(curlvl.hatch)
-
-				add_hugger(t.tx,t.ty)
-				tile_attr(t.tx,t.ty)
-
-				tkr("new life form detected",true)
-				sfx(11)
-
-				if not finale then _t() end
 			end
 		end
 		
@@ -873,16 +878,16 @@ function add_hugger(tx,ty)
 					self.chase=false
 				end
 			end
-			
+
 			alien_update(self)
 
 			if self.tile.o==4 then
 				tile_attr(self.tx,self.ty)
-				add_alien(self.tx,self.ty)
-				del(actors,self)
+				if few() then 
+					add_alien(self.tx,self.ty) 
+					del(actors,self)
+				end
 			end
-			
-			
 		end,
 		draw=function(self)
 			if self.st!=99 then
@@ -1416,18 +1421,17 @@ end
 -- #intro
 function intro_init()
 	function intro_draw()
-		fd_update()
+		fd_update(3.5) 
 		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
-		if gt==sec(3.5) then fd_out() end
+		--if gt==sec(3.5) then fd_out() end
 	end
     
     function p2()
-        printh("page2")
         fd_init(title_init)
         cart(ef,function()
-            fd_update()
+            fd_update(2)
             center_text("headphones;recommended", 40, fd_c)
-            if gt==sec(2) then fd_out() end
+            --if gt==sec(2) then fd_out() end
         end)
     end
     
@@ -1452,7 +1456,7 @@ function story_init(go)
     fd_init()
 
 	function story_update()
-		if btnxp or btnzp or gt>sec(15) then 
+		if btnxp or btnzp or gt>sec(12) then 
 			if go then 
 				start_init()
 				firstplay=false
@@ -1759,6 +1763,13 @@ function split(s,dc)
 	return a
 end
 
+function few() 
+	local c=0
+	for k,v in pairs(actors) do if v.id<3 then c+=1 end end
+	if c<7 then return true end
+	return false
+end
+
 --anim(obj,doquickreset)
 --obj.r=tick iterator;obj.f=frame position;obj.l=table of sprite ids, each a frame
 --reset=force to first frame and reset counter
@@ -1789,14 +1800,17 @@ function fd_init(f)
     fd_c=0
 end
 function fd_out() if fd_s<3 then fd_s=3 fd_t=0 end end
-function fd_update()
+function fd_update(ot)
     if fd_s==1 and fd_t==5 and fd_i<#fd_cl then
         fd_i=min(#fd_cl,fd_i+1)
         fd_c=fd_cl[fd_i]
         fd_t=0
     end
     
-    if fd_s==1 and fd_i==#fd_cl then fd_s=2 end
+    if fd_s==1 and fd_i==#fd_cl then 
+    	fd_s=2
+    	if ot then if gt==sec(ot) then fd_out() end end
+    end
     
     if fd_s==3 and fd_t==5 and fd_i>1 then
         fd_i=max(1,fd_i-1)
@@ -2026,7 +2040,6 @@ function blocked(px,py, dx,dy, hbox)
 		return true
 	end
 end
-
 
 
 -- #astar
