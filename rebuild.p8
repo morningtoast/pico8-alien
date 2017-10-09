@@ -207,7 +207,7 @@ function p_tiles(tile)
 
 		tile.bomb_st=1
 
-		if bomb_t==sec(3) then 
+		if bomb_t==sec(2.5) then 
 			curlvl.bombs=max(0,curlvl.bombs-1)
 
 
@@ -1415,14 +1415,24 @@ end
 
 -- #intro
 function intro_init()
-	fd_init(title_init)
-	music(0,4000)
-	
 	function intro_draw()
 		fd_update()
 		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
 		if gt==sec(3.5) then fd_out() end
 	end
+    
+    function p2()
+        printh("page2")
+        fd_init(title_init)
+        cart(ef,function()
+            fd_update()
+            center_text("headphones;recommended", 40, fd_c)
+            if gt==sec(2) then fd_out() end
+        end)
+    end
+    
+    fd_init(p2)
+	music(0,4000)
 	
 	cart(ef,intro_draw)
 end
@@ -1771,7 +1781,7 @@ end
 --fd_s:0=non;1=fadein;2=hold;3=fadeout
 --manually set fd_s=3 in your loop; when fadeout is done, auto-runs func
 function fd_init(f)
-    fd_cl={0,1,5,13,6,7}
+    fd_cl={0,0,0,0,1,5,13,6,7}
 	fd_i=1
 	fd_t=0
 	fd_s=1
