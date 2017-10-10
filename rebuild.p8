@@ -6,19 +6,17 @@ __lua__
 --brian vaughn, 2017
 
 ver="v1.0"
-char_z="z" --\142
-char_x="x" --\151
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
-cart(ef,ef)
 tm,tmo,gt=0,false,0
+
+txt_rtt="return to transport"
 
 -- #player
 function p_update()
 	if not mini_mode and p_freeze==0 then
 		mini_batt=max(mini_batt-1,0)
-		
-		
+
 		p_cx=p_x+8
 		p_cy=p_y+8
 		
@@ -91,9 +89,6 @@ function p_update()
 	if p_freeze>0 then p_freeze-=1 end
 end
 
-p_ar=0
-p_af=1
-
 function p_draw()
 	if p_freeze>0 then pal(10,13) end
 	spr(p_spr, p_x,p_y, 2,2, p_flip)
@@ -119,7 +114,7 @@ function p_tiles(tile)
 	end
 	
 	if tile.o==3 then
-		local cargo="cargo bay is full;return to transport beacon"
+		local cargo="cargo bay is full;"..txt_rtt
 		if p_eggs<20 then
 			p_eggs=min(p_eggs+1,20)
 			curlvl.eggs=max(curlvl.eggs-1,0)
@@ -136,7 +131,7 @@ function p_tiles(tile)
 				if p_eggs==20 then
 					tkr(cargo)	
 				else
-					tkr("return to transport beacon")
+					tkr(txt_rtt)
 				end
 				
 				
@@ -187,7 +182,7 @@ function p_tiles(tile)
 	else
 		if tran_st==2 then
 			sfx(12)
-			tkr("dropship canceled. return to beacon",true)
+			tkr("dropship canceled. "..txt_rtt,true)
 		end
         tran_st=0
 		
@@ -243,14 +238,14 @@ function p_tiles(tile)
 
 				if det_t==sec(4) then
 					det_st=2
-					tkr("detonation in 45 seconds;use transport beacon to escape",true)
+					tkr("countdown started;"..txt_rtt,true)
                     sfx(19)
 					music(3,6000)
 					tile_attr(p_tx,p_ty)
 				end
 			end
 		else 
-			if det_t==0 then sfx(12) tkr("arm all bombs first",true) end
+			if det_t==0 then sfx(12) tkr("find all bombs first",true) end
 		end
 		
 		det_t+=1
@@ -301,7 +296,7 @@ function p_dead()
 	blood_t=sec(5)
 	gt=0
 	music(-1)
-	tkr("game over;press "..char_z.." to continue",true)
+	tkr("game over;press z to continue",true)
 	gameover=1
 	pf_list={}
 	p_spr=46
@@ -381,7 +376,7 @@ function start_init()
 			print("wait at beacon when\neggs are all gone\n",ax,55, 7)
 		end
 		
-		print("press "..char_z.." to start",ax,83, 11)
+		print("press z to start",ax,83, 11)
 	end
 	
 	cart(start_update,start_draw)
@@ -450,7 +445,7 @@ function play_init()
 	end
 
 	if level_id==1 then
-		tkr("press "..char_z.." for map scan;press "..char_x.." to use weapon")	
+		tkr("press z for map scan;press x to use weapon")	
 	end
 
 	cart(play_update,play_draw)
@@ -460,7 +455,7 @@ function play_update()
 	function _t()
 		if curlvl.eggs<=0 then
 			sfx(11)
-			tkr("no more eggs detected;return to transport beacon")
+			tkr("no more eggs detected;"..txt_rtt)
 		else
 			tkr(curlvl.eggs.." eggs remaining")
 		end	
@@ -526,13 +521,13 @@ function play_update()
 					gt=0
 				end
 			else
-				if gt>=sec(8) then
+				if gt>=sec(8) and det_st<1 then
 					tkr(curlvl.bombs.." bombs remaining",true)
 					gt=0
 				end
 			end
 		else
-			if gt>=sec(10) then
+			if gt>=sec(12) then
 				_t()
 				gt=0
 			end
@@ -550,7 +545,7 @@ function play_update()
 			end
 			
 			if gt==sec(10) then
-				tkr("game over;press "..char_z.." to restart",true)
+				tkr("game over;press z to restart",true)
 				gt=sec(2)
 			end
 			
@@ -594,7 +589,7 @@ function play_draw()
 	if gameover==2 then
 		circfill(64,64,nuke,7)	
 		if nuke==150 then
-			center_text("game over;;press "..char_z.." to restart",50,2)	
+			center_text("game over;;press z to restart",50,2)	
 		end
 	end
 end
@@ -867,7 +862,8 @@ function add_hugger(tx,ty)
 		chase=false,
 		navpath={},
 		tile={},
-		anim={l={160,162,164,162},f=1,r=8},
+		--anim={l={160,162,164,162},f=1,r=8},
+		anim=hug_anim,
 		update=function(self)
 			if self.st==2 then
 				if in_range(p_cx,p_cy, self.cx,self.cy, 40) then
@@ -927,9 +923,7 @@ function add_alien(tx,ty)
 			-- alien is always looking for player. this will skip the delay-find state of huggers
 			if self.st<10 then
 				if in_range(p_cx,p_cy, self.cx,self.cy, 60) then
-					if not self.chase then
-						chg_st(self,4)
-					end
+					if not self.chase then chg_st(self,4) end
 				else
 					self.chase=false
 				end
@@ -1164,7 +1158,6 @@ function draw_map()
             		pal(12,8) 
             	end
                 spr(110, px,py, 2,2)
-                
             end
             
             if plot.o==8 then
@@ -1253,11 +1246,7 @@ function gen_map(w,h)
 			ps_x=rand(map_w)+1
 			ps_y=1
 		end
-		
-		printh("size is "..map_w..","..map_h)
-		printh("player at"..ps_x..","..ps_y)
-		printh("queen at"..queen_x..","..queen_y)
-		
+
 		create_screen(ps_x,ps_y, 0,0)
 		create_screen(queen_x,queen_y, 1,0)
 	else
@@ -1428,8 +1417,8 @@ function intro_init()
         fd_init(title_init)
         cart(ef,function()
             fd_update()
-            center_text("for optimal experience;;headphones recommended", 40, fd_c)
-            if gt==sec(2) then fd_out() end
+            center_text("headphones recommended;for best experience", 40, fd_c)
+            if gt==sec(2.25) then fd_out() end
         end)
     end
     
@@ -1444,13 +1433,11 @@ end
 function story_init(go)
 	local sx=1
 	local lspr=14
-	--local ty=-8
-	local hug={l={160,162,164,162},f=1,r=8}
+	--local hug={l={160,162,164,162},f=1,r=8}
 	local al={l={128,130,132,130},f=1,r=8}
-	local hugspr=anim(hug,true)
+	local hugspr=anim(hug_anim,true)
 	local alspr=anim(al,true)
-	--local hugx=-16    
-	
+
     fd_init()
 
 	function story_update()
@@ -1464,7 +1451,7 @@ function story_init(go)
 		
 		
 		if gt>sec(3) then
-			lspr=anim(hug)
+			lspr=anim(hug_anim)
 			if sx>=80 then lspr=anim(al) end
 			
 			sx=min(sx+.5,130)
@@ -1493,6 +1480,7 @@ end
 
 -- #title
 firstplay=true
+hug_anim={l={160,162,164,162},f=1,r=8}
 function title_init()
 	finale=false
 	level_id=0
@@ -1506,8 +1494,8 @@ function title_init()
 
 	
 	local ty=-8
-	local hug={l={160,162,164,162},f=1,r=8}
-	local hugspr=anim(hug,true)
+	--local hug={l={160,162,164,162},f=1,r=8}
+	local hugspr=anim(hug_anim,true)
 	local hugx=-16
 	local tc=12
 	
@@ -1525,7 +1513,7 @@ function title_init()
 		if btnp(2) and tm>0 then if tc==8 then tc=12 tmo=false else tc=8  tmo=true end end
 		
 		if gt>sec(1.5) then fd_update() end
-		hugspr=anim(hug)
+		hugspr=anim(hug_anim)
 	end 
 	
 	function title_draw()
@@ -1534,7 +1522,7 @@ function title_init()
 		center_text("harvest",68,fd_c)
 		
 		if gt>sec(2.5) then
-			center_text("press "..char_z.." to start;press "..char_x.." for help",100,6)
+			center_text("press z to start;press x for help",100,6)
 		end
 		palt(2,true)
 		
@@ -1565,13 +1553,13 @@ function help_init(auto)
 	function help_p1()
 		palt(2,true)
 		spr(14, 5,6, 2,2)
-		print("find as many alien eggs\nas you can in each level.\nyou need 20 total.", 26,8, 7)
+		print("find as many alien eggs\nas you can in each level.\nyou need 20 eggs total", 26,8, 7)
 
 		spr(12, 5,34, 2,2)
 		print("stand on beacon when\nthere are no more eggs\nto go to next level",26,34, 7)
 		
 		spr(9, 6,62, 2,1)
-		print("search bodies to find\nequip weapons\n\n\nwatch the scrolling\nmessages for help\n\n\nuse "..char_z.." to see map\nuse "..char_x.." to use weapon", 26,60,7)
+		print("search bodies to find\nand equip weapons\n\n\nwatch the scrolling\ndisplay for help\n\n\nuse z for map scan\nuse x for weapon", 26,60,7)
 				
 		
 		
@@ -1627,7 +1615,7 @@ function finale_init()
     function finale_draw()
         center_text("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
         
-        if gt>sec(3) then center_text("press "..char_z.." to continue",100,6) end
+        if gt>sec(3) then center_text("press z to continue",100,6) end
     end
 
 
@@ -1663,7 +1651,7 @@ function victory_init()
 			if fd_s==2 and fd_c==7 then tc=12 end
 			
 			center_text("mission accomplished",10, tc)
-			center_text("burke and the company have;been stopped once again.;but for how long?;;;;;press "..char_z.." to return home;;;"..tmt,30, fd_c)
+			center_text("burke and the company have;been stopped once again.;but for how long?;;;;;press z to return home;;;"..tmt,30, fd_c)
 			
 		end
 		
@@ -1948,16 +1936,13 @@ end
 
 -- add_tiles(quantity, sourcetileid, occupantid, distanceoccupantid, distancefromplayer, callback)
 function add_tiles(q, src, occ, od, pd, f)
-	printh("=== seeding "..occ.." qty="..q)
 	local try=1
 	local esc=1
 	for i=1,q do
-		printh("--- qty "..i)
 		try,esc=1,1
 		
 		local sim=filter_tiles(occ)
 		while try>0 and esc<50 do
-			printh("try #"..esc)
 			local t=get_random_tile(src)
             local safe=0
 			
@@ -1975,13 +1960,11 @@ function add_tiles(q, src, occ, od, pd, f)
                         tile_attr(t.tx,t.ty, "o", occ)
                         if f then f(t.tx,t.ty) end
                         try=0
-						printh("placed*")
                     end
 				else
 					tile_attr(t.tx,t.ty, "o", occ)
 					if f then f(t.tx,t.ty) end
 					try=0
-					printh("placed")
 				end
 			end
         	
