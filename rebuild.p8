@@ -1553,10 +1553,10 @@ function help_init(auto)
 	function help_p1()
 		palt(2,true)
 		spr(14, 5,6, 2,2)
-		print("find as many alien eggs\nas you can in each level.\nyou need 20 eggs total", 26,8, 7)
-
+		print("explore planets until\nyou find and collect\n20 alien eggs", 26,8, 7)
+		
 		spr(12, 5,34, 2,2)
-		print("stand on beacon when\nthere are no more eggs\nto go to next level",26,34, 7)
+		print("stand on beacon when\nthere are no more eggs\nto go to next planet",26,34, 7)
 		
 		spr(9, 6,62, 2,1)
 		print("search bodies to find\nand equip weapons\n\n\nwatch the scrolling\ndisplay for help\n\n\nuse z for map scan\nuse x for weapon", 26,60,7)
@@ -1756,7 +1756,7 @@ end
 function few() 
 	local c=0
 	for k,v in pairs(actors) do if v.id<3 then c+=1 end end
-	if c<7 then return true end
+	if c<8 then return true end
 	return false
 end
 
