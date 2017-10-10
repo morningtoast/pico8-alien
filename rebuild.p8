@@ -207,7 +207,7 @@ function p_tiles(tile)
 
 		tile.bomb_st=1
 
-		if bomb_t==sec(2.5) then 
+		if bomb_t==sec(2) then 
 			curlvl.bombs=max(0,curlvl.bombs-1)
 
 
@@ -243,7 +243,7 @@ function p_tiles(tile)
 
 				if det_t==sec(4) then
 					det_st=2
-					tkr("detonation in 40 seconds;use transport beacon to escape",true)
+					tkr("detonation in 45 seconds;use transport beacon to escape",true)
                     sfx(19)
 					music(3,6000)
 					tile_attr(p_tx,p_ty)
@@ -1419,17 +1419,17 @@ end
 -- #intro
 function intro_init()
 	function intro_draw()
-		fd_update(3.5) 
+		fd_update() 
 		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
-		--if gt==sec(3.5) then fd_out() end
+		if gt==sec(3.5) then fd_out() end
 	end
     
     function p2()
         fd_init(title_init)
         cart(ef,function()
-            fd_update(2)
-            center_text("headphones;recommended", 40, fd_c)
-            --if gt==sec(2) then fd_out() end
+            fd_update()
+            center_text("for optimal experience;;headphones recommended", 40, fd_c)
+            if gt==sec(2) then fd_out() end
         end)
     end
     
@@ -1502,7 +1502,8 @@ function title_init()
 	grid={}
 	blood={}
 	levels={}
-	countdown=sec(40)
+	countdown=sec(45)
+
 	
 	local ty=-8
 	local hug={l={160,162,164,162},f=1,r=8}
@@ -1510,7 +1511,10 @@ function title_init()
 	local hugx=-16
 	local tc=12
 	
-	if tmo then tc=8 end
+	if tmo then 
+        tc=8
+        countdown=sec(45)
+    end
 	
 	fd_init()
 	
@@ -1561,7 +1565,7 @@ function help_init(auto)
 	function help_p1()
 		palt(2,true)
 		spr(14, 5,6, 2,2)
-		print("find alien eggs in\neach level. you need\n20 eggs to finish.", 26,8, 7)
+		print("find as many alien eggs\nas you can in each level.\nyou need 20 total.", 26,8, 7)
 
 		spr(12, 5,34, 2,2)
 		print("stand on beacon when\nthere are no more eggs\nto go to next level",26,34, 7)
@@ -1798,7 +1802,7 @@ function fd_init(f)
     fd_c=0
 end
 function fd_out() if fd_s<3 then fd_s=3 fd_t=0 end end
-function fd_update(ot)
+function fd_update()
     if fd_s==1 and fd_t==5 and fd_i<#fd_cl then
         fd_i=min(#fd_cl,fd_i+1)
         fd_c=fd_cl[fd_i]
@@ -1807,7 +1811,6 @@ function fd_update(ot)
     
     if fd_s==1 and fd_i==#fd_cl then 
     	fd_s=2
-    	if ot then if gt==sec(ot) then fd_out() end end
     end
     
     if fd_s==3 and fd_t==5 and fd_i>1 then
