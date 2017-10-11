@@ -325,6 +325,9 @@ end
 -- #levels
 function start_init()
 	music(-1)
+	
+	local rc=rnd_table({{3,4},{11,9},{11,4},{15,14},{9,4},{11,3},{2,1}})
+	
     if not finale then
         level_id+=1
 
@@ -339,7 +342,6 @@ function start_init()
 
 
         if level_id>5 or tmo then
-            local colors={{3,4},{11,9},{11,4},{15,14},{9,4},{11,3},{2,1}}
             local abc=split("a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p;q;r;s;t;u;w;v;y;z")
             local name=rnd_table(abc)..rnd_table(abc).."-"..random(75,850)
             local mw=random(4,6)
@@ -354,14 +356,14 @@ function start_init()
                 if mh<5 then mw=7 end
             end
 
-            curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rnd_table(colors)}	
+            curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rc}	
         else
             curlvl=levels[level_id]
         end
     else 
     	local mw,mh=8,4
     	if rnd()<.5 then mw,mh=4,8 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=5,hatch=15,aliens=1,snipers=5,bombs=3,colors={11,3}}	
+        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=5,hatch=15,aliens=1,snipers=5,bombs=3,colors=rc}	
     end
 	
 	
@@ -430,17 +432,16 @@ end
 
 -- #game play 
 function play_init()
-	p_x,p_y,p_spr=64,64,32
+	p_x,p_y,p_spr=0,0,32
 	p_anim={l={32,34,36,34},f=1,r=8}
 	p_cx,p_cy=p_x+8,p_y+8
 	p_st,p_flip,p_freeze=0,false,0 --p_st:1=unarmed,2=gun,3=bait
 	egg_t=sec(curlvl.hatch)
 	tran_st=0
 	
-	tkr_x=105
-	tkr_end=105
+	tkr_x,tkr_end,tkr_t=105,105,0
 	tkr_log={}
-	
+
 	sfx_n,sfx_l=3,3
 	sfx_t=sec(sfx_n)
 	
@@ -456,7 +457,7 @@ function play_init()
 	
 	local txt="arrival on "..curlvl.name
 	if finale then
-		tkr(txt..";find and arm 3 bombs;find detonator to start countdown",true)
+		tkr(txt..";find and arm 3 bombs",true)
 	else
 		tkr(txt..";scan shows "..curlvl.eggs.." eggs in range",true)	
 	end
@@ -538,15 +539,15 @@ function play_update()
 					gt=0
 				end
 			else
-				if gt>=sec(12) and det_st<1 then
+				if tkr_t>=sec(8) and det_st<1 then
 					tkr(curlvl.bombs.." bombs remaining",true)
-					gt=0
+					--gt=0
 				end
 			end
 		else
-			if gt>=sec(12) then
+			if tkr_t>=sec(8) then
 				_t()
-				gt=0
+				--gt=0
 			end
 		end
 	else
@@ -637,7 +638,7 @@ function tkr_next()
 	tkr_txt=tkr_log[1][1]
 	tkr_end=0-tkr_log[1][2]
 	del(tkr_log, tkr_log[1])
-	tkr_x=105 
+	tkr_x,tkr_t=105 ,0
 end
 
 function tkr_update()
@@ -646,6 +647,7 @@ function tkr_update()
 			
 		if tkr_x<=tkr_end and #tkr_log>0 then tkr_next() end
 	end
+	tkr_t+=1
 end
 
 function tkr_draw()
@@ -1296,10 +1298,9 @@ function gen_map(w,h)
 			grid[t.tx][t.ty].s=rnd_table(bush_sprites)
 		end
 	end
-    
-    
+
     if finale then
-    	add_tiles(curlvl.bombs, 2,7, 256,385,function(tx,ty)
+    	add_tiles(curlvl.bombs, 2,7, 256,256,function(tx,ty)
 			tile_attr(tx,ty, "bomb_st", 0)
 		end)
     end
@@ -1320,7 +1321,7 @@ function gen_map(w,h)
     
     
 	local empty=filter_tiles(0)
-	local half=flr(((map_w*8)*(map_h*8))*.2)
+	local half=flr((map_w*8)*(map_h*8)*.2)
 	for n=0,half do
 		local t=rnd_table(empty)
 		t.o=99
@@ -1644,37 +1645,48 @@ function victory_init()
     music(-1)
 	music(0,2000)
 	
-	local tmt=""
+	local unlock=false
 		
 	if tm<1 then 
-		tmt="+ terror mode unlocked +"
+		unlock=true
 		tm=1
 		dset(0,1) 
 	end
 	
 
-    function victory_update()
-        if btnzp and gt>sec(4) then title_init() end
+    function vic_update()
+        if btnzp and gt>sec(3) then 
+        	if unlock then
+        		unlock=false
+        		fd_init()
+        		cart(vic_update,vic_unlock)
+        	else
+        		title_init() 
+        	end
+        end
     end
     
-    function victory_draw()
+    function vic_draw()
 		local tc=fd_c
-		
-		
-    	if gt>sec(3) then
+    	if gt>sec(2.5) then
     		fd_update()
 			if fd_s==2 and fd_c==7 then tc=12 end
-			
+
 			center_text("mission accomplished",10, tc)
 			center_text("burke and the company have;been stopped once again.;but for how long?;;;;;press z to return home;;;"..tmt,30, fd_c)
-			
 		end
 		
 		spr(14,55,55,2,2)
+	end
+
+	function vic_unlock()
+		fd_update()
+		center_text("terror mode unlocked",20, fd_c)
+		center_text("press up on title screen;to toggle terror mode", 50, fd_c)
     end
 
 
-    cart(victory_update,victory_draw)	
+    cart(vic_update,vic_draw)	
 end
 
 
