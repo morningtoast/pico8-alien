@@ -14,75 +14,78 @@ txt_rtt="return to transport"
 
 -- #player
 function p_update()
-	if not mini_mode and p_freeze==0 then
-		mini_batt=max(mini_batt-1,0)
+	if gameover<1 then
+		if not mini_mode and p_freeze==0 then
+			mini_batt=max(mini_batt-1,0)
 
-		p_cx=p_x+8
-		p_cy=p_y+8
-		
-	    p_tx,p_ty=px_to_tile(p_cx,p_cy)
-		p_dx,p_dy,p_xdir,p_ydir=0,0,0,0
+			p_cx=p_x+8
+			p_cy=p_y+8
 
-	    local tile=get_tile(p_tx,p_ty)
-		
-		if btnl	then p_dx=-1 p_flip=true end
-		if btnr	then p_dx=1 p_flip=false end
-		if btnu	then p_dy=-1 end
-		if btnd	then p_dy=1 end
-		
-		
-		
-		if p_dx!=0 or p_dy!=0 then 
-			p_spr=anim(p_anim)
-		else
-			p_spr=anim(p_anim,true)
-		end
+			p_tx,p_ty=px_to_tile(p_cx,p_cy)
+			p_dx,p_dy,p_xdir,p_ydir=0,0,0,0
 
-		if not blocked(p_x,p_y, p_dx,p_dy, {y=6,x=6,w=4,h=4}) then
-			p_x+=p_dx
-			p_y+=p_dy
-		end
-		
-		
-	    
-	    p_tiles(tile)
+			local tile=get_tile(p_tx,p_ty)
 
-		if btnxp then
-			if p_st==2 then
-				sfx(13)
-				p_bullet()
+			if btnl	then p_dx=-1 p_flip=true end
+			if btnr	then p_dx=1 p_flip=false end
+			if btnu	then p_dy=-1 end
+			if btnd	then p_dy=1 end
+
+
+
+			if p_dx!=0 or p_dy!=0 then 
+				p_spr=anim(p_anim)
+			else
+				p_spr=anim(p_anim,true)
 			end
-			
-			if p_st==3 then
-				sfx(14)
-				add_bait(p_cx,p_cy)
+
+			if not blocked(p_x,p_y, p_dx,p_dy, {y=6,x=6,w=4,h=4}) then
+				p_x+=p_dx
+				p_y+=p_dy
 			end
-			
-			p_st=1
-			p_anim={l={32,34,36,34},f=1,r=8}
-			p_spr=anim(p_anim,true)
-		end
-		
-		if btnzp then
-			if not tmo then
-				if mini_batt<=0 then
-					sfx(17)
-					mini_mode=true
-					gen_mini()
+
+
+
+			p_tiles(tile)
+
+			if btnxp then
+				if p_st==2 then
+					sfx(13)
+					p_bullet()
+				end
+
+				if p_st==3 then
+					sfx(14)
+					add_bait(p_cx,p_cy)
+				end
+
+				p_st=1
+				p_anim={l={32,34,36,34},f=1,r=8}
+				p_spr=anim(p_anim,true)
+			end
+
+			if btnzp then
+				if not tmo then
+					if mini_batt<=0 then
+						sfx(17)
+						mini_mode=true
+						gen_mini()
+					else
+						sfx(12)
+						tkr("scanner battery recharging",true)
+					end
 				else
 					sfx(12)
-					tkr("scanner battery recharging",true)
+					tkr("scanner broken",true)
 				end
-			else
-				sfx(12)
-				tkr("scanner broken",true)
+			end
+		else
+			if btnzp and p_freeze==0 then
+				mini_mode=false
+				mini_batt=sec(7)
 			end
 		end
-	else
-		if btnzp and p_freeze==0 then
-			mini_mode=false
-			mini_batt=sec(7)
-		end
+		
 	end
 	
 	
@@ -150,31 +153,47 @@ function p_tiles(tile)
 	
 	-- #transport
 	if tile.o==6 then
+		local lt="wait at beacon. dropship landing;leaving "..curlvl.name
+		local ds="dropship unavailable"
 		if tran_st==0 then tran_st=1 end
 		
-		if curlvl.eggs>0 and p_eggs<20 and tran_t==0 then
-			sfx(12)
-			tkr("dropship unavailable;find remaining eggs",true)
-		end
-		
-		if (curlvl.eggs<=0 or p_eggs==20) then
-			if tran_t==0 then
+		if not finale then
+			if (curlvl.eggs<=0 or p_eggs==20) and tran_t==0 then
 				sfx(15)
-				tkr("wait at beacon. dropship landing;leaving "..curlvl.name,true)
-                tran_st=2
+				tkr(lt,true)
+				tran_st=2
+			else
+				if tran_t==0 then 
+					sfx(12)
+					tkr(ds..";find remaining eggs",true) 
+				end
 			end
 			
-			if tran_t==sec(8) then
-				if not finale then
-					if p_eggs==20 then
-						finale_init()
-					else
-						start_init()	
-					end
+			if tran_t==sec(8) and tran_st==2 then
+				if p_eggs==20 then
+					finale_init()
 				else
-					victory_init()	
+					start_init()	
+				end
+			end
+			
+		else
+			if det_st==2 then
+				if tran_t==0 then
+					sfx(15)
+					tkr(lt,true)
+					tran_st=2
 				end
 				
+				if tran_t==sec(8) and tran_st==2 then
+					victory_init()
+				end
+			else
+				
+				if tran_t==0 then 
+					sfx(12)
+					tkr(ds..";find detonator",true) 
+				end
 			end
 		end
 		
@@ -184,9 +203,7 @@ function p_tiles(tile)
 			sfx(12)
 			tkr("dropship canceled. "..txt_rtt,true)
 		end
-        tran_st=0
-		
-		tran_t=0
+        tran_t,tran_st=0,0
 	end
 	
 	
@@ -490,7 +507,7 @@ function play_update()
 			a.update(a)
 			a.t+=1
 			
-			if a.id<3 and a.st<99 and in_range(p_cx,p_cy, a.x,a.y,140) then
+			if a.id<3 and a.st<99 and sfx_n!=.3 and in_range(p_cx,p_cy, a.x,a.y,140) then
 				if in_range(p_cx,p_cy, a.x,a.y,75) then
 					sfx_n=min(.3,sfx_n)
 				else
@@ -521,7 +538,7 @@ function play_update()
 					gt=0
 				end
 			else
-				if gt>=sec(8) and det_st<1 then
+				if gt>=sec(12) and det_st<1 then
 					tkr(curlvl.bombs.." bombs remaining",true)
 					gt=0
 				end
@@ -862,7 +879,6 @@ function add_hugger(tx,ty)
 		chase=false,
 		navpath={},
 		tile={},
-		--anim={l={160,162,164,162},f=1,r=8},
 		anim=hug_anim,
 		update=function(self)
 			if self.st==2 then
@@ -1002,7 +1018,7 @@ function alien_update(self)
 
 	-- caught the player; end state and game over
 	if self.st<99 then
-		if in_range(self.cx,self.cy, p_cx,p_cy, 10) then
+		if in_range(self.cx,self.cy, p_cx,p_cy, 8) then
 			chg_st(self,98)
 			p_dead()
 		end
@@ -1494,14 +1510,13 @@ function title_init()
 
 	
 	local ty=-8
-	--local hug={l={160,162,164,162},f=1,r=8}
 	local hugspr=anim(hug_anim,true)
 	local hugx=-16
 	local tc=12
 	
 	if tmo then 
         tc=8
-        countdown=sec(45)
+        countdown=sec(30)
     end
 	
 	fd_init()
