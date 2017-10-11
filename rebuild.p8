@@ -5,6 +5,8 @@ __lua__
 --alien harvest
 --brian vaughn, 2017
 
+--https://twitter.com/@morningtoast
+
 ver="v1.0"
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
@@ -126,19 +128,17 @@ function p_tiles(tile)
 			tile_attr(p_tx,p_ty)
 			tkr("alien egg collected",true)
 			
-			if p_eggs<20 then tkr(curlvl.eggs.." eggs remaining") end
-			
-			if curlvl.eggs<=0 then
-				sfx(11)
-				
-				if p_eggs==20 then
-					tkr(cargo)	
-				else
+			if p_eggs<20 then 
+				if curlvl.eggs<=0 then
 					tkr(txt_rtt)
+				else
+					tkr(curlvl.eggs.." eggs remaining") 
 				end
-				
-				
+			else
+				tkr(cargo)
 			end
+			
+			
 		else
 			if tile_t==0 then
                 sfx(12)
@@ -169,7 +169,7 @@ function p_tiles(tile)
 				end
 			end
 			
-			if tran_t==sec(8) and tran_st==2 then
+			if tran_t==sec(7) and tran_st==2 then
 				if p_eggs==20 then
 					finale_init()
 				else
@@ -508,7 +508,7 @@ function play_update()
 			a.update(a)
 			a.t+=1
 			
-			if a.id<3 and a.st<99 and sfx_n!=.3 and in_range(p_cx,p_cy, a.x,a.y,140) then
+			if a.id<3 and a.st<99 and in_range(p_cx,p_cy, a.x,a.y,140) then
 				if in_range(p_cx,p_cy, a.x,a.y,75) then
 					sfx_n=min(.3,sfx_n)
 				else
@@ -541,14 +541,10 @@ function play_update()
 			else
 				if tkr_t>=sec(8) and det_st<1 then
 					tkr(curlvl.bombs.." bombs remaining",true)
-					--gt=0
 				end
 			end
 		else
-			if tkr_t>=sec(8) then
-				_t()
-				--gt=0
-			end
+			if tkr_t>=sec(8) then _t() end
 		end
 	else
 		--#gameover
