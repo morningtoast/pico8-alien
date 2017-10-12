@@ -897,10 +897,8 @@ function add_hugger(tx,ty)
 
 			if self.tile.o==4 then
 				tile_attr(self.tx,self.ty)
-				if few() then 
-					add_alien(self.tx,self.ty) 
-					del(actors,self)
-				end
+				add_alien(self.tx,self.ty) 
+				del(actors,self)
 			end
 		end,
 		draw=function(self)
