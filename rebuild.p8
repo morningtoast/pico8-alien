@@ -473,9 +473,9 @@ function play_update()
 	function _t()
 		if curlvl.eggs<=0 then
 			sfx(11)
-			tkr("no more eggs detected;"..txt_rtt)
+			return "no more eggs detected;"..txt_rtt
 		else
-			tkr(curlvl.eggs.." eggs remaining")
+			return curlvl.eggs.." eggs remaining"
 		end	
 	end
 	
@@ -494,7 +494,7 @@ function play_update()
 				tkr("egg hatch detected",true)
 				sfx(11)
 
-				if not finale then _t() end
+				if not finale then tkr(_t()) end
 
 				egg_t=sec(curlvl.hatch)
 			end
@@ -539,12 +539,16 @@ function play_update()
 					gt=0
 				end
 			else
-				if tkr_t>=sec(8) and det_st<1 then
-					tkr(curlvl.bombs.." bombs remaining",true)
+				if tkr_t==sec(8) and det_st<1 then
+					if curlvl.bombs>0 then
+						tkr(curlvl.bombs.." bombs remaining",true)
+					else
+						tkr("find detonator to start countdown",true)
+					end
 				end
 			end
 		else
-			if tkr_t>=sec(8) then _t() end
+			if tkr_t==sec(8) then tkr(_t(),true) end
 		end
 	else
 		--#gameover
@@ -631,17 +635,19 @@ function tkr(t,c)
 end
 
 function tkr_next()
-	tkr_txt=tkr_log[1][1]
-	tkr_end=0-tkr_log[1][2]
-	del(tkr_log, tkr_log[1])
-	tkr_x,tkr_t=105 ,0
+	if #tkr_log>0 then
+		tkr_txt=tkr_log[1][1]
+		tkr_end=0-tkr_log[1][2]
+		del(tkr_log, tkr_log[1])
+		tkr_x,tkr_t=105,0
+	end
 end
 
 function tkr_update()
 	if tkr_x>tkr_end then
-		tkr_x-=.8
+		tkr_x=min(tkr_end-1,tkr_x-.8)
 			
-		if tkr_x<=tkr_end and #tkr_log>0 then tkr_next() end
+		if tkr_x<=tkr_end then tkr_next() end
 	end
 	tkr_t+=1
 end
