@@ -1,3 +1,0 @@
-#!/bin/bash
-git commit -am "Minor tweak for debug"
-git push origin master
