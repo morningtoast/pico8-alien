@@ -6,7 +6,7 @@ __lua__
 
 --https://twitter.com/@morningtoast
 
-ver="v1.0"
+ver="v1.1"
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
 tm,tmo,gt=0,false,0
@@ -119,15 +119,15 @@ function p_tiles(tile)
 	
 	if tile.o==3 then
 		local cargo="cargo bay is full;"..txt_rtt
-		if p_eggs<20 then
-			p_eggs=min(p_eggs+1,20)
+		if p_eggs<quota then
+			p_eggs=min(p_eggs+1,quota)
 			curlvl.eggs=max(curlvl.eggs-1,0)
 			
             sfx(16)
 			tile_attr(p_tx,p_ty)
 			tkr("alien egg collected",true)
 			
-			if p_eggs<20 then 
+			if p_eggs<quota then 
 				if curlvl.eggs<=0 then
 					tkr(txt_rtt)
 				else
@@ -157,7 +157,7 @@ function p_tiles(tile)
 		if tran_st==0 then tran_st=1 end
 		
 		if not finale then
-			if (curlvl.eggs<=0 or p_eggs==20) and tran_t==0 then
+			if (curlvl.eggs<=0 or p_eggs==quota) and tran_t==0 then
 				sfx(15)
 				tkr(lt,true)
 				tran_st=2
@@ -168,8 +168,8 @@ function p_tiles(tile)
 				end
 			end
 			
-			if tran_t==sec(7) and tran_st==2 then
-				if p_eggs==20 then
+			if tran_t==sec(tran_w) and tran_st==2 then
+				if p_eggs==quota then
 					finale_init()
 				else
 					start_init()	
@@ -184,7 +184,7 @@ function p_tiles(tile)
 					tran_st=2
 				end
 				
-				if tran_t==sec(8) and tran_st==2 then
+				if tran_t==sec(tran_w) and tran_st==2 then
 					victory_init()
 				end
 			else
@@ -331,9 +331,9 @@ function start_init()
         level_id+=1
 
         local levels={
-            {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=35,aliens=0,snipers=0,colors={11,3}},
-            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=25,aliens=1,snipers=1,colors={11,4}},
-            {name="pv-418",w=5,h=3,bombs=0,bodies=7,eggs=5,hatch=25,aliens=2,snipers=2,colors={14,2}},
+            {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=40,aliens=0,snipers=0,colors={11,3}},
+            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=30,aliens=1,snipers=1,colors={11,4}},
+            {name="pv-418",w=5,h=3,bombs=0,bodies=7,eggs=4,hatch=25,aliens=2,snipers=2,colors={14,2}},
             {name="gva-1106",w=3,h=6,bombs=0,bodies=7,eggs=5,hatch=20,aliens=3,snipers=3,colors={9,4}},
             {name="bv-1031",w=5,h=5,bombs=0,bodies=9,eggs=6,hatch=20,aliens=3,snipers=5,colors={4,3}},
             {name="al-18",w=3,h=7,bombs=0,bodies=10,eggs=6,hatch=20,aliens=2,snipers=5,colors={2,1}}
@@ -362,7 +362,12 @@ function start_init()
     else 
     	local mw,mh=8,4
     	if rnd()<.5 then mw,mh=4,8 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=5,hatch=15,aliens=1,snipers=5,bombs=3,colors=rc}	
+        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=25,aliens=1,snipers=5,bombs=3,colors=rc}	
+		
+		if tmo then 
+			curlvl.hatch=15 
+			curlvl.eggs=5
+		end
     end
 	
 	
@@ -411,12 +416,12 @@ function draw_console(nologo)
 
 	if not nologo then zspr(74,2,2,90,103, 2, 1) end
 	
-	print("cargo bay: "..p_eggs.."/20",7,100,7)
+	print("cargo bay: "..p_eggs.."/"..quota,7,100,7)
 		
 	local ix=5
 	local iy=107
 
-	for n=1,20 do
+	for n=1,quota do
 		if n<=p_eggs then pal(13,10) end
 		spr(26,ix,iy,1,1) pal()
 		ix+=8
@@ -1505,12 +1510,13 @@ function title_init()
 	level_id=0
 	p_eggs=0
 	map_eggs=0
+	quota=12
 	gameover=0
 	grid={}
 	blood={}
 	levels={}
 	countdown=sec(40)
-
+	tran_w=5
 	
 	local ty=-8
 	local hugspr=anim(hug_anim,true)
@@ -1520,6 +1526,8 @@ function title_init()
 	if tmo then 
         tc=8
         countdown=sec(30)
+		quota=20
+		tran_w=7
     end
 	
 	fd_init()
@@ -1571,7 +1579,7 @@ function help_init(auto)
 	function help_p1()
 		palt(2,true)
 		spr(14, 5,6, 2,2)
-		print("explore planets until\nyou find and collect\n20 alien eggs", 26,8, 7)
+		print("explore planets until\nyou find and collect\n"..quota.." alien eggs", 26,8, 7)
 		
 		spr(12, 5,34, 2,2)
 		print("stand on beacon when\nthere are no more eggs\nto go to next planet",26,34, 7)
