@@ -6,7 +6,7 @@ __lua__
 
 --https://twitter.com/@morningtoast
 
-ver="v1.1"
+ver="v1.2"
 ef=function() end
 cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
 tm,tmo,gt=0,false,0
@@ -258,6 +258,7 @@ function p_tiles(tile)
                     sfx(19)
 					music(3,6000)
 					tile_attr(p_tx,p_ty)
+					curlvl.hatch-=7
 				end
 			end
 		else 
@@ -362,7 +363,7 @@ function start_init()
     else 
     	local mw,mh=8,4
     	if rnd()<.5 then mw,mh=4,8 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=25,aliens=1,snipers=5,bombs=3,colors=rc}	
+        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=1,snipers=5,bombs=3,colors=rc}	
 		
 		if tmo then 
 			curlvl.hatch=15 
