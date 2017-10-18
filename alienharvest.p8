@@ -135,6 +135,7 @@ function p_tiles(tile)
 				end
 			else
 				tkr(cargo)
+				sfx(11)
 			end
 			
 			
@@ -208,8 +209,6 @@ function p_tiles(tile)
 	
 	
 	-- #bombarm
-	-- bomb_st:0=unarmed;1=onhover
-	
 	if tile.o==7 then
 		if bomb_t==0 then 
 			sfx(18)
@@ -241,7 +240,6 @@ function p_tiles(tile)
 	
 	
 	-- #detonator
-	-- det_st: 0=unarmed;1=onhover
 	if tile.o==8 then
 		if curlvl.bombs==0 then
 			if det_st<2 then
@@ -363,7 +361,7 @@ function start_init()
     else 
     	local mw,mh=8,4
     	if rnd()<.5 then mw,mh=4,8 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=1,snipers=5,bombs=3,colors=rc}	
+        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=3,snipers=5,bombs=3,colors=rc}	
 		
 		if tmo then 
 			curlvl.hatch=15 
@@ -440,7 +438,7 @@ function play_init()
 	p_x,p_y,p_spr=0,0,32
 	p_anim={l={32,34,36,34},f=1,r=8}
 	p_cx,p_cy=p_x+8,p_y+8
-	p_st,p_flip,p_freeze=0,false,0 --p_st:1=unarmed,2=gun,3=bait
+	p_st,p_flip,p_freeze=0,false,0
 	egg_t=sec(curlvl.hatch)
 	tran_st=0
 	
@@ -491,21 +489,20 @@ function play_update()
 			if egg_t<=0 then
 				local t=get_random_tile(3)
 
-				curlvl.eggs-=1
+				if few() then 
+					curlvl.eggs-=1
+					add_hugger(t.tx,t.ty) 
+					tile_attr(t.tx,t.ty)
+					
+					tkr("egg hatch detected",true)
+					sfx(11)
 
-				if few() then add_hugger(t.tx,t.ty) end
-				tile_attr(t.tx,t.ty)
-
-				tkr("egg hatch detected",true)
-				sfx(11)
-
-				if not finale then tkr(_t()) end
+					if not finale then tkr(_t()) end
+				end
 
 				egg_t=sec(curlvl.hatch)
 			end
 		end
-		
-		
 	
 		sfx_n=3
 		
@@ -532,7 +529,6 @@ function play_update()
 
 		p_update()
 		
-		-- last level countdown ends, blow up!
 		if finale then
 			if det_st==2 then
 				countdown=max(-1,countdown-1) 
@@ -588,7 +584,7 @@ function play_update()
 end
 
 function play_draw()
-	camera(p_cx-64, p_cy-64)
+	camera(p_cx-64, p_cy-62)
 	palt(2,true)
 	palt(0,false)
 
@@ -1010,14 +1006,14 @@ function add_alien(tx,ty)
 end
 
 
--- #walker - common logic for alien actors that move around the map
+-- #walker
 function alien_update(self)
 	if self.st==99 and self.t>sec(3) then
 		del(actors,self)
 		return
 	end
 	
-	-- self is actor object - id:1=hugger,2=alien
+	-- id:1=hugger,2=alien
 	local id=self.id
 	local dest={}
 	
@@ -1026,7 +1022,7 @@ function alien_update(self)
 	self.tx,self.ty=px_to_tile(self.cx,self.cy)
 	self.tile=get_tile(self.tx,self.ty)
 
-	-- caught the player; end state and game over
+	-- caught the player
 	if self.st<99 then
 		if in_range(self.cx,self.cy, p_cx,p_cy, 8) then
 			chg_st(self,98)
@@ -1458,7 +1454,6 @@ end
 function story_init(go)
 	local sx=1
 	local lspr=14
-	--local hug={l={160,162,164,162},f=1,r=8}
 	local al={l={128,130,132,130},f=1,r=8}
 	local hugspr=anim(hug_anim,true)
 	local alspr=anim(al,true)
