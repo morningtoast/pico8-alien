@@ -4,7 +4,6 @@ __lua__
 --alien harvest
 --brian vaughn, 2017
 
-ver="v1.3"
 ef=function() end
 cart=function(u,d) cart_upd,cart_drw=u,d gt=0 end
 tm,tmo,gt=0,false,0
@@ -100,7 +99,7 @@ end
 function p_tiles(tile)
 	if tile.o==4 then
 		sfx(16)
-		if rnd()<.5 then
+		if yesno() then
 			p_st,p_spr=2,64
 			p_anim={l={64,66,68,66},f=1,r=8}
 			tkr("pulse rifle equipped",true)
@@ -373,7 +372,7 @@ function start_init()
         end
     else 
     	local mw,mh=8,4
-    	if rnd()<.5 then mw,mh=4,8 end 
+    	if yesno() then mw,mh=4,8 end 
         lvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=3,snipers=5,bombs=3,colors=rc}	
 		
 		if tmo then 
@@ -483,6 +482,8 @@ function play_init()
 	if level_id==1 then
 		tkr("press z for map scan;press x to use weapon")	
 	end
+	
+	l_egg=get_rndtile(3)
 
 	cart(play_upd,play_drw)
 end
@@ -498,23 +499,25 @@ function play_upd()
 	end
 	
 	if gameover<1 then
-		if lvl.eggs>0 then
+		if lvl.eggs>0 and few() then
 			egg_t=max(0,egg_t-1)
+			
+			if egg_t==sec(2) then
+				tile_attr(l_egg.tx,l_egg.ty,"s",999) --egg open sprite
+			end
 
 			if egg_t<=0 then
-				local t=get_rndtile(3)
+			 
+				lvl.eggs-=1
+				add_hugger(l_egg.tx,l_egg.ty) 
+				tile_attr(l_egg.tx,l_egg.ty)
+				
+				tkr("egg hatch detected",true)
+				sfx(11)
 
-				if few() then 
-					lvl.eggs-=1
-					add_hugger(t.tx,t.ty) 
-					tile_attr(t.tx,t.ty)
-					
-					tkr("egg hatch detected",true)
-					sfx(11)
-
-					if not finale then tkr(_t()) end
-				end
-
+				if not finale then tkr(_t()) end
+				if lvl.eggs>0 then l_egg=get_rndtile(3) end
+				
 				egg_t=sec(lvl.hatch)
 			end
 		end
@@ -873,7 +876,7 @@ function add_sniper(tx,ty)
 	if tx-1>1 then wt=grid[tx-1][ty] end
 
 	if et.o!=1 and wt.o!=1 then
-		if rnd()<.5 then obj.f=true end
+		if yesno() then obj.f=true end
 	else
 		if et.o==1 then 
 			obj.f=true
@@ -1194,8 +1197,8 @@ function draw_map()
 				spr(9,px,py+3,2,1)
 			end
             
-            if plot.o==3 then
-				spr(14,px,py,2,2)
+            if plot.o==3 then --14
+				spr(plot.s,px,py,2,2)
 			end
             
             if plot.o==5 then
@@ -1326,7 +1329,9 @@ function gen_map(w,h)
     end
 
     add_tiles(lvl.bodies, 0,4, 100,70)
-    add_tiles(lvl.eggs, 2,3, 130,130)
+    add_tiles(lvl.eggs, 2,3, 130,130, function(tx,ty)
+		tile_attr(tx,ty, "s", 14)
+	end)
 	lvl.eggs+=map_eggs
     
 	local ac=0
@@ -1341,11 +1346,11 @@ function gen_map(w,h)
     
     
 	local empty=filter_tiles(0)
-	local half=flr((map_w*8)*(map_h*8)*.2)
+	local half=flr(map_tilew*map_tileh*.2)
 	for n=0,half do
 		local t=rnd_table(empty)
 		t.o=99
-		if rnd()<.5 then t.s=7 else t.s=23 end
+		if yesno() then t.s=7 else t.s=23 end
 		t.h=rand(2)+1
 	end
 	
@@ -1446,7 +1451,7 @@ end
 function intro_init()
 	function intro_drw()
 		fd_upd() 
-		cprint("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
+		cprint("alien harvest v1.3;(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
 		if gt==sec(3.5) then fd_out() end
 	end
     
@@ -1454,7 +1459,7 @@ function intro_init()
         fd_init(title_init)
         cart(ef,function()
             fd_upd()
-            cprint("use headphones;for best experience", 40, fd_c)
+            cprint("enable sound;for best experience", 40, fd_c)
             if gt==sec(2.25) then fd_out() end
         end)
     end
@@ -1467,7 +1472,7 @@ end
 
 
 -- #story
-function story_init(go)
+function story_init()
 	local sx=1
 	local lspr=14
 	local al={l={128,130,132,130},f=1,r=8}
@@ -1477,15 +1482,11 @@ function story_init(go)
     fd_init()
 
 	function story_upd()
-		if btnxp or btnzp or gt>sec(12) then 
-			if go then 
-				start_init()
-				fp=false
-			else title_init() end 
+		if btnzp or gt>sec(12) then 
+			start_init()
+			fp=false
 		end
-		
-		
-		
+
 		if gt>sec(3) then
 			lspr=anim(hug_anim)
 			if sx>=80 then lspr=anim(al) end
@@ -1494,8 +1495,7 @@ function story_init(go)
 		end
         
         fd_upd()
-		
-		
+
 	end 
 
 	function story_drw()
@@ -1515,7 +1515,7 @@ end
 
 
 -- #title
-fp=true
+local fp=true
 hug_anim={l={160,162,164,162},f=1,r=8}
 function title_init()
 	finale=false
@@ -1544,7 +1544,7 @@ function title_init()
 				tran_w=5
 				quota=12
 				
-				if fp then story_init(true) else start_init() end 
+				if fp then story_init() else start_init() end 
 			end
 
 			if gst==3 and tm>0 then
@@ -1780,7 +1780,7 @@ end
 cartdata("ahmt2017")
 function _init()
 	tm=dget(0)
-	tm=1
+
 	intro_init()
 end
 
@@ -1820,6 +1820,7 @@ function cprint(s,y,c)
 		y+=8
 	end
 end
+function yesno() if rnd(.5)<n then return true end return false end
 
 function sprite_flip(d)
 	if d>.25 and d<.75 then return true end
@@ -2137,7 +2138,6 @@ function blocked(px,py, dx,dy, hbox)
 end
 
 
--- #astar
 function pathfind(startx,starty,goaltx,goalty)
 	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
 	local endpoint=pf_list[navpath[#navpath]]
