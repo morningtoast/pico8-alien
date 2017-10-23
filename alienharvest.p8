@@ -1427,7 +1427,7 @@ function intro_init()
         fd_init(title_init)
         cart(ef,function()
             fd_update()
-            center_text("headphones recommended;for best experience", 40, fd_c)
+            center_text("enable sound;for best experience", 40, fd_c)
             if gt==sec(2.25) then fd_out() end
         end)
     end
@@ -1496,6 +1496,7 @@ function title_init()
 	p_eggs=0
 	map_eggs=0
 	gameover=0
+    quota=12
 	grid={}
 	blood={}
 	levels={}
@@ -1560,7 +1561,7 @@ function title_init()
 		center_text("harvest",68,fd_c)
 		
 		if gt>sec(2.5) then
-			center_text("< "..label.." >",100,6)
+			center_text("< "..label.." >;press z to continue",100,6)
 		end
 		palt(2,true)
 		
@@ -1591,13 +1592,13 @@ function help_init(auto)
 	function help_p1()
 		palt(2,true)
 		spr(14, 5,6, 2,2)
-		print("explore planets until\nyou find and collect\n"..quota.." alien eggs", 26,8, 7)
+		print("explore planets until\nyou fill the cargo\nbay with alien eggs", 26,8, 7)
 		
 		spr(12, 5,34, 2,2)
-		print("stand on beacon when\nthere are no more eggs\nto go to next planet",26,34, 7)
+		print("stand on beacon when\negg counter shows 0\nto go to next planet",26,34, 7)
 		
 		spr(9, 6,62, 2,1)
-		print("search bodies to\nfind weapons\n\n\nwatch the scrolling\ndisplay for help\n\n\nuse z for map scan\nuse x for weapon", 26,60,7)
+		print("search bodies to\nequip weapons\n\n\n\n\142/z for map scan\n\n\151/x to use weapon", 26,60,7)
 				
 		
 		
