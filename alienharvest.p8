@@ -111,6 +111,15 @@ function p_tiles(tile)
 		end
 		
 		p_spr=anim(p_anim,true)
+		p_bodies+=1
+		bishop=false
+		
+		if tmo then 
+			if curlvl.bodies==p_bodies then
+				achv_c+=1
+				unlock(2)
+			end
+		end
 
 		tile_attr(p_tx,p_ty)
 	end
@@ -270,6 +279,12 @@ function p_tiles(tile)
 		end
 		det_t=0
 	end	
+	
+	
+	if tile.o==98 and det_st==2 then
+		tile_attr(p_tx,p_ty)
+		jones=true
+	end
 end
 
 function p_bullet()
@@ -321,7 +336,7 @@ end
 -- #levels
 function start_init()
 	music(-1)
-	
+
 	local rc=rnd_table({{3,4},{11,9},{11,4},{15,14},{9,4},{11,3},{2,1}})
 	
     if not finale then
@@ -365,8 +380,8 @@ function start_init()
 			curlvl.hatch=15 
 			curlvl.eggs=5
 		end
-    end
-	
+	end
+
 	
 	function start_update()
 		if btnzp or btnxp then play_init() end
@@ -393,7 +408,7 @@ function start_init()
 			print(curlvl.eggs.." eggs detected.\ncollect as many as you\ncan before they hatch.", ax,22, 7)
 
 			spr(12, 8,53, 2,2)
-			print("wait at beacon when\neggs are all gone\n",ax,55, 7)
+			print("wait at beacon when\neggs are gone\n",ax,55, 7)
 		end
 		
 		print("press z to start",ax,83, 11)
@@ -449,7 +464,9 @@ function play_init()
 	mini_mode=false
 	mini_batt=0
 	
-	a_count=0
+	h_kills=0
+	p_bodies=0
+	h_eggs=curlvl.eggs
 	
 	actors={}
 	bullets={}
@@ -1005,6 +1022,10 @@ end
 -- #walker
 function alien_update(self)
 	if self.st==99 and self.t>sec(3) then
+		if self.id==1 and level_id==3 then
+			h_kills+=1 
+			if h_kills==h_eggs then unlock(3) end
+		end
 		del(actors,self)
 		return
 	end
@@ -1142,7 +1163,7 @@ end
 
 
 -- #map
--- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;99=grass
+-- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;98=jones;99=grass
 function draw_map()
 	for x=1,map_tilew do
 		for y=1,map_tileh do
@@ -1184,6 +1205,10 @@ function draw_map()
 			if plot.o==6 then
 				if tran_st>0 then pal(12,8) pal(13,8) end
 				spr(12,px,py,2,2)
+			end
+			
+			if plot.o==98 then --jones
+				spr(99,px,py,1,1)
 			end
 
 			if plot.o==99 then
@@ -1296,6 +1321,8 @@ function gen_map(w,h)
     	add_tiles(curlvl.bombs, 2,7, 256,256,function(tx,ty)
 			tile_attr(tx,ty, "bomb_st", 0)
 		end)
+		
+		add_tiles(1, 0,98, 1,256) --jones
     end
 
     add_tiles(curlvl.bodies, 0,4, 100,70)
@@ -1499,6 +1526,8 @@ function title_init()
 	grid={}
 	blood={}
 	levels={}
+	achv_c=0
+	bishop=true
 	
 	local ty=-8
 	local hugspr=anim(hug_anim,true)
@@ -1509,9 +1538,8 @@ function title_init()
 	fd_init()
 
 	function title_update()		
-        if btnxp then help_init() end
 		if btnzp then
-			if tc==12 then
+			if gst==1 then
 				tmo=false
 				countdown=sec(40)
 				tran_w=5
@@ -1519,8 +1547,8 @@ function title_init()
 				
 				if firstplay then story_init(true) else start_init() end 
 			end
-			
-			if tc==8 and tm>0 then
+
+			if gst==3 and tm>0 then
 				tmo=true
 				countdown=sec(30)
 				quota=20
@@ -1529,24 +1557,37 @@ function title_init()
 				
 				start_init()
 			end
+			
+			if gst==2 then help_init() end
+			if gst==4 then achv_init() end
 
 		end
 
-		if btnp(2) and tm>0 then 
-            if tc==12 then tc=8 else tc=12 end
-        end
+		if btnp(2) then gst-=1 end
+		if btnp(3) then gst+=1 end
+		
+		if gst>4 then gst=1 end
+		if gst<1 then gst=4 end
+        
 		
 		if gt>sec(1.5) then fd_update() end
 		hugspr=anim(hug_anim)
 	end 
 	
 	function title_draw()
+		local label="normal mode"
+		
+		if gst==2 then label="how to play" end
+		if gst==3 then if tm>0 then label="terror mode" else label="mode locked" end end
+		if gst==4 then label="achievements" end
+		
+		
 		ty=min(60,ty+1)
 		center_text("a l i e n",ty,tc)
 		center_text("harvest",68,fd_c)
 		
 		if gt>sec(2.5) then
-			center_text("press z to start;press x for help",100,6)
+			center_text(label,100,6)
 		end
 		palt(2,true)
 		
@@ -1562,25 +1603,44 @@ function title_init()
 	cart(title_update,title_draw)
 end
 
-
+--[[achieve
+dget()
+0=terror
+1=no weapons
+2=all bodies
+3=huggers
+4=jones
+]]
 function achv_init()
     function achv_drw()
         center_text("achievements",10,12)
         
-        center_text("terror mode",30,5)
-        center_text("bishop's dozen",40,5)
-        center_text("bone collector",50,5)
-        center_text("no hugs",60,5)        
-        center_text("save jonesy",70,5)
+        if tm>0 then tc1=7 else tc1=5 end
+        if dget(1)>0 then tc2=7 else tc2=5 end
+        if dget(2)>0 then tc3=7 else tc3=5 end
+        if dget(3)>0 then tc4=7 else tc4=5 end
+        if dget(4)>0 then tc5=7 else tc5=5 end
+        
+        center_text("terror mode",30,tc1)
+        center_text("bishop's dozen",40,tc2)
+        center_text("bone collector",50,tc3)
+        center_text("no hugs",60,tc4)        
+        center_text("save jonesy",70,tc5)
         center_text("see manual for details",95,7)    
         
-        if gt>sec(1) and (btnxp or btnzp) then title_init() end
-        
+        if gt>sec(1) and btnzp then title_init() end
     end
-    
-    
-    
+
     cart(ef,achv_drw)
+end
+
+function unlock(id)
+	achv_c+=1
+	local c=dget(id)
+	if c<1 then
+		dset(id,1)
+		sfx(99)
+	end
 end
 
 
@@ -1672,20 +1732,19 @@ function victory_init()
     fd_init()
     music(-1)
 	music(0,2000)
-	
-	local unlock=false
-		
+
 	if tm<1 then 
-		unlock=true
 		tm=1
-		dset(0,1) 
+		unlock(0)
 	end
+	
+	if jones then unlock(4) end
+	if bishop then unlock(1) end
 	
 
     function vic_update()
         if btnzp and gt>sec(3) then 
-        	if unlock then
-        		unlock=false
+        	if achv_c>0 then
         		fd_init()
         		cart(vic_update,vic_unlock)
         	else
@@ -1709,7 +1768,7 @@ function victory_init()
 
 	function vic_unlock()
 		fd_update()
-		center_text("terror mode unlocked",40, fd_c)
+		center_text("achievement unlocked",40, fd_c)
     end
 
 
