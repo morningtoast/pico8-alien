@@ -1510,47 +1510,45 @@ function title_init()
 	
 	if tm>0 then tc=8 end
 	
-	function smode(n)
-		gst+=n
-		if gst>3 then gst=1 end
-		
-		if gst==1 then 
-			tmo=false
-			countdown=sec(40)
-			tran_w=5
-			quota=12
-		end
-		
-		if tm>0 and gst==3 then 
-			tmo=true
-			countdown=sec(30)
-			quota=20
-			tran_w=7
-			firstplay=false
-		end
-	end
-	
 	fd_init()
-	smode(0)
 
 	function title_update()
+		label="normal mode"
+		
 		if btnzp or btnxp then
-			if gst==1 or (gst==3 and tm>0) then
+			if gst==1 then
+				tmo=false
+				countdown=sec(40)
+				tran_w=5
+				quota=12
+				
 				if firstplay then story_init(true) else start_init() end 
 			end
 			
 			if gst==2 then help_init() end
+			
+			if gst==3 and tm>0 then
+				tmo=true
+				countdown=sec(30)
+				quota=20
+				tran_w=7
+				firstplay=false
+				
+				start_init()
+			end
 		end
+
+		if btnp(1) then gst+=1 end
+		if btnp(0) then gst-=1 end
 		
-		label="normal mode"
+		if gst>3 then gst=1 end
+		if gst<1 then gst=3 end
 		
 		if gst==2 then label="how to play" end
 		if gst==3 then 
 			if tm>0 then label="terror mode" else label="mode locked" end
 		end
 		
-		if btnp(1) then smode(1) end
-		if btnp(0) then smode(-1) end
 		
 		if gt>sec(1.5) then fd_update() end
 		hugspr=anim(hug_anim)
