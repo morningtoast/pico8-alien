@@ -6,13 +6,13 @@ __lua__
 
 ver="v1.3"
 ef=function() end
-cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
+cart=function(u,d) cart_upd,cart_drw=u,d gt=0 end
 tm,tmo,gt=0,false,0
 
 txt_rtt="return to transport beacon"
 
 -- #player
-function p_update()
+function p_upd()
 	if gameover<1 then
 		if not mini_mode and p_freeze==0 then
 			mini_batt=max(mini_batt-1,0)
@@ -91,7 +91,7 @@ function p_update()
 	if p_freeze>0 then p_freeze-=1 end
 end
 
-function p_draw()
+function p_drw()
 	if p_freeze>0 then pal(10,13) end
 	spr(p_spr, p_x,p_y, 2,2, p_flip)
 end
@@ -383,15 +383,15 @@ function start_init()
 	end
 
 	
-	function start_update()
+	function start_upd()
 		if btnzp or btnxp then play_init() end
 	end
 	
 	
-	function start_draw()
+	function start_drw()
 		draw_console()
 		
-		center_text("landing on: "..curlvl.name, 8, 10)
+		cprint("landing on: "..curlvl.name, 8, 10)
 		
 		local ax=32
 		if finale then
@@ -414,7 +414,7 @@ function start_init()
 		print("press z to start",ax,83, 11)
 	end
 	
-	cart(start_update,start_draw)
+	cart(start_upd,start_drw)
 	
 end
 
@@ -484,10 +484,10 @@ function play_init()
 		tkr("press z for map scan;press x to use weapon")	
 	end
 
-	cart(play_update,play_draw)
+	cart(play_upd,play_drw)
 end
 
-function play_update()
+function play_upd()
 	function _t()
 		if curlvl.eggs<=0 then
 			sfx(11)
@@ -542,7 +542,7 @@ function play_update()
 			sfx_t=sec(sfx_n)
 		end
 
-		p_update()
+		p_upd()
 		
 		if finale then
 			if det_st==2 then
@@ -594,27 +594,27 @@ function play_update()
         end
 	end
 
-	bullet_update()
-	tkr_update()
+	bullet_upd()
+	tkr_upd()
 end
 
-function play_draw()
+function play_drw()
 	camera(p_cx-64, p_cy-62)
 	palt(2,true)
 	palt(0,false)
 
 	draw_map()
 	
-	bullet_draw()
+	bullet_drw()
 	for i=1,#actors do
 		local a=actors[i]
 		a.draw(a) 
 	end
-	p_draw()
+	p_drw()
 	pal()
 	
 	camera(0,0)
-	tkr_draw()
+	tkr_drw()
 
 	if mini_mode then draw_mini() end
 	
@@ -626,7 +626,7 @@ function play_draw()
 	if gameover==2 then
 		circfill(64,64,nuke,7)	
 		if nuke==150 then
-			center_text("game over;;press z to restart",50,2)	
+			cprint("game over;;press z to restart",50,2)	
 		end
 	end
 end
@@ -662,7 +662,7 @@ function tkr_next()
 	end
 end
 
-function tkr_update()
+function tkr_upd()
 	if tkr_x>tkr_end then
 		tkr_x=max(tkr_end-1,tkr_x-.8)
 			
@@ -671,7 +671,7 @@ function tkr_update()
 	tkr_t+=1
 end
 
-function tkr_draw()
+function tkr_drw()
 	rectfill(0,117, 127,127, 1)
 	
 	if tkr_x>tkr_end then print(tkr_txt, tkr_x,120, 12) end
@@ -756,7 +756,7 @@ end
 
 
 -- #bullets
-function bullet_update()
+function bullet_upd()
 	for k,b in pairs(bullets) do
 		b.x+=b.dx
 		b.y+=b.dy
@@ -776,7 +776,7 @@ function bullet_update()
 end
 
 
-function bullet_draw()
+function bullet_drw()
 	for k,b in pairs(bullets) do circfill(b.x,b.y, 2, b.c) end
 end
 
@@ -912,7 +912,7 @@ function add_hugger(tx,ty)
 				end
 			end
 
-			alien_update(self)
+			alien_upd(self)
 
 			if self.tile.o==4 then
 				tile_attr(self.tx,self.ty)
@@ -965,7 +965,7 @@ function add_alien(tx,ty)
 				end
 			end
 		
-			alien_update(self)
+			alien_upd(self)
 			
 			if self.st==10 then
 				local heading   = atan2(self.bait.x-self.x, self.bait.y-self.y) 
@@ -1020,7 +1020,7 @@ end
 
 
 -- #walker
-function alien_update(self)
+function alien_upd(self)
 	if self.st==99 and self.t>sec(3) then
 		if self.id==1 and level_id==3 then
 			h_kills+=1 
@@ -1444,17 +1444,17 @@ end
 
 -- #intro
 function intro_init()
-	function intro_draw()
-		fd_update() 
-		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
+	function intro_drw()
+		fd_upd() 
+		cprint("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
 		if gt==sec(3.5) then fd_out() end
 	end
     
     function p2()
         fd_init(title_init)
         cart(ef,function()
-            fd_update()
-            center_text("use headphones;for best experience", 40, fd_c)
+            fd_upd()
+            cprint("use headphones;for best experience", 40, fd_c)
             if gt==sec(2.25) then fd_out() end
         end)
     end
@@ -1462,7 +1462,7 @@ function intro_init()
     fd_init(p2)
 	music(0,4000)
 	
-	cart(ef,intro_draw)
+	cart(ef,intro_drw)
 end
 
 
@@ -1476,7 +1476,7 @@ function story_init(go)
 
     fd_init()
 
-	function story_update()
+	function story_upd()
 		if btnxp or btnzp or gt>sec(12) then 
 			if go then 
 				start_init()
@@ -1493,13 +1493,13 @@ function story_init(go)
 			sx=min(sx+.5,130)
 		end
         
-        fd_update()
+        fd_upd()
 		
 		
 	end 
 
-	function story_draw()
-		center_text("dylan burke is finishing the;job his father failed to;complete on lv-426.;;he must be stopped.;;;explore planets and collect;alien eggs before burke can;get to them.",8, fd_c)
+	function story_drw()
+		cprint("dylan burke is finishing the;job his father failed to;complete on lv-426.;;he must be stopped.;;;explore planets and collect;alien eggs before burke can;get to them.",8, fd_c)
 		palt(2,true)
 		spr(lspr,sx,105,2,2)
 		if sx<80 then spr(9, 80,111,2,1) end
@@ -1507,7 +1507,7 @@ function story_init(go)
 	end
 
 
-	cart(story_update,story_draw)
+	cart(story_upd,story_drw)
 end
 
 
@@ -1533,11 +1533,10 @@ function title_init()
 	local hugspr=anim(hug_anim,true)
 	local hugx=-16
 	local gst=1
-	local tc=12
-	
+
 	fd_init()
 
-	function title_update()		
+	function title_upd()		
 		if btnzp then
 			if gst==1 then
 				tmo=false
@@ -1570,11 +1569,11 @@ function title_init()
 		if gst<1 then gst=4 end
         
 		
-		if gt>sec(1.5) then fd_update() end
+		if gt>sec(1.5) then fd_upd() end
 		hugspr=anim(hug_anim)
 	end 
 	
-	function title_draw()
+	function title_drw()
 		local label="normal mode"
 		
 		if gst==2 then label="how to play" end
@@ -1583,11 +1582,11 @@ function title_init()
 		
 		
 		ty=min(60,ty+1)
-		center_text("a l i e n",ty,tc)
-		center_text("harvest",68,fd_c)
+		cprint("a l i e n",ty,12)
+		cprint("harvest",68,fd_c)
 		
 		if gt>sec(2.5) then
-			center_text(label,100,6)
+			cprint(label,100,6)
 		end
 		palt(2,true)
 		
@@ -1600,7 +1599,7 @@ function title_init()
 		
 	end
 	
-	cart(title_update,title_draw)
+	cart(title_upd,title_drw)
 end
 
 --[[achieve
@@ -1613,7 +1612,7 @@ dget()
 ]]
 function achv_init()
     function achv_drw()
-        center_text("achievements",10,12)
+        cprint("achievements",10,12)
         
         if tm>0 then tc1=7 else tc1=5 end
         if dget(1)>0 then tc2=7 else tc2=5 end
@@ -1621,12 +1620,12 @@ function achv_init()
         if dget(3)>0 then tc4=7 else tc4=5 end
         if dget(4)>0 then tc5=7 else tc5=5 end
         
-        center_text("terror mode",30,tc1)
-        center_text("bishop's dozen",40,tc2)
-        center_text("bone collector",50,tc3)
-        center_text("no hugs",60,tc4)        
-        center_text("save jonesy",70,tc5)
-        center_text("see manual for details",95,7)    
+        cprint("terror mode",30,tc1)
+        cprint("bishop's dozen",40,tc2)
+        cprint("bone collector",50,tc3)
+        cprint("no hugs",60,tc4)        
+        cprint("save jonesy",70,tc5)
+        cprint("see manual for details",95,7)    
         
         if gt>sec(1) and btnzp then title_init() end
     end
@@ -1646,7 +1645,7 @@ end
 
 -- #help
 function help_init(auto)
-	function help_update()
+	function help_upd()
 		if btnxp or btnzp then cart(help_last, help_p2) end
 	end
 	
@@ -1681,7 +1680,7 @@ function help_init(auto)
 		print("bait will distract\naliens", 28,30,7)
 		
 
-		center_text("avoid aliens", 52, 8)
+		cprint("avoid aliens", 52, 8)
 
 		spr(160, 6,60, 2,2) 
 		print("facehuggers find bodies\nto become aliens",28,62, 7)
@@ -1699,7 +1698,7 @@ function help_init(auto)
 		rect(2,2,125,125,12)
 	end
 	
-	cart(help_update, help_p1)
+	cart(help_upd, help_p1)
 end
 
 
@@ -1710,20 +1709,20 @@ function finale_init()
     finale=true
     fd_init()
 
-    function finale_update()
-        fd_update()
+    function finale_upd()
+        fd_upd()
         if btnzp then start_init() end
     end
     
     
-    function finale_draw()
-        center_text("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
+    function finale_drw()
+        cprint("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
         
-        if gt>sec(3) then center_text("press z to continue",100,6) end
+        if gt>sec(3) then cprint("press z to continue",100,6) end
     end
 
 
-    cart(finale_update,finale_draw)
+    cart(finale_upd,finale_drw)
 end
 
 
@@ -1740,39 +1739,38 @@ function victory_init()
 	
 	if jones then unlock(4) end
 	if bishop then unlock(1) end
-	
 
-    function vic_update()
+    function vic_upd()
         if btnzp and gt>sec(3) then 
         	if achv_c>0 then
         		fd_init()
-        		cart(vic_update,vic_unlock)
+        		cart(vic_upd,vic_unlock)
         	else
         		title_init() 
         	end
         end
     end
     
-    function vic_draw()
+    function vic_drw()
 		local tc=fd_c
     	if gt>sec(2.5) then
-    		fd_update()
+    		fd_upd()
 			if fd_s==2 and fd_c==7 then tc=12 end
 
-			center_text("mission accomplished",10, tc)
-			center_text("burke and the company have;been stopped once again.;but for how long?;;;;;press z to return home;;;",30, fd_c)
+			cprint("mission accomplished",10, tc)
+			cprint("burke and the company have;been stopped once again.;but for how long?;;;;;press z to return home;;;",30, fd_c)
 		end
 		
 		spr(14,55,55,2,2)
 	end
 
 	function vic_unlock()
-		fd_update()
-		center_text("achievement unlocked",40, fd_c)
+		fd_upd()
+		cprint("achievement unlocked",40, fd_c)
     end
 
 
-    cart(vic_update,vic_draw)	
+    cart(vic_upd,vic_drw)	
 end
 
 
@@ -1795,15 +1793,15 @@ function _update60()
 	btnzp=btnp(4)
 	btnxp=btnp(5)
 	
-	cart_update()
+	cart_upd()
 
 	gt=min(25000,gt+1)
 end
 
 
-function _draw()
+function _drw()
 	cls()
-	cart_draw()
+	cart_drw()
 end
 
 
@@ -1814,7 +1812,7 @@ end
 function chg_st(o,ns) o.t=0 o.st=ns end
 function rand(x) return flr(rnd(x)) end
 function sec(f) return flr(f*60) end
-function center_text(s,y,c) 
+function cprint(s,y,c) 
 	local all=split(s)
 	for n=1,#all do
 		local t=all[n]
@@ -1903,7 +1901,7 @@ function fd_init(f)
     fd_c=0
 end
 function fd_out() if fd_s<3 then fd_s=3 fd_t=0 end end
-function fd_update()
+function fd_upd()
     if fd_s==1 and fd_t==5 and fd_i<#fd_cl then
         fd_i=min(#fd_cl,fd_i+1)
         fd_c=fd_cl[fd_i]
