@@ -115,7 +115,7 @@ function p_tiles(tile)
 		bishop=false
 		
 		if tmo then 
-			if curlvl.bodies==p_bodies then
+			if lvl.bodies==p_bodies then
 				achv_c+=1
 				unlock(2)
 			end
@@ -128,17 +128,17 @@ function p_tiles(tile)
 		local cargo="cargo bay is full;"..txt_rtt
 		if p_eggs<quota then
 			p_eggs=min(p_eggs+1,quota)
-			curlvl.eggs=max(curlvl.eggs-1,0)
+			lvl.eggs=max(lvl.eggs-1,0)
 			
             sfx(16)
 			tile_attr(p_tx,p_ty)
 			tkr("alien egg collected",true)
 			
 			if p_eggs<quota then 
-				if curlvl.eggs<=0 then
+				if lvl.eggs<=0 then
 					tkr(txt_rtt)
 				else
-					tkr(curlvl.eggs.." eggs remaining") 
+					tkr(lvl.eggs.." eggs remaining") 
 				end
 			else
 				tkr(cargo)
@@ -160,12 +160,12 @@ function p_tiles(tile)
 	
 	-- #transport
 	if tile.o==6 then
-		local lt="wait at beacon. dropship landing;leaving "..curlvl.name
+		local lt="wait at beacon. dropship landing;leaving "..lvl.name
 		local ds="dropship unavailable"
 		if tran_st==0 then tran_st=1 end
 		
 		if not finale then
-			if (curlvl.eggs<=0 or p_eggs==quota) and tran_t==0 then
+			if (lvl.eggs<=0 or p_eggs==quota) and tran_t==0 then
 				sfx(15)
 				tkr(lt,true)
 				tran_st=2
@@ -193,7 +193,7 @@ function p_tiles(tile)
 				end
 				
 				if tran_t==sec(tran_w) and tran_st==2 then
-					victory_init()
+					vic_init()
 				end
 			else
 				
@@ -225,14 +225,14 @@ function p_tiles(tile)
 		tile.bomb_st=1
 
 		if bomb_t==sec(2) then 
-			curlvl.bombs=max(0,curlvl.bombs-1)
+			lvl.bombs=max(0,lvl.bombs-1)
 
 
 			sfx(11)
 			tkr("bomb armed and ready",true) 
 
-			if curlvl.bombs>0 then
-				tkr(curlvl.bombs.." bombs remaining") 
+			if lvl.bombs>0 then
+				tkr(lvl.bombs.." bombs remaining") 
 			else
 				tkr("all bombs armed;find detonator") 
 			end
@@ -248,7 +248,7 @@ function p_tiles(tile)
 	
 	-- #detonator
 	if tile.o==8 then
-		if curlvl.bombs==0 then
+		if lvl.bombs==0 then
 			if det_st<2 then
 				if det_t==0 then
                     sfx(18)
@@ -263,7 +263,7 @@ function p_tiles(tile)
                     sfx(19)
 					music(3,6000)
 					tile_attr(p_tx,p_ty)
-					curlvl.hatch-=7
+					lvl.hatch-=7
 				end
 			end
 		else 
@@ -367,18 +367,18 @@ function start_init()
                 if mh<5 then mw=7 end
             end
 
-            curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rc}	
+            lvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rc}	
         else
-            curlvl=levels[level_id]
+            lvl=levels[level_id]
         end
     else 
     	local mw,mh=8,4
     	if rnd()<.5 then mw,mh=4,8 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=3,snipers=5,bombs=3,colors=rc}	
+        lvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=3,snipers=5,bombs=3,colors=rc}	
 		
 		if tmo then 
-			curlvl.hatch=15 
-			curlvl.eggs=5
+			lvl.hatch=15 
+			lvl.eggs=5
 		end
 	end
 
@@ -391,7 +391,7 @@ function start_init()
 	function start_drw()
 		draw_console()
 		
-		cprint("landing on: "..curlvl.name, 8, 10)
+		cprint("landing on: "..lvl.name, 8, 10)
 		
 		local ax=32
 		if finale then
@@ -405,7 +405,7 @@ function start_init()
 			print("wait at transport\nbeacon to escape",ax,61, 7)
 		else
 			spr(14, 8,18, 2,2)
-			print(curlvl.eggs.." eggs detected.\ncollect as many as you\ncan before they hatch.", ax,22, 7)
+			print(lvl.eggs.." eggs detected.\ncollect as many as you\ncan before they hatch.", ax,22, 7)
 
 			spr(12, 8,53, 2,2)
 			print("wait at beacon when\neggs are gone\n",ax,55, 7)
@@ -452,7 +452,7 @@ function play_init()
 	p_anim={l={32,34,36,34},f=1,r=8}
 	p_cx,p_cy=p_x+8,p_y+8
 	p_st,p_flip,p_freeze=0,false,0
-	egg_t=sec(curlvl.hatch)
+	egg_t=sec(lvl.hatch)
 	tran_st=0
 	
 	tkr_x,tkr_end,tkr_t=105,105,0
@@ -466,18 +466,18 @@ function play_init()
 	
 	h_kills=0
 	p_bodies=0
-	h_eggs=curlvl.eggs
+	h_eggs=lvl.eggs
 	
 	actors={}
 	bullets={}
 
-	gen_map(curlvl.w,curlvl.h)
+	gen_map(lvl.w,lvl.h)
 	
-	local txt="arrival on "..curlvl.name
+	local txt="arrival on "..lvl.name
 	if finale then
 		tkr(txt..";find and arm 3 bombs",true)
 	else
-		tkr(txt..";scan shows "..curlvl.eggs.." eggs in range",true)	
+		tkr(txt..";scan shows "..lvl.eggs.." eggs in range",true)	
 	end
 
 	if level_id==1 then
@@ -489,23 +489,23 @@ end
 
 function play_upd()
 	function _t()
-		if curlvl.eggs<=0 then
+		if lvl.eggs<=0 then
 			sfx(11)
 			return "no more eggs detected;"..txt_rtt
 		else
-			return curlvl.eggs.." eggs remaining"
+			return lvl.eggs.." eggs remaining"
 		end	
 	end
 	
 	if gameover<1 then
-		if curlvl.eggs>0 then
+		if lvl.eggs>0 then
 			egg_t=max(0,egg_t-1)
 
 			if egg_t<=0 then
-				local t=get_random_tile(3)
+				local t=get_rndtile(3)
 
 				if few() then 
-					curlvl.eggs-=1
+					lvl.eggs-=1
 					add_hugger(t.tx,t.ty) 
 					tile_attr(t.tx,t.ty)
 					
@@ -515,7 +515,7 @@ function play_upd()
 					if not finale then tkr(_t()) end
 				end
 
-				egg_t=sec(curlvl.hatch)
+				egg_t=sec(lvl.hatch)
 			end
 		end
 	
@@ -556,8 +556,8 @@ function play_upd()
 				end
 			else
 				if tkr_t==sec(8) and det_st<1 then
-					if curlvl.bombs>0 then
-						tkr(curlvl.bombs.." bombs remaining",true)
+					if lvl.bombs>0 then
+						tkr(lvl.bombs.." bombs remaining",true)
 					else
 						tkr("find detonator to start countdown",true)
 					end
@@ -689,7 +689,7 @@ function tkr_drw()
 		print(clock(countdown), 106,120, 6)
 	else
 		spr(26, 118,119)
-		print(curlvl.eggs, 113,120, 6)
+		print(lvl.eggs, 113,120, 6)
 	end
 end
 
@@ -858,7 +858,7 @@ function add_sniper(tx,ty)
 					t.s=rnd_table(bush_sprites)
 					del(actors,self)
 					
-					local loc=get_random_tile(1)
+					local loc=get_rndtile(1)
 					add_sniper(loc.tx,loc.ty)
 				end
 			end
@@ -1063,7 +1063,7 @@ function alien_upd(self)
 			if not near then 
 				near={tx=self.tx,ty=self.ty}
 				while near.tx==self.tx and near.ty==self.ty do
-					near=get_random_tile(0) 
+					near=get_rndtile(0) 
 				end
 			end
 
@@ -1171,8 +1171,8 @@ function draw_map()
 			local px,py=tile_to_px(x,y)
 			
 			if plot.o==1 then
-				pal(11,curlvl.colors[1])
-				pal(3,curlvl.colors[2])
+				pal(11,lvl.colors[1])
+				pal(3,lvl.colors[2])
 				spr(plot.s, px, py, 2,2)
 				
 			end
@@ -1304,7 +1304,7 @@ function gen_map(w,h)
 	end
     
     if #snipers>0 then
-		for n=1,curlvl.snipers do
+		for n=1,lvl.snipers do
 			local t=rnd_table(snipers)
 
             add_sniper(t.tx,t.ty)
@@ -1318,20 +1318,20 @@ function gen_map(w,h)
 	end
 
     if finale then
-    	add_tiles(curlvl.bombs, 2,7, 256,256,function(tx,ty)
+    	add_tiles(lvl.bombs, 2,7, 256,256,function(tx,ty)
 			tile_attr(tx,ty, "bomb_st", 0)
 		end)
 		
 		add_tiles(1, 0,98, 1,256) --jones
     end
 
-    add_tiles(curlvl.bodies, 0,4, 100,70)
-    add_tiles(curlvl.eggs, 2,3, 130,130)
-	curlvl.eggs+=map_eggs
+    add_tiles(lvl.bodies, 0,4, 100,70)
+    add_tiles(lvl.eggs, 2,3, 130,130)
+	lvl.eggs+=map_eggs
     
 	local ac=0
-	while ac<curlvl.aliens do
-		local t=get_random_tile(0)
+	while ac<lvl.aliens do
+		local t=get_rndtile(0)
 		
 		if not in_range(t.x,t.y, p_cx,p_cy, 150) then
 			add_alien(t.tx,t.ty)
@@ -1392,7 +1392,7 @@ function create_screen(mx,my, lx,ly)
 			end
 
 			-- sniper/bush
-			if pxc==3 and curlvl.snipers>0 then 
+			if pxc==3 and lvl.snipers>0 then 
 				tile.o=5
 				tile.s=bspr
 				tile.w=false
@@ -1480,7 +1480,7 @@ function story_init(go)
 		if btnxp or btnzp or gt>sec(12) then 
 			if go then 
 				start_init()
-				firstplay=false
+				fp=false
 			else title_init() end 
 		end
 		
@@ -1515,7 +1515,7 @@ end
 
 
 -- #title
-firstplay=true
+fp=true
 hug_anim={l={160,162,164,162},f=1,r=8}
 function title_init()
 	finale=false
@@ -1544,7 +1544,7 @@ function title_init()
 				tran_w=5
 				quota=12
 				
-				if firstplay then story_init(true) else start_init() end 
+				if fp then story_init(true) else start_init() end 
 			end
 
 			if gst==3 and tm>0 then
@@ -1552,7 +1552,7 @@ function title_init()
 				countdown=sec(30)
 				quota=20
 				tran_w=7
-				firstplay=false
+				fp=false
 				
 				start_init()
 			end
@@ -1614,11 +1614,11 @@ function achv_init()
     function achv_drw()
         cprint("achievements",10,12)
         
-        if tm>0 then tc1=7 else tc1=5 end
-        if dget(1)>0 then tc2=7 else tc2=5 end
-        if dget(2)>0 then tc3=7 else tc3=5 end
-        if dget(3)>0 then tc4=7 else tc4=5 end
-        if dget(4)>0 then tc5=7 else tc5=5 end
+        if tm>0 then tc1=7 else tc1=1 end
+        if dget(1)>0 then tc2=7 else tc2=1 end
+        if dget(2)>0 then tc3=7 else tc3=1 end
+        if dget(3)>0 then tc4=7 else tc4=1 end
+        if dget(4)>0 then tc5=7 else tc5=1 end
         
         cprint("terror mode",30,tc1)
         cprint("bishop's dozen",40,tc2)
@@ -1727,7 +1727,7 @@ end
 
 
 -- #victory
-function victory_init()
+function vic_init()
     fd_init()
     music(-1)
 	music(0,2000)
@@ -2002,7 +2002,7 @@ function tile_attr(tx,ty, key, val)
 	return grid[tx][ty]
 end
 
-function get_random_tile(occ)
+function get_rndtile(occ)
 	local list=filter_tiles(occ)
 	
 	if #list>0 then
@@ -2054,7 +2054,7 @@ function add_tiles(q, src, occ, od, pd, f)
 		
 		local sim=filter_tiles(occ)
 		while try>0 and esc<50 do
-			local t=get_random_tile(src)
+			local t=get_rndtile(src)
             local safe=0
 			
 			try+=1
