@@ -1427,7 +1427,7 @@ function intro_init()
         fd_init(title_init)
         cart(ef,function()
             fd_update()
-            center_text("enable sound;for best experience", 40, fd_c)
+            center_text("use headphones;for best experience", 40, fd_c)
             if gt==sec(2.25) then fd_out() end
         end)
     end
@@ -1496,28 +1496,22 @@ function title_init()
 	p_eggs=0
 	map_eggs=0
 	gameover=0
-    quota=12
 	grid={}
 	blood={}
 	levels={}
-	
 	
 	local ty=-8
 	local hugspr=anim(hug_anim,true)
 	local hugx=-16
 	local gst=1
-	local label=""
 	local tc=12
-	
-	if tm>0 then tc=8 end
 	
 	fd_init()
 
-	function title_update()
-		label="normal mode"
-		
-		if btnzp or btnxp then
-			if gst==1 then
+	function title_update()		
+        if btnxp then help_init() end
+		if btnzp then
+			if tc==12 then
 				tmo=false
 				countdown=sec(40)
 				tran_w=5
@@ -1526,9 +1520,7 @@ function title_init()
 				if firstplay then story_init(true) else start_init() end 
 			end
 			
-			if gst==2 then help_init() end
-			
-			if gst==3 and tm>0 then
+			if tc==8 and tm>0 then
 				tmo=true
 				countdown=sec(30)
 				quota=20
@@ -1537,19 +1529,12 @@ function title_init()
 				
 				start_init()
 			end
+
 		end
 
-		if btnp(1) then gst+=1 end
-		if btnp(0) then gst-=1 end
-		
-		if gst>3 then gst=1 end
-		if gst<1 then gst=3 end
-		
-		if gst==2 then label="how to play" end
-		if gst==3 then 
-			if tm>0 then label="terror mode" else label="mode locked" end
-		end
-		
+		if btnp(2) and tm>0 then 
+            if tc==12 then tc=8 else tc=12 end
+        end
 		
 		if gt>sec(1.5) then fd_update() end
 		hugspr=anim(hug_anim)
@@ -1561,7 +1546,7 @@ function title_init()
 		center_text("harvest",68,fd_c)
 		
 		if gt>sec(2.5) then
-			center_text("< "..label.." >;press z to continue",100,6)
+			center_text("press z to start;press x for help",100,6)
 		end
 		palt(2,true)
 		
@@ -1577,6 +1562,26 @@ function title_init()
 	cart(title_update,title_draw)
 end
 
+
+function achv_init()
+    function achv_drw()
+        center_text("achievements",10,12)
+        
+        center_text("terror mode",30,5)
+        center_text("bishop's dozen",40,5)
+        center_text("bone collector",50,5)
+        center_text("no hugs",60,5)        
+        center_text("save jonesy",70,5)
+        center_text("see manual for details",95,7)    
+        
+        if gt>sec(1) and (btnxp or btnzp) then title_init() end
+        
+    end
+    
+    
+    
+    cart(ef,achv_drw)
+end
 
 
 -- #help
@@ -1598,7 +1603,7 @@ function help_init(auto)
 		print("stand on beacon when\negg counter shows 0\nto go to next planet",26,34, 7)
 		
 		spr(9, 6,62, 2,1)
-		print("search bodies to\nequip weapons\n\n\n\n\142/z for map scan\n\n\151/x to use weapon", 26,60,7)
+		print("search bodies to\nequip weapons\n\n\n\n\142 or z for map scan\n\n\151 or x to use weapon", 26,60,7)
 				
 		
 		
@@ -1718,7 +1723,7 @@ end
 cartdata("ahmt2017")
 function _init()
 	tm=dget(0)
-	
+	tm=1
 	intro_init()
 end
 
