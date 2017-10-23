@@ -449,8 +449,6 @@ function play_init()
 	mini_mode=false
 	mini_batt=0
 	
-	a_count=0
-	
 	actors={}
 	bullets={}
 
@@ -1503,7 +1501,6 @@ function title_init()
 	local ty=-8
 	local hugspr=anim(hug_anim,true)
 	local hugx=-16
-	local gst=1
 	local tc=12
 	
 	fd_init()
@@ -1560,27 +1557,6 @@ function title_init()
 	end
 	
 	cart(title_update,title_draw)
-end
-
-
-function achv_init()
-    function achv_drw()
-        center_text("achievements",10,12)
-        
-        center_text("terror mode",30,5)
-        center_text("bishop's dozen",40,5)
-        center_text("bone collector",50,5)
-        center_text("no hugs",60,5)        
-        center_text("save jonesy",70,5)
-        center_text("see manual for details",95,7)    
-        
-        if gt>sec(1) and (btnxp or btnzp) then title_init() end
-        
-    end
-    
-    
-    
-    cart(ef,achv_drw)
 end
 
 
@@ -1723,7 +1699,7 @@ end
 cartdata("ahmt2017")
 function _init()
 	tm=dget(0)
-	tm=1
+	
 	intro_init()
 end
 
