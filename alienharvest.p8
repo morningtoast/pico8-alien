@@ -273,7 +273,7 @@ function p_tiles(tile)
 	else
 		if det_st==1 then
 			sfx(12)
-			tkr("countdown aborted. return to detonator",true)
+			tkr("countdown aborted",true)
 			det_st=0
 		end
 		det_t=0
@@ -384,7 +384,7 @@ function start_init()
 
 	
 	function start_upd()
-		if btnzp or btnxp then play_init() end
+		if btnzp then play_init() end
 	end
 	
 	
@@ -474,17 +474,17 @@ function play_init()
 	gen_map(lvl.w,lvl.h)
 	
 	local txt="arrival on "..lvl.name
+	
+	if level_id==1 then
+		tkr("press z for map scan;press x to use weapon")	
+	end
+	
 	if finale then
 		tkr(txt..";find and arm 3 bombs",true)
 	else
 		tkr(txt..";scan shows "..lvl.eggs.." eggs in range",true)	
 	end
 
-	if level_id==1 then
-		tkr("press z for map scan;press x to use weapon")	
-	end
-	
-	
 
 	cart(play_upd,play_drw)
 end
@@ -503,7 +503,7 @@ function play_upd()
 		if lvl.eggs>0 then
 			egg_t=max(0,egg_t-1)
 			
-			if egg_t==sec(2) then
+			if egg_t==sec(1.25) then
 				l_egg=get_rndtile(3)
 				tile_attr(l_egg.tx,l_egg.ty,"s",70) --egg open sprite
 			end
@@ -611,9 +611,8 @@ function play_drw()
 	draw_map()
 	
 	bullet_drw()
-	for i=1,#actors do
-		local a=actors[i]
-		a.draw(a) 
+	for k,a in pairs(actors) do
+		a:draw() 
 	end
 	p_drw()
 	pal()
@@ -638,9 +637,9 @@ end
 
 function make_blood()
 	if #blood<100 then
-		for n=0,15 do 
-			add(blood,{random(34,94),random(34,94),random(5,9)}) 
-			add(blood,{random(14,114),random(14,115),random(1,3)})
+		for n=0,25 do 
+			add(blood,{random(34,94),random(34,94),random(1,9)}) 
+			--add(blood,{random(14,114),random(14,115),random(1,3)})
 		end
 	end	
 	
@@ -741,8 +740,7 @@ function draw_mini()
 	rectfill(mini_x+6,mini_y+6, (map_tilew*2)+mini_x+8,(map_tileh*2)+mini_y+8, 3)
 	rect(mini_x+6,mini_y+6, (map_tilew*2)+mini_x+8,(map_tileh*2)+mini_y+8, 11)
 
-	for i=1,#minimap do
-		local dot=minimap[i]
+	for k,dot in pairs(minimap) do
 		x1=(dot.x-1)*2+mini_x+7
 		y1=(dot.y-1)*2+mini_y+7
 		print("+",x1,y1-1,dot.c)
@@ -773,11 +771,10 @@ function bullet_upd()
 		if b.x<map_wpx and b.x>1 and b.y<map_hpx and b.y>1 then
 			local tx,ty=px_to_tile(b.x,b.y)
 			local t=get_tile(tx,ty)
-			
-			
+
 			if t.o==1 then del(bullets,b) end
 			
-			b.update(b)
+			b:update()
 		else
 			del(bullets,b) 
 		end
@@ -913,11 +910,10 @@ function add_hugger(tx,ty)
 		tile={},
 		anim=hug_anim,
 		update=function(self)
+			-- while moving, if player in range, switch to chase mode
 			if self.st==2 then
-				if in_range(p_cx,p_cy, self.cx,self.cy, 40) then
-					if not self.chase then chg_st(self,4) end
-				else
-					self.chase=false
+				if in_range(p_cx,p_cy, self.cx,self.cy, 40) and not self.chase then
+					chg_st(self,4)
 				end
 			end
 
@@ -957,20 +953,17 @@ function add_alien(tx,ty)
 		tx=tx,ty=ty,dx=0,dy=0,
 		flip=false,
 		hbox={x=4,y=4,w=8,h=8},
-		st=0,t=1, --st:1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		st=0,t=1,
 		detect=50,
 		wander_spd=.5,
-		chase_spd=1.1,
-		chase=false,
+		chase_spd=1.1,chase=false,
 		navpath={},
 		bait=false,
 		anim={l={128,130,132,130},f=1,r=8},
 		update=function(self)
 			if self.st<10 then
-				if in_range(p_cx,p_cy, self.cx,self.cy, 60) then
-					if not self.chase then chg_st(self,4) end
-				else
-					self.chase=false
+				if in_range(p_cx,p_cy, self.cx,self.cy, 60) and not self.chase then
+					chg_st(self,4)
 				end
 			end
 		
@@ -979,7 +972,7 @@ function add_alien(tx,ty)
 			if self.st==10 then
 				local heading   = atan2(self.bait.x-self.x, self.bait.y-self.y) 
 				self.dx,self.dy = dir_calc(heading, 1)
-				self.flip=sprite_flip(heading)
+				self.flip=s_flip(heading)
 				self.chase=false
 				
 				chg_st(self,11)
@@ -1049,7 +1042,7 @@ function alien_upd(self)
 	self.tile=get_tile(self.tx,self.ty)
 
 	if self.st<99 then
-		if in_range(self.cx,self.cy, p_cx,p_cy, 8) then
+		if in_range(p_cx,p_cy, self.cx,self.cy,12) then
 			chg_st(self,98)
 			p_dead()
 		end
@@ -1095,7 +1088,7 @@ function alien_upd(self)
 
 			local heading   = atan2(self.dest.x-self.x, self.dest.y-self.y) 
 			self.dx,self.dy = dir_calc(heading, self.speed)
-			self.flip=sprite_flip(heading)
+			self.flip=s_flip(heading)
 
 			chg_st(self,2)
 		end
@@ -1203,7 +1196,7 @@ function draw_map()
 				spr(9,px,py+3,2,1)
 			end
             
-            if plot.o==3 then --14
+            if plot.o==3 then
 				spr(plot.s,px,py,2,2)
 			end
             
@@ -1216,7 +1209,7 @@ function draw_map()
 				spr(12,px,py,2,2)
 			end
 			
-			if plot.o==98 then --jones
+			if plot.o==98 then
 				spr(38,px,py,2,2)
 			end
 
@@ -1280,20 +1273,20 @@ function gen_map(w,h)
 	
 	
 	if finale then
-		local queen_x=map_w
-		local queen_y=rand(map_h)+1
+		local qx=map_w
+		local qy=rand(map_h)+1
 		local ps_x=1
 		local ps_y=rand(map_h)+1
 		
 		if map_h>map_w then
-			queen_x=rand(map_w)+1
-			queen_y=map_h
+			qx=rand(map_w)+1
+			qy=map_h
 			ps_x=rand(map_w)+1
 			ps_y=1
 		end
 
 		create_screen(ps_x,ps_y, 0,0)
-		create_screen(queen_x,queen_y, 1,0)
+		create_screen(qx,qy, 1,0)
 	else
 		create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
 	end
@@ -1409,15 +1402,9 @@ function create_screen(mx,my, lx,ly)
 				tile.w=false
 			end
 			
-			-- beacon
-			if pxc==12 then 
-				tile.o=6
-			end
 			
-			-- spawn
-			if pxc==15 then 
-				tile.o=2
-			end
+			if pxc==12 then tile.o=6 end -- beacon
+			if pxc==15 then tile.o=2 end -- spawn
 			
 			-- egg
 			if pxc==2 then 
@@ -1434,15 +1421,12 @@ function create_screen(mx,my, lx,ly)
 			end
 			
 			-- queen
-			if pxc==9 then 
-				tile.o=9
-			end
+			if pxc==9 then tile.o=9	end
 			
 			-- player
 			if pxc==8 then
 				p_x,p_y,p_cx,p_cy=tile_to_px(tilex,tiley)
 				p_tx,p_ty=tilex,tiley
-				
 			end
 			
 			for k,v in pairs(tile) do grid[tilex][tiley][k]=v end
@@ -1466,7 +1450,7 @@ function intro_init()
         fd_init(title_init)
         cart(ef,function()
             fd_upd()
-            cprint("enable sound;for best experience", 40, fd_c)
+            cprint("use headphones;for best experience", 40, fd_c)
             if gt==sec(2.25) then fd_out() end
         end)
     end
@@ -1592,7 +1576,7 @@ function title_init()
 		cprint("a l i e n",ty,12)
 		cprint("harvest",68,fd_c)
 		
-		if gt>sec(2.5) then
+		if gt>sec(2.2) then
 			spr(90,60,94)
 			cprint(label,100,6)
 			spr(90,60,103,1,1,false,true)
@@ -1611,14 +1595,7 @@ function title_init()
 	cart(title_upd,title_drw)
 end
 
---[[achieve
-dget()
-0=terror
-1=no weapons
-2=all bodies
-3=huggers
-4=jones
-]]
+-- dget() 0=terror;1=no weapons;2=all bodies;3=kill huggers;4=save jones
 function achv_init()
     function achv_drw()
         cprint("achievements",10,12)
@@ -1634,7 +1611,7 @@ function achv_init()
         cprint("bone collector",50,tc3)
         cprint("no hugs",60,tc4)        
         cprint("save jonesy",70,tc5)
-        cprint("see manual for details",95,7)    
+        cprint("see manual for details",100,7)    
         
         if gt>sec(1) and btnzp then title_init() end
     end
@@ -1655,11 +1632,11 @@ end
 -- #help
 function help_init(auto)
 	function help_upd()
-		if btnxp or btnzp then cart(help_last, help_p2) end
+		if btnzp then cart(help_last, help_p2) end
 	end
 	
 	function help_last()
-		if btnxp or btnzp then title_init() end
+		if btnzp then title_init() end
 	end
 	
 	function help_p1()
@@ -1668,7 +1645,7 @@ function help_init(auto)
 		print("explore planets until\nyou fill the cargo\nbay with alien eggs", 26,8, 7)
 		
 		spr(12, 5,34, 2,2)
-		print("stand on beacon when\negg counter shows 0\nto go to next planet",26,34, 7)
+		print("wait on beacon when\negg counter shows 0\nto go to next planet",26,34, 7)
 		
 		spr(9, 6,62, 2,1)
 		print("search bodies to\nequip weapons\n\n\n\n\142 or z for map scan\n\n\151 or x to use weapon", 26,60,7)
@@ -1686,7 +1663,7 @@ function help_init(auto)
 		print("gun has one shot.\nauto-aims at aliens", 28,8, 7)
 
 		spr(96, 7,30, 2,2)
-		print("bait will distract\naliens", 28,30,7)
+		print("bait will distract\nlarge aliens", 28,30,7)
 		
 
 		cprint("avoid aliens", 52, 8)
@@ -1750,7 +1727,7 @@ function vic_init()
 	if bishop then unlock(1) end
 
     function vic_upd()
-        if btnzp and gt>sec(3) then 
+        if btnzp and gt>sec(2) then 
         	if achv_c>0 then
         		fd_init()
 				achv_c=0
@@ -1824,15 +1801,16 @@ function rand(x) return flr(rnd(x)) end
 function sec(f) return flr(f*60) end
 function cprint(s,y,c) 
 	local all=split(s)
-	for n=1,#all do
-		local t=all[n]
+	--for n=1,#all do
+	for k,t in pairs(all) do
+		--local t=all[n]
 		print(t,64-(#t*2),y,c) 
 		y+=8
 	end
 end
 function yesno() if rnd()<.5 then return true end return false end
 
-function sprite_flip(d)
+function s_flip(d)
 	if d>.25 and d<.75 then return true end
 	return false
 end
@@ -2159,8 +2137,7 @@ end
 function find_path(start_index,target_index)
 	local path={}
 	
-	for i=1,#pf_list do
-		local v=pf_list[i]
+	for k,v in pairs(pf_list) do
 		v.p=0
 		v.status=0
 	end
