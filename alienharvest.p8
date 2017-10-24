@@ -289,8 +289,21 @@ end
 
 function p_bullet()
 	local tgt={}
-	local obj={x=p_cx,y=p_y+5,c=10}
 	local heading=0
+	
+	local obj={
+		x=p_cx,y=p_y+5,c=10,
+		update=function(b)
+			for k,a in pairs(actors) do
+				if a.id<3 and in_range(b.x,b.y, a.cx,a.cy, 12) then
+					chg_st(a,99)
+					b:rm()
+				end
+			end
+		end,
+		rm=function(b) del(bullets,b) end
+	}
+	
 	
 	if p_flip then heading=.5 end
 
@@ -306,15 +319,7 @@ function p_bullet()
 	end
 
 	obj.dx,obj.dy = dir_calc(heading, 3)
-	obj.update=function(self)
-		for k,a in pairs(actors) do
-			if a.id<3 and in_range(self.x,self.y, a.cx,a.cy, 12) then
-				chg_st(a,99)
-				del(bullets,self)
-			end
-		end
-	end
-	
+
 
 	add(bullets,obj)	
 end
@@ -419,14 +424,14 @@ function start_init()
 end
 
 
-function draw_console(nologo)
+function draw_console(nl)
 	rect(0,0, 127,127, 12)
 	rect(2,2, 125,93, 12)
 
 	rect(89,95, 125,125, 12)
 	rect(2,95, 87,125, 12)
 
-	if not nologo then zspr(74,2,2,90,103, 2, 1) end
+	if not nl then zspr(74,2,2,90,103, 2, 1) end
 	
 	print("cargo bay: "..p_eggs.."/"..quota,7,100,7)
 		
@@ -450,7 +455,7 @@ end
 function play_init()
 	p_x,p_y,p_spr=0,0,32
 	p_anim={l={32,34,36,34},f=1,r=8}
-	p_cx,p_cy=p_x+8,p_y+8
+	--p_cx,p_cy=p_x+8,p_y+8
 	p_st,p_flip,p_freeze=0,false,0
 	egg_t=sec(lvl.hatch)
 	tran_st=0
@@ -490,6 +495,8 @@ function play_init()
 end
 
 function play_upd()
+	p_upd()
+	
 	function _t()
 		if lvl.eggs<=0 then
 			sfx(11)
@@ -527,7 +534,7 @@ function play_upd()
 		sfx_n=3
 		
         for k,a in pairs(actors) do
-			a.update(a)
+			a:update()
 			a.t+=1
 			
 			if a.id<3 and a.st<99 and in_range(p_cx,p_cy, a.x,a.y,140) then
@@ -547,7 +554,7 @@ function play_upd()
 			sfx_t=sec(sfx_n)
 		end
 
-		p_upd()
+		
 		
 		if finale then
 			if det_st==2 then
@@ -575,7 +582,6 @@ function play_upd()
 			end
 		end
 	else
-		--#gameover
 		if btnzp and gt>=sec(1) then
             music(0,3000)
 			title_init()	
@@ -638,7 +644,7 @@ end
 function make_blood()
 	if #blood<100 then
 		for n=0,25 do 
-			add(blood,{random(34,94),random(34,94),random(1,9)}) 
+			add(blood,{random(14,94),random(14,94),random(1,9)}) 
 			--add(blood,{random(14,114),random(14,115),random(1,3)})
 		end
 	end	
@@ -714,8 +720,8 @@ function gen_mini()
 			if plot.o==6 then add(minimap, {x=x,y=y,c=12}) end
 			
 			
-			if plot.o==98 then add(minimap, {x=x,y=y,c=1}) end
-			if plot.o==7 then add(minimap, {x=x,y=y,c=2}) end
+			--if plot.o==98 then add(minimap, {x=x,y=y,c=1}) end
+			--if plot.o==7 then add(minimap, {x=x,y=y,c=2}) end
 		end
 	end
 	
@@ -772,11 +778,11 @@ function bullet_upd()
 			local tx,ty=px_to_tile(b.x,b.y)
 			local t=get_tile(tx,ty)
 
-			if t.o==1 then del(bullets,b) end
+			if t.o==1 then b:rm() end
 			
 			b:update()
 		else
-			del(bullets,b) 
+			b:rm() 
 		end
 	end
 end
@@ -1169,58 +1175,63 @@ end
 function draw_map()
 	for x=1,map_tilew do
 		for y=1,map_tileh do
-			local plot=grid[x][y]
-			local px,py=tile_to_px(x,y)
+			if in_range(x,y, p_cx,p_cy, 80) then
 			
-			if plot.o==1 then
-				pal(11,lvl.colors[1])
-				pal(3,lvl.colors[2])
-				spr(plot.s, px, py, 2,2)
+				local plot=grid[x][y]
+				local px,py=tile_to_px(x,y)
 				
-			end
-            
-            if plot.o==7 then
-            	if plot.bomb_st==1 then
-            		plot.bomb_st=0
-            		pal(12,8) 
-            	end
-                spr(110, px,py, 2,2)
-            end
-            
-            if plot.o==8 then
-            	if det_st==1 then pal(12,8) end
-                if det_st<3 then spr(108, px,py, 2,2) end
-            end
-			
-			if plot.o==4 then
-				spr(9,px,py+3,2,1)
-			end
-            
-            if plot.o==3 then
-				spr(plot.s,px,py,2,2)
-			end
-            
-            if plot.o==5 then
-				spr(42,px,py, 2,2, plot.f)
-			end
+				if plot.o==1 then
+					pal(11,lvl.colors[1])
+					pal(3,lvl.colors[2])
+					spr(plot.s, px, py, 2,2)
+					
+				end
+	            
+	            if plot.o==7 then
+	            	if plot.bomb_st==1 then
+	            		plot.bomb_st=0
+	            		pal(12,8) 
+	            	end
+	                spr(110, px,py, 2,2)
+	            end
+	            
+	            if plot.o==8 then
+	            	if det_st==1 then pal(12,8) end
+	                if det_st<3 then spr(108, px,py, 2,2) end
+	            end
 				
-			if plot.o==6 then
-				if tran_st>0 then pal(12,8) pal(13,8) end
-				spr(12,px,py,2,2)
-			end
+				if plot.o==4 then
+					spr(9,px,py+3,2,1)
+				end
+	            
+	            if plot.o==3 then
+					spr(plot.s,px,py,2,2)
+				end
+	            
+	            if plot.o==5 then
+					spr(42,px,py, 2,2, plot.f)
+				end
+					
+				if plot.o==6 then
+					if tran_st>0 then pal(12,8) pal(13,8) end
+					spr(12,px,py,2,2)
+				end
+				
+				if plot.o==98 then
+					spr(38,px,py,2,2)
+				end
+	
+				if plot.o==99 then
+					spr(plot.s,px,py,2,1)
+				end
+				
+				if plot.o==9 then
+					pal(11,1) pal(3,1)
+					zspr(42,2,2,px-16,py-8, 2, 1)
+				end
+				
+			end -- range finder
 			
-			if plot.o==98 then
-				spr(38,px,py,2,2)
-			end
-
-			if plot.o==99 then
-				spr(plot.s,px,py,2,1)
-			end
-			
-			if plot.o==9 then
-				pal(11,1) pal(3,1)
-				zspr(42,2,2,px-16,py-8, 2, 1)
-			end
 		end
 	end
 	
