@@ -348,8 +348,8 @@ function start_init()
         level_id+=1
 
         local levels={
-            {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=40,aliens=0,snipers=0,colors={11,3}},
-            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=30,aliens=1,snipers=1,colors={11,4}},
+            {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=45,aliens=0,snipers=0,colors={11,3}},
+            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=35,aliens=1,snipers=1,colors={11,4}},
             {name="pv-418",w=5,h=3,bombs=0,bodies=7,eggs=4,hatch=25,aliens=2,snipers=2,colors={14,2}},
             {name="gva-1106",w=3,h=6,bombs=0,bodies=7,eggs=5,hatch=20,aliens=3,snipers=3,colors={9,4}},
             {name="bv-1031",w=5,h=5,bombs=0,bodies=9,eggs=6,hatch=20,aliens=3,snipers=5,colors={4,3}},
@@ -1030,7 +1030,7 @@ end
 -- #walker
 function alien_upd(self)
 	if self.st==99 and self.t>sec(3) then
-		if self.id==1 and level_id==2 then
+		if self.id==1 and level_id==3 then
 			h_kills+=1 
 			if h_kills==h_eggs then unlock(3) end
 		end
