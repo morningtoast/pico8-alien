@@ -99,7 +99,7 @@ end
 function p_tiles(tile)
 	if tile.o==4 then
 		sfx(16)
-		if yesno() or (level_id==2 and dget(3)<1) then
+		if yesno() or (level_id==3 and dget(3)<1) then
 			p_st,p_spr=2,64
 			p_anim={l={64,66,68,66},f=1,r=8}
 			tkr("pulse rifle equipped",true)
@@ -326,6 +326,7 @@ end
 
 
 function p_dead()
+	mini_mode=false
 	blood_t=sec(5)
 	gt=0
 	music(-1)
@@ -410,7 +411,7 @@ function start_init()
 			print("wait at transport\nbeacon to escape",ax,61, 7)
 		else
 			spr(14, 8,18, 2,2)
-			print(lvl.eggs.." eggs detected.\ncollect as many as you\ncan before they hatch.", ax,22, 7)
+			print("collect as many as you\ncan before they hatch.\n"..lvl.eggs.." eggs detected", ax,22, 7)
 
 			spr(12, 8,53, 2,2)
 			print("wait at beacon when\neggs are gone\n",ax,55, 7)
@@ -611,15 +612,15 @@ end
 
 function play_drw()
 	camera(p_cx-64, p_cy-62)
-	palt(2,true)
-	palt(0,false)
-
-	draw_map()
 	
+	draw_map()
 	bullet_drw()
+	
+	tpx() 
 	for k,a in pairs(actors) do
 		a:draw() 
 	end
+
 	p_drw()
 	pal()
 	
@@ -644,8 +645,8 @@ end
 function make_blood()
 	if #blood<100 then
 		for n=0,15 do 
-			add(blood,{random(40,90),random(40,90),random(4,9)}) 
-			add(blood,{random(30,114),random(30,115),random(1,3)})
+			add(blood,{random(34,94),random(34,94),random(5,9)}) 
+			add(blood,{random(14,114),random(14,115),random(1,3)})
 		end
 	end	
 	
@@ -1048,7 +1049,7 @@ function alien_upd(self)
 	self.tile=get_tile(self.tx,self.ty)
 
 	if self.st<99 then
-		if in_range(p_cx,p_cy, self.cx,self.cy,12) then
+		if in_range(p_cx,p_cy, self.cx,self.cy,9) then
 			chg_st(self,98)
 			p_dead()
 		end
@@ -1168,42 +1169,32 @@ end
 
 
 
+function tpx() 
+	palt(2,true)
+	palt(0,false)
+end
 
+function grass() 
+	pal(11,lvl.colors[1])
+	pal(3,lvl.colors[2])
+end
 
 -- #map
 -- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;98=jones;99=grass
 function draw_map()
+	
+	
 	for x=1,map_tilew do
 		for y=1,map_tileh do
-			if in_range(x,y, p_tx,p_ty, 4) then
+			local plot=grid[x][y]
+			local px,py=tile_to_px(x,y)
 			
-				local plot=grid[x][y]
-				local px,py=tile_to_px(x,y)
-				
+			if in_range(px,py, p_cx,p_cy, 80) then
+				grass() 
 				if plot.o==1 then
-					pal(11,lvl.colors[1])
-					pal(3,lvl.colors[2])
 					spr(plot.s, px, py, 2,2)
-					
 				end
-	            
-	            if plot.o==7 then
-	            	if plot.bomb_st==1 then
-	            		plot.bomb_st=0
-	            		pal(12,8) 
-	            	end
-	                spr(110, px,py, 2,2)
-	            end
-	            
-	            if plot.o==8 then
-	            	if det_st==1 then pal(12,8) end
-	                if det_st<3 then spr(108, px,py, 2,2) end
-	            end
 				
-				if plot.o==4 then
-					spr(9,px,py+3,2,1)
-				end
-	            
 	            if plot.o==3 then
 					spr(plot.s,px,py,2,2)
 				end
@@ -1211,31 +1202,51 @@ function draw_map()
 	            if plot.o==5 then
 					spr(42,px,py, 2,2, plot.f)
 				end
+				
+				if plot.o==99 then
+					spr(plot.s,px,py,2,1)
+				end
+				pal()
+				
+	            
+	            if plot.o==7 then
+	            	if plot.bomb_st==1 then plot.bomb_st=0 pal(12,8) end
+	                spr(110, px,py, 2,2)
+					pal()
+	            end
+	            
+	            if plot.o==8 then
+	            	if det_st==1 then pal(12,8) end
+	                if det_st<3 then spr(108, px,py, 2,2) end
+					pal()
+	            end
+				
+				if plot.o==4 then
+					tpx() spr(9,px,py+3,2,1) pal()
+				end
+	            
+				
 					
 				if plot.o==6 then
 					if tran_st>0 then pal(12,8) pal(13,8) end
-					spr(12,px,py,2,2)
+					spr(12,px,py,2,2) pal()
 				end
 				
 				if plot.o==98 then
 					spr(38,px,py,2,2)
 				end
-	
-				if plot.o==99 then
-					spr(plot.s,px,py,2,1)
-				end
 				
 				if plot.o==9 then
 					pal(11,1) pal(3,1)
-					zspr(42,2,2,px-16,py-8, 2, 1)
+					zspr(42,2,2,px-16,py-8, 2, 1) pal()
 				end
 				
-			end -- range finder
+			end
 			
 		end
 	end
-	
-	
+
+	grass()
 	for m=0,map_tileh do
 		spr(3, -15, (16*m), 2,2)
 		spr(1, map_wpx, (16*m), 2,2)
@@ -1245,6 +1256,8 @@ function draw_map()
 		spr(5, (16*m), -15, 2,2)
 		spr(3, (16*m),map_hpx, 2,2)
 	end
+	
+	pal()
 end
 
 
@@ -1531,6 +1544,7 @@ function title_init()
 	achv_c=0
 	bishop=true
 	
+	
 	local ty=-8
 	local hugspr=anim(hug_anim,true)
 	local hugx=-16
@@ -1598,9 +1612,6 @@ function title_init()
 			hugx=min(135,hugx+.5) 
 			spr(hugspr,hugx,80,2,2)
 		end
-		
-		
-		
 	end
 	
 	cart(title_upd,title_drw)
@@ -1623,11 +1634,9 @@ function achv_init()
         cprint("no hugs",60,tc4)        
         cprint("save jonesy",70,tc5)
         cprint("see manual for details",100,7)    
-        
-        if gt>sec(1) and btnzp then title_init() end
     end
 
-    cart(ef,achv_drw)
+    cart(function() if btnzp then title_init() end end,achv_drw)
 end
 
 function unlock(id)
