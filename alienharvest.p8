@@ -278,6 +278,7 @@ function p_tiles(tile)
 	
 	if tile.o==98 and det_st==2 then
 		sfx(16)
+		tkr("you found jonesy!;"..txt_rtt,true)
 		tile_attr(p_tx,p_ty)
 		jones=true
 	end
