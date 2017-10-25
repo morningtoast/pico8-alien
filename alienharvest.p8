@@ -643,9 +643,9 @@ end
 
 function make_blood()
 	if #blood<100 then
-		for n=0,25 do 
-			add(blood,{random(14,94),random(14,94),random(1,9)}) 
-			--add(blood,{random(14,114),random(14,115),random(1,3)})
+		for n=0,15 do 
+			add(blood,{random(40,90),random(40,90),random(4,9)}) 
+			add(blood,{random(30,114),random(30,115),random(1,3)})
 		end
 	end	
 	
@@ -1175,7 +1175,7 @@ end
 function draw_map()
 	for x=1,map_tilew do
 		for y=1,map_tileh do
-			if in_range(x,y, p_cx,p_cy, 80) then
+			if in_range(x,y, p_tx,p_ty, 4) then
 			
 				local plot=grid[x][y]
 				local px,py=tile_to_px(x,y)
