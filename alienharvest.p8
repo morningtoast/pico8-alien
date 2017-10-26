@@ -29,6 +29,8 @@ function p_upd()
 			if btnu	then p_dy=-1 end
 			if btnd	then p_dy=1 end
 
+
+
 			if p_dx!=0 or p_dy!=0 then 
 				p_spr=anim(p_anim)
 			else
@@ -39,6 +41,8 @@ function p_upd()
 				p_x+=p_dx
 				p_y+=p_dy
 			end
+
+
 
 			p_tiles(tile)
 
@@ -278,7 +282,6 @@ function p_tiles(tile)
 	
 	if tile.o==98 and det_st==2 then
 		sfx(16)
-		tkr("you found jonesy!;"..txt_rtt,true)
 		tile_attr(p_tx,p_ty)
 		jones=true
 	end
@@ -443,6 +446,7 @@ function draw_console(nl)
 
 		if n==10 then ix=5 iy+=8 end
 	end	
+	
 end
 
 
@@ -452,6 +456,7 @@ end
 function play_init()
 	p_x,p_y,p_spr=0,0,32
 	p_anim={l={32,34,36,34},f=1,r=8}
+	--p_cx,p_cy=p_x+8,p_y+8
 	p_st,p_flip,p_freeze=0,false,0
 	egg_t=sec(lvl.hatch)
 	tran_st=0
@@ -509,7 +514,7 @@ function play_upd()
 			
 			if egg_t==sec(1.25) then
 				l_egg=get_rndtile(3)
-				tile_attr(l_egg.tx,l_egg.ty,"s",70)
+				tile_attr(l_egg.tx,l_egg.ty,"s",70) --egg open sprite
 			end
 
 			if egg_t<=0 then
@@ -612,9 +617,11 @@ function play_drw()
 	draw_map()
 	bullet_drw()
 	
-	palt(2,true)
-	palt(0,false) 
-	for k,a in pairs(actors) do a:draw() end
+	tpx() 
+	for k,a in pairs(actors) do
+		a:draw() 
+	end
+
 	p_drw()
 	pal()
 	
@@ -713,6 +720,10 @@ function gen_mini()
 
 			if plot.o==4 or plot.o==3 then add(minimap, {x=x,y=y,c=11}) end
 			if plot.o==6 then add(minimap, {x=x,y=y,c=12}) end
+			
+			
+			--if plot.o==98 then add(minimap, {x=x,y=y,c=1}) end
+			--if plot.o==7 then add(minimap, {x=x,y=y,c=2}) end
 		end
 	end
 	
@@ -907,6 +918,7 @@ function add_hugger(tx,ty)
 		tile={},
 		anim=hug_anim,
 		update=function(self)
+			-- while moving, if player in range, switch to chase mode
 			if self.st==2 then
 				if in_range(p_cx,p_cy, self.cx,self.cy, 40) and not self.chase then
 					chg_st(self,4)
@@ -1155,13 +1167,22 @@ end
 
 
 
+
+
+
+function tpx() 
+	palt(2,true)
+	palt(0,false)
+end
+
+function grass() 
+	pal(11,lvl.colors[1])
+	pal(3,lvl.colors[2])
+end
+
 -- #map
 -- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;98=jones;99=grass
 function draw_map()
-	function grass() 
-		pal(11,lvl.colors[1])
-		pal(3,lvl.colors[2])
-	end
 	
 	
 	for x=1,map_tilew do
@@ -1202,8 +1223,7 @@ function draw_map()
 	            end
 				
 				if plot.o==4 then
-					palt(0,false)
-					spr(9,px,py+3,2,1) pal()
+					tpx() spr(9,px,py+3,2,1) pal()
 				end
 	            
 				
@@ -1237,6 +1257,7 @@ function draw_map()
 		spr(5, (16*m), -15, 2,2)
 		spr(3, (16*m),map_hpx, 2,2)
 	end
+	
 	pal()
 end
 
@@ -1474,13 +1495,12 @@ function story_init()
 	local hugspr=anim(hug_anim,true)
 	local alspr=anim(al,true)
 
-	fp=false
-
     fd_init()
 
 	function story_upd()
 		if btnzp or gt>sec(12) then 
 			start_init()
+			fp=false
 		end
 
 		if gt>sec(3) then
@@ -1501,6 +1521,7 @@ function story_init()
 		if sx<80 then spr(9, 80,111,2,1) end
 		pal()
 	end
+
 
 	cart(story_upd,story_drw)
 end
@@ -1548,7 +1569,8 @@ function title_init()
 				countdown=sec(30)
 				quota=20
 				tran_w=7
-
+				fp=false
+				
 				start_init()
 			end
 			
@@ -1596,7 +1618,7 @@ function title_init()
 	cart(title_upd,title_drw)
 end
 
--- 0=terror;1=no weapons;2=all bodies;3=kill huggers;4=save jones
+-- dget() 0=terror;1=no weapons;2=all bodies;3=kill huggers;4=save jones
 function achv_init()
     function achv_drw()
         cprint("achievements",10,12)
@@ -1800,7 +1822,9 @@ function rand(x) return flr(rnd(x)) end
 function sec(f) return flr(f*60) end
 function cprint(s,y,c) 
 	local all=split(s)
+	--for n=1,#all do
 	for k,t in pairs(all) do
+		--local t=all[n]
 		print(t,64-(#t*2),y,c) 
 		y+=8
 	end
@@ -1857,9 +1881,8 @@ function few()
 	return false
 end
 
-
---obj={l={64,66,68,66},f=1,r=8}
---l=table of sprite ids, each a frame;r=franes per tick;f=frame position
+--anim(obj,doquickreset)
+--obj.r=tick iterator;obj.f=frame position;obj.l=table of sprite ids, each a frame
 --reset=force to first frame and reset counter
 function anim(obj,reset)
 	if reset then
