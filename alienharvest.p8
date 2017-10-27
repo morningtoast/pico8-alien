@@ -4,10 +4,8 @@ __lua__
 --alien harvest
 --brian vaughn, 2017
 
-ef=function() end
-cart=function(u,d) cart_upd,cart_drw=u,d gt=0 end
-tm,tmo,gt=0,false,0
 
+tm,tmo,gt=0,false,0
 txt_rtt="return to transport beacon"
 
 -- #player
@@ -1781,6 +1779,10 @@ end
 
 -- #loop
 cartdata("ahmt2017")
+
+function ef() end
+function cart(u,d) cart_upd,cart_drw=u,d gt=0 end
+
 function _init()
 	tm=dget(0)
 
