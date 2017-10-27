@@ -324,21 +324,6 @@ function p_bullet()
 	add(bullets,obj)	
 end
 
-
-function p_dead()
-	mini_mode=false
-	blood_t=sec(5)
-	gt=0
-	music(-1)
-	tkr("game over;press z to continue",true)
-	gameover=1
-	pf_list={}
-	p_spr=46
-end
-
-
-
-
 -- #levels
 function start_init()
 	music(-1)
@@ -517,6 +502,7 @@ function play_upd()
 			end
 
 			if egg_t<=0 then
+				tile_attr(l_egg.tx,l_egg.ty,"s",14)
 			 	if few() then
 					lvl.eggs-=1
 					add_hugger(l_egg.tx,l_egg.ty) 
@@ -538,11 +524,13 @@ function play_upd()
 			a:update()
 			a.t+=1
 			
-			if a.id<3 and a.st<99 and in_range(p_cx,p_cy, a.x,a.y,140) then
-				if in_range(p_cx,p_cy, a.x,a.y,75) then
-					sfx_n=min(.3,sfx_n)
-				else
-					sfx_n=min(.9,sfx_n)
+			if a.id<3 and a.st<99 then
+				if in_range(p_cx,p_cy, a.x,a.y,140) then
+					if in_range(p_cx,p_cy, a.x,a.y,75) then
+						sfx_n=min(.3,sfx_n)
+					else
+						sfx_n=min(.9,sfx_n)
+					end
 				end
 			end
 		end
@@ -616,7 +604,8 @@ function play_drw()
 	draw_map()
 	bullet_drw()
 	
-	tpx() 
+	palt(2,true)
+	palt(0,false) 
 	for k,a in pairs(actors) do
 		a:draw() 
 	end
@@ -1053,7 +1042,15 @@ function alien_upd(self)
 	if self.st<99 then
 		if in_range(p_cx,p_cy, self.cx,self.cy,9) then
 			chg_st(self,98)
-			p_dead()
+			-- #dead
+			mini_mode=false
+			blood_t=sec(5)
+			gt=0
+			music(-1)
+			tkr("game over;press z to continue",true)
+			gameover=1
+			pf_list={}
+			p_spr=46
 		end
 	end
 
@@ -1111,7 +1108,7 @@ function alien_upd(self)
 		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, self.detect+15) then
 			self.chase=false
 			self.speed=self.wander_spd
-			self.wpcount=rand(3)+2
+			self.wpcount=rand(3,2)
 		end
 		local r=7
 		if self.tx==p_tx and self.ty==p_ty then r=1 end
@@ -1143,7 +1140,7 @@ function alien_upd(self)
 				if id==1 then
 					local tile=get_tile(self.endpoint.tx,self.endpoint.ty)
 					if tile.o==4 then
-						self.wpcount=rand(6)+2
+						self.wpcount=rand(6,2)
 						chg_st(self,1)
 					else
 						chg_st(self,0)
@@ -1151,7 +1148,7 @@ function alien_upd(self)
 				end
 
 				if id==2 then
-					self.wpcount=rand(3)+2
+					self.wpcount=rand(3,2)
 					chg_st(self,1)	
 				end
 			end
@@ -1169,23 +1166,13 @@ function alien_upd(self)
 end
 
 
-
-
-
-
-function tpx() 
-	palt(2,true)
-	palt(0,false)
-end
-
-function grass() 
-	pal(11,lvl.colors[1])
-	pal(3,lvl.colors[2])
-end
-
 -- #map
 -- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;98=jones;99=grass
 function draw_map()
+	function grass() 
+		pal(11,lvl.colors[1])
+		pal(3,lvl.colors[2])
+	end
 	
 	
 	for x=1,map_tilew do
@@ -1226,7 +1213,7 @@ function draw_map()
 	            end
 				
 				if plot.o==4 then
-					tpx() spr(9,px,py+3,2,1) pal()
+					spr(9,px,py+3,2,1)
 				end
 	            
 				
@@ -1248,7 +1235,6 @@ function draw_map()
 			end
 			
 			--rect(px,py,px+16,py+16,5)
-			
 		end
 	end
 
@@ -1293,8 +1279,8 @@ function gen_map(w,h)
 			local lx,ly=0,0
 			
 			while (lx==0 and ly==0) or (lx==1 and ly==0) do
-				lx=rand(14)
-				ly=rand(2)
+				lx=rand(14,0)
+				ly=rand(2,0)
 			end
 				
 			create_screen(mx,my, lx,ly)
@@ -1305,21 +1291,21 @@ function gen_map(w,h)
 	
 	if finale then
 		local qx=map_w
-		local qy=rand(map_h)+1
+		local qy=rand(map_h)
 		local ps_x=1
-		local ps_y=rand(map_h)+1
+		local ps_y=rand(map_h)
 		
 		if map_h>map_w then
-			qx=rand(map_w)+1
+			qx=rand(map_w)
 			qy=map_h
-			ps_x=rand(map_w)+1
+			ps_x=rand(map_w)
 			ps_y=1
 		end
 
 		create_screen(ps_x,ps_y, 0,0)
 		create_screen(qx,qy, 1,0)
 	else
-		create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
+		create_screen(rand(map_w),rand(map_h), 0,0)
 	end
 
 	local n=1
@@ -1381,7 +1367,7 @@ function gen_map(w,h)
 		local t=rnd_table(empty)
 		t.o=99
 		if yesno() then t.s=7 else t.s=23 end
-		t.h=rand(2)+1
+		t.h=rand(2)
 	end
 	
 end
@@ -1829,7 +1815,7 @@ end
 
 -- #utilities
 function chg_st(o,ns) o.t=0 o.st=ns end
-function rand(x) return flr(rnd(x)) end
+function rand(x,n) n=n or 1 return flr(rnd(x))+n end
 function sec(f) return flr(f*60) end
 function cprint(s,y,c) 
 	local all=split(s)
@@ -2044,24 +2030,19 @@ end
 
 
 function clock(time)
-	local mins=0
-	local secs=flr(time/60)
-	local micro=time%60
+	local s=flr(time/60)
+	local m=time%60
 	
-	while secs>=60 do
-		mins+=1
-		secs-=60
-	end
+	while s>=60 do s-=60 end
 	
-	if micro<10 then micro="0"..micro end
-	if mins<10 then mins="0"..mins end
-	if secs<=0 then
-		secs="00" 
-	elseif secs<10 then 
-		secs="0"..secs
+	if m<10 then m="0"..m end
+	if s<=0 then
+		s="00" 
+	elseif s<10 then 
+		s="0"..s
 	end
 
-	return secs..":"..micro
+	return s..":"..m
 end
 
 
