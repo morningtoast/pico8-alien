@@ -4,15 +4,12 @@ __lua__
 --alien harvest
 --brian vaughn, 2017
 
-ver="v1.3"
-ef=function() end
-cart=function(u,d) cart_update,cart_draw=u,d gt=0 end
-tm,tmo,gt=0,false,0
 
+tm,tmo,gt=0,false,0
 txt_rtt="return to transport beacon"
 
 -- #player
-function p_update()
+function p_upd()
 	if gameover<1 then
 		if not mini_mode and p_freeze==0 then
 			mini_batt=max(mini_batt-1,0)
@@ -91,7 +88,7 @@ function p_update()
 	if p_freeze>0 then p_freeze-=1 end
 end
 
-function p_draw()
+function p_drw()
 	if p_freeze>0 then pal(10,13) end
 	spr(p_spr, p_x,p_y, 2,2, p_flip)
 end
@@ -100,7 +97,7 @@ end
 function p_tiles(tile)
 	if tile.o==4 then
 		sfx(16)
-		if rnd()<.5 then
+		if yesno() or (level_id==3 and dget(3)<1) then
 			p_st,p_spr=2,64
 			p_anim={l={64,66,68,66},f=1,r=8}
 			tkr("pulse rifle equipped",true)
@@ -111,6 +108,15 @@ function p_tiles(tile)
 		end
 		
 		p_spr=anim(p_anim,true)
+		p_bodies+=1
+		bishop=false
+		
+		if tmo then 
+			if lvl.bodies==p_bodies then
+				achv_c+=1
+				unlock(2)
+			end
+		end
 
 		tile_attr(p_tx,p_ty)
 	end
@@ -119,17 +125,17 @@ function p_tiles(tile)
 		local cargo="cargo bay is full;"..txt_rtt
 		if p_eggs<quota then
 			p_eggs=min(p_eggs+1,quota)
-			curlvl.eggs=max(curlvl.eggs-1,0)
+			lvl.eggs=max(lvl.eggs-1,0)
 			
             sfx(16)
 			tile_attr(p_tx,p_ty)
 			tkr("alien egg collected",true)
 			
 			if p_eggs<quota then 
-				if curlvl.eggs<=0 then
+				if lvl.eggs<=0 then
 					tkr(txt_rtt)
 				else
-					tkr(curlvl.eggs.." eggs remaining") 
+					tkr(lvl.eggs.." eggs remaining") 
 				end
 			else
 				tkr(cargo)
@@ -151,12 +157,12 @@ function p_tiles(tile)
 	
 	-- #transport
 	if tile.o==6 then
-		local lt="wait at beacon. dropship landing;leaving "..curlvl.name
+		local lt="wait at beacon. dropship landing;leaving "..lvl.name
 		local ds="dropship unavailable"
 		if tran_st==0 then tran_st=1 end
 		
 		if not finale then
-			if (curlvl.eggs<=0 or p_eggs==quota) and tran_t==0 then
+			if (lvl.eggs<=0 or p_eggs==quota) and tran_t==0 then
 				sfx(15)
 				tkr(lt,true)
 				tran_st=2
@@ -184,7 +190,7 @@ function p_tiles(tile)
 				end
 				
 				if tran_t==sec(tran_w) and tran_st==2 then
-					victory_init()
+					vic_init()
 				end
 			else
 				
@@ -216,14 +222,14 @@ function p_tiles(tile)
 		tile.bomb_st=1
 
 		if bomb_t==sec(2) then 
-			curlvl.bombs=max(0,curlvl.bombs-1)
+			lvl.bombs=max(0,lvl.bombs-1)
 
 
 			sfx(11)
 			tkr("bomb armed and ready",true) 
 
-			if curlvl.bombs>0 then
-				tkr(curlvl.bombs.." bombs remaining") 
+			if lvl.bombs>0 then
+				tkr(lvl.bombs.." bombs remaining") 
 			else
 				tkr("all bombs armed;find detonator") 
 			end
@@ -239,7 +245,7 @@ function p_tiles(tile)
 	
 	-- #detonator
 	if tile.o==8 then
-		if curlvl.bombs==0 then
+		if lvl.bombs==0 then
 			if det_st<2 then
 				if det_t==0 then
                     sfx(18)
@@ -254,7 +260,7 @@ function p_tiles(tile)
                     sfx(19)
 					music(3,6000)
 					tile_attr(p_tx,p_ty)
-					curlvl.hatch-=7
+					lvl.hatch-=7
 				end
 			end
 		else 
@@ -265,17 +271,37 @@ function p_tiles(tile)
 	else
 		if det_st==1 then
 			sfx(12)
-			tkr("countdown aborted. return to detonator",true)
+			tkr("countdown aborted",true)
 			det_st=0
 		end
 		det_t=0
 	end	
+	
+	
+	if tile.o==98 and det_st==2 then
+		sfx(16)
+		tile_attr(p_tx,p_ty)
+		jones=true
+	end
 end
 
 function p_bullet()
 	local tgt={}
-	local obj={x=p_cx,y=p_y+5,c=10}
 	local heading=0
+	
+	local obj={
+		x=p_cx,y=p_y+5,c=10,
+		update=function(b)
+			for k,a in pairs(actors) do
+				if a.id<3 and in_range(b.x,b.y, a.cx,a.cy, 12) then
+					chg_st(a,99)
+					b:rm()
+				end
+			end
+		end,
+		rm=function(b) del(bullets,b) end
+	}
+	
 	
 	if p_flip then heading=.5 end
 
@@ -291,49 +317,27 @@ function p_bullet()
 	end
 
 	obj.dx,obj.dy = dir_calc(heading, 3)
-	obj.update=function(self)
-		for k,a in pairs(actors) do
-			if a.id<3 and in_range(self.x,self.y, a.cx,a.cy, 12) then
-				chg_st(a,99)
-				del(bullets,self)
-			end
-		end
-	end
-	
+
 
 	add(bullets,obj)	
 end
 
-
-function p_dead()
-	blood_t=sec(5)
-	gt=0
-	music(-1)
-	tkr("game over;press z to continue",true)
-	gameover=1
-	pf_list={}
-	p_spr=46
-end
-
-
-
-
 -- #levels
 function start_init()
 	music(-1)
-	
+
 	local rc=rnd_table({{3,4},{11,9},{11,4},{15,14},{9,4},{11,3},{2,1}})
 	
     if not finale then
         level_id+=1
 
         local levels={
-            {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=40,aliens=0,snipers=0,colors={11,3}},
-            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=30,aliens=1,snipers=1,colors={11,4}},
+            {name="jl-78",w=3,h=3,bombs=0,bodies=2,eggs=2,hatch=45,aliens=0,snipers=0,colors={11,3}},
+            {name="col-b",w=4,h=4,bombs=0,bodies=4,eggs=3,hatch=35,aliens=1,snipers=1,colors={11,4}},
             {name="pv-418",w=5,h=3,bombs=0,bodies=7,eggs=4,hatch=25,aliens=2,snipers=2,colors={14,2}},
             {name="gva-1106",w=3,h=6,bombs=0,bodies=7,eggs=5,hatch=20,aliens=3,snipers=3,colors={9,4}},
-            {name="bv-1031",w=5,h=5,bombs=0,bodies=9,eggs=6,hatch=20,aliens=3,snipers=5,colors={4,3}},
-            {name="al-18",w=3,h=7,bombs=0,bodies=10,eggs=6,hatch=20,aliens=2,snipers=5,colors={2,1}}
+            {name="bv-1031",w=5,h=5,bombs=0,bodies=9,eggs=6,hatch=20,aliens=3,snipers=3,colors={4,3}},
+            {name="al-18",w=3,h=7,bombs=0,bodies=10,eggs=6,hatch=20,aliens=2,snipers=4,colors={2,1}}
         }
 
 
@@ -352,31 +356,31 @@ function start_init()
                 if mh<5 then mw=7 end
             end
 
-            curlvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rc}	
+            lvl={name=name,w=mw,h=mh,bodies=mb,eggs=me,hatch=20,aliens=ma,snipers=ms,bombs=0,colors=rc}	
         else
-            curlvl=levels[level_id]
+            lvl=levels[level_id]
         end
     else 
     	local mw,mh=8,4
-    	if rnd()<.5 then mw,mh=4,8 end 
-        curlvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=3,snipers=5,bombs=3,colors=rc}	
+    	if yesno() then mw,mh=4,8 end 
+        lvl={name="pco-8",w=mw,h=mh,bodies=15,eggs=3,hatch=20,aliens=3,snipers=5,bombs=3,colors=rc}	
 		
 		if tmo then 
-			curlvl.hatch=15 
-			curlvl.eggs=5
+			lvl.hatch=15 
+			lvl.eggs=5
 		end
-    end
+	end
+
 	
-	
-	function start_update()
-		if btnzp or btnxp then play_init() end
+	function start_upd()
+		if btnzp then play_init() end
 	end
 	
 	
-	function start_draw()
+	function start_drw()
 		draw_console()
 		
-		center_text("landing on: "..curlvl.name, 8, 10)
+		cprint("mission: "..lvl.name, 8, 10)
 		
 		local ax=32
 		if finale then
@@ -390,28 +394,28 @@ function start_init()
 			print("wait at transport\nbeacon to escape",ax,61, 7)
 		else
 			spr(14, 8,18, 2,2)
-			print(curlvl.eggs.." eggs detected.\ncollect as many as you\ncan before they hatch.", ax,22, 7)
+			print(lvl.eggs.." eggs detected.\ncollect as many as you\ncan before they hatch.", ax,22, 7)
 
 			spr(12, 8,53, 2,2)
-			print("wait at beacon when\neggs are all gone\n",ax,55, 7)
+			print("wait at beacon when\neggs are gone\n",ax,55, 7)
 		end
 		
 		print("press z to start",ax,83, 11)
 	end
 	
-	cart(start_update,start_draw)
+	cart(start_upd,start_drw)
 	
 end
 
 
-function draw_console(nologo)
+function draw_console(nl)
 	rect(0,0, 127,127, 12)
 	rect(2,2, 125,93, 12)
 
 	rect(89,95, 125,125, 12)
 	rect(2,95, 87,125, 12)
 
-	if not nologo then zspr(74,2,2,90,103, 2, 1) end
+	if not nl then zspr(74,2,1,90,103, 2, 1) end
 	
 	print("cargo bay: "..p_eggs.."/"..quota,7,100,7)
 		
@@ -435,9 +439,8 @@ end
 function play_init()
 	p_x,p_y,p_spr=0,0,32
 	p_anim={l={32,34,36,34},f=1,r=8}
-	p_cx,p_cy=p_x+8,p_y+8
 	p_st,p_flip,p_freeze=0,false,0
-	egg_t=sec(curlvl.hatch)
+	egg_t=sec(lvl.hatch)
 	tran_st=0
 	
 	tkr_x,tkr_end,tkr_t=105,105,0
@@ -448,69 +451,84 @@ function play_init()
 	
 	mini_mode=false
 	mini_batt=0
+
+	h_kills=0
+	p_bodies=0
+	h_eggs=lvl.eggs
 	
 	actors={}
 	bullets={}
 
-	gen_map(curlvl.w,curlvl.h)
+	gen_map(lvl.w,lvl.h)
 	
-	local txt="arrival on "..curlvl.name
-	if finale then
-		tkr(txt..";find and arm 3 bombs",true)
-	else
-		tkr(txt..";scan shows "..curlvl.eggs.." eggs in range",true)	
-	end
-
+	local txt="arrival on "..lvl.name
+	tkr(txt,true)
+	
 	if level_id==1 then
 		tkr("press z for map scan;press x to use weapon")	
 	end
+	
+	if finale then
+		tkr("find and arm 3 bombs")
+	else
+		tkr("scan shows "..lvl.eggs.." eggs in range")	
+	end
 
-	cart(play_update,play_draw)
+
+	cart(play_upd,play_drw)
 end
 
-function play_update()
+function play_upd()
+	p_upd()
+	
 	function _t()
-		if curlvl.eggs<=0 then
+		if lvl.eggs<=0 then
 			sfx(11)
 			return "no more eggs detected;"..txt_rtt
 		else
-			return curlvl.eggs.." eggs remaining"
+			return lvl.eggs.." eggs remaining"
 		end	
 	end
 	
 	if gameover<1 then
-		if curlvl.eggs>0 then
+		if lvl.eggs>0 then
 			egg_t=max(0,egg_t-1)
+			
+			if egg_t==sec(1.25) then
+				l_egg=get_rndtile(3)
+				tile_attr(l_egg.tx,l_egg.ty,"s",70)
+			end
 
 			if egg_t<=0 then
-				local t=get_random_tile(3)
+				tile_attr(l_egg.tx,l_egg.ty,"s",14)
+			 	if few() then
+					lvl.eggs-=1
+					add_hugger(l_egg.tx,l_egg.ty) 
+					tile_attr(l_egg.tx,l_egg.ty)
 
-				if few() then 
-					curlvl.eggs-=1
-					add_hugger(t.tx,t.ty) 
-					tile_attr(t.tx,t.ty)
-					
 					tkr("egg hatch detected",true)
 					sfx(11)
 
 					if not finale then tkr(_t()) end
 				end
-
-				egg_t=sec(curlvl.hatch)
+				
+				egg_t=sec(lvl.hatch)
 			end
 		end
 	
 		sfx_n=3
 		
         for k,a in pairs(actors) do
-			a.update(a)
+			a:update()
 			a.t+=1
 			
-			if a.id<3 and a.st<99 and in_range(p_cx,p_cy, a.x,a.y,140) then
-				if in_range(p_cx,p_cy, a.x,a.y,75) then
-					sfx_n=min(.3,sfx_n)
-				else
-					sfx_n=min(.9,sfx_n)
+			if a.id<3 and a.st<99 then
+				if in_range(p_cx,p_cy, a.x,a.y,140) then
+					if in_range(p_cx,p_cy, a.x,a.y,75) then
+						sfx_n=min(.3,sfx_n)
+					else
+						sfx_n=min(.9,sfx_n)
+					end
 				end
 			end
 		end
@@ -523,7 +541,7 @@ function play_update()
 			sfx_t=sec(sfx_n)
 		end
 
-		p_update()
+		
 		
 		if finale then
 			if det_st==2 then
@@ -537,8 +555,8 @@ function play_update()
 				end
 			else
 				if tkr_t==sec(8) and det_st<1 then
-					if curlvl.bombs>0 then
-						tkr(curlvl.bombs.." bombs remaining",true)
+					if lvl.bombs>0 then
+						tkr(lvl.bombs.." bombs remaining",true)
 					else
 						tkr("find detonator to start countdown",true)
 					end
@@ -551,7 +569,6 @@ function play_update()
 			end
 		end
 	else
-		--#gameover
 		if btnzp and gt>=sec(1) then
             music(0,3000)
 			title_init()	
@@ -575,27 +592,32 @@ function play_update()
         end
 	end
 
-	bullet_update()
-	tkr_update()
+	bullet_upd()
+	tkr_upd()
 end
 
-function play_draw()
+function play_drw()
 	camera(p_cx-64, p_cy-62)
-	palt(2,true)
-	palt(0,false)
-
-	draw_map()
 	
-	bullet_draw()
-	for i=1,#actors do
-		local a=actors[i]
-		a.draw(a) 
+	draw_map()
+	bullet_drw()
+	
+	palt(2,true)
+	palt(0,false) 
+	for k,a in pairs(actors) do
+		a:draw() 
 	end
-	p_draw()
+
+	p_drw()
 	pal()
 	
+	
+	
+	
 	camera(0,0)
-	tkr_draw()
+	tkr_drw()
+	
+	
 
 	if mini_mode then draw_mini() end
 	
@@ -607,9 +629,11 @@ function play_draw()
 	if gameover==2 then
 		circfill(64,64,nuke,7)	
 		if nuke==150 then
-			center_text("game over;;press z to restart",50,2)	
+			cprint("game over;;press z to restart",50,2)	
 		end
 	end
+	
+	
 end
 
 function make_blood()
@@ -643,7 +667,7 @@ function tkr_next()
 	end
 end
 
-function tkr_update()
+function tkr_upd()
 	if tkr_x>tkr_end then
 		tkr_x=max(tkr_end-1,tkr_x-.8)
 			
@@ -652,7 +676,7 @@ function tkr_update()
 	tkr_t+=1
 end
 
-function tkr_draw()
+function tkr_drw()
 	rectfill(0,117, 127,127, 1)
 	
 	if tkr_x>tkr_end then print(tkr_txt, tkr_x,120, 12) end
@@ -670,7 +694,7 @@ function tkr_draw()
 		print(clock(countdown), 106,120, 6)
 	else
 		spr(26, 118,119)
-		print(curlvl.eggs, 113,120, 6)
+		print(lvl.eggs, 113,120, 6)
 	end
 end
 
@@ -713,8 +737,7 @@ function draw_mini()
 	rectfill(mini_x+6,mini_y+6, (map_tilew*2)+mini_x+8,(map_tileh*2)+mini_y+8, 3)
 	rect(mini_x+6,mini_y+6, (map_tilew*2)+mini_x+8,(map_tileh*2)+mini_y+8, 11)
 
-	for i=1,#minimap do
-		local dot=minimap[i]
+	for k,dot in pairs(minimap) do
 		x1=(dot.x-1)*2+mini_x+7
 		y1=(dot.y-1)*2+mini_y+7
 		print("+",x1,y1-1,dot.c)
@@ -737,7 +760,7 @@ end
 
 
 -- #bullets
-function bullet_update()
+function bullet_upd()
 	for k,b in pairs(bullets) do
 		b.x+=b.dx
 		b.y+=b.dy
@@ -745,19 +768,18 @@ function bullet_update()
 		if b.x<map_wpx and b.x>1 and b.y<map_hpx and b.y>1 then
 			local tx,ty=px_to_tile(b.x,b.y)
 			local t=get_tile(tx,ty)
+
+			if t.o==1 then b:rm() end
 			
-			
-			if t.o==1 then del(bullets,b) end
-			
-			b.update(b)
+			b:update()
 		else
-			del(bullets,b) 
+			b:rm() 
 		end
 	end
 end
 
 
-function bullet_draw()
+function bullet_drw()
 	for k,b in pairs(bullets) do circfill(b.x,b.y, 2, b.c) end
 end
 
@@ -839,7 +861,7 @@ function add_sniper(tx,ty)
 					t.s=rnd_table(bush_sprites)
 					del(actors,self)
 					
-					local loc=get_random_tile(1)
+					local loc=get_rndtile(1)
 					add_sniper(loc.tx,loc.ty)
 				end
 			end
@@ -854,7 +876,7 @@ function add_sniper(tx,ty)
 	if tx-1>1 then wt=grid[tx-1][ty] end
 
 	if et.o!=1 and wt.o!=1 then
-		if rnd()<.5 then obj.f=true end
+		if yesno() then obj.f=true end
 	else
 		if et.o==1 then 
 			obj.f=true
@@ -886,14 +908,12 @@ function add_hugger(tx,ty)
 		anim=hug_anim,
 		update=function(self)
 			if self.st==2 then
-				if in_range(p_cx,p_cy, self.cx,self.cy, 40) then
-					if not self.chase then chg_st(self,4) end
-				else
-					self.chase=false
+				if in_range(p_cx,p_cy, self.cx,self.cy, 40) and not self.chase then
+					chg_st(self,4)
 				end
 			end
 
-			alien_update(self)
+			alien_upd(self)
 
 			if self.tile.o==4 then
 				tile_attr(self.tx,self.ty)
@@ -929,29 +949,26 @@ function add_alien(tx,ty)
 		tx=tx,ty=ty,dx=0,dy=0,
 		flip=false,
 		hbox={x=4,y=4,w=8,h=8},
-		st=0,t=1, --st:1=sleep,2=finding path,3=moving,4=at goal,5=chase,6=trapped/die
+		st=0,t=1,
 		detect=50,
 		wander_spd=.5,
-		chase_spd=1.1,
-		chase=false,
+		chase_spd=1.1,chase=false,
 		navpath={},
 		bait=false,
 		anim={l={128,130,132,130},f=1,r=8},
 		update=function(self)
 			if self.st<10 then
-				if in_range(p_cx,p_cy, self.cx,self.cy, 60) then
-					if not self.chase then chg_st(self,4) end
-				else
-					self.chase=false
+				if in_range(p_cx,p_cy, self.cx,self.cy, 60) and not self.chase then
+					chg_st(self,4)
 				end
 			end
 		
-			alien_update(self)
+			alien_upd(self)
 			
 			if self.st==10 then
 				local heading   = atan2(self.bait.x-self.x, self.bait.y-self.y) 
 				self.dx,self.dy = dir_calc(heading, 1)
-				self.flip=sprite_flip(heading)
+				self.flip=s_flip(heading)
 				self.chase=false
 				
 				chg_st(self,11)
@@ -1001,8 +1018,12 @@ end
 
 
 -- #walker
-function alien_update(self)
+function alien_upd(self)
 	if self.st==99 and self.t>sec(3) then
+		if self.id==1 and level_id==3 then
+			h_kills+=1 
+			if h_kills==h_eggs then unlock(3) end
+		end
 		del(actors,self)
 		return
 	end
@@ -1017,9 +1038,17 @@ function alien_update(self)
 	self.tile=get_tile(self.tx,self.ty)
 
 	if self.st<99 then
-		if in_range(self.cx,self.cy, p_cx,p_cy, 8) then
+		if in_range(p_cx,p_cy, self.cx,self.cy,9) then
 			chg_st(self,98)
-			p_dead()
+			-- #dead
+			mini_mode=false
+			blood_t=sec(5)
+			gt=0
+			music(-1)
+			tkr("game over;press z to continue",true)
+			gameover=1
+			pf_list={}
+			p_spr=46
 		end
 	end
 
@@ -1040,7 +1069,7 @@ function alien_update(self)
 			if not near then 
 				near={tx=self.tx,ty=self.ty}
 				while near.tx==self.tx and near.ty==self.ty do
-					near=get_random_tile(0) 
+					near=get_rndtile(0) 
 				end
 			end
 
@@ -1063,7 +1092,7 @@ function alien_update(self)
 
 			local heading   = atan2(self.dest.x-self.x, self.dest.y-self.y) 
 			self.dx,self.dy = dir_calc(heading, self.speed)
-			self.flip=sprite_flip(heading)
+			self.flip=s_flip(heading)
 
 			chg_st(self,2)
 		end
@@ -1077,11 +1106,13 @@ function alien_update(self)
 		if self.chase and not in_range(p_cx,p_cy, self.cx,self.cy, self.detect+15) then
 			self.chase=false
 			self.speed=self.wander_spd
-			self.wpcount=rand(3)+2
+			self.wpcount=rand(3,2)
 		end
+		local r=7
+		if self.tx==p_tx and self.ty==p_ty then r=1 end
 		
 		
-		if in_range(self.cx,self.cy, self.dest.x+8,self.dest.y+8, 5) then
+		if in_range(self.cx,self.cy, self.dest.x+8,self.dest.y+8, r) then
 			self.waypoint+=1
 			self.wpcount-=1
 
@@ -1107,7 +1138,7 @@ function alien_update(self)
 				if id==1 then
 					local tile=get_tile(self.endpoint.tx,self.endpoint.ty)
 					if tile.o==4 then
-						self.wpcount=rand(6)+2
+						self.wpcount=rand(6,2)
 						chg_st(self,1)
 					else
 						chg_st(self,0)
@@ -1115,7 +1146,7 @@ function alien_update(self)
 				end
 
 				if id==2 then
-					self.wpcount=rand(3)+2
+					self.wpcount=rand(3,2)
 					chg_st(self,1)	
 				end
 			end
@@ -1133,69 +1164,79 @@ function alien_update(self)
 end
 
 
-
-
-
-
-
-
 -- #map
--- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;99=grass
+-- 0=empty;1=wall;2=spawn;3=egg;4=body;5=sniper;6=beacon;7=bomb;8=detonator;9=queen;98=jones;99=grass
 function draw_map()
+	function grass() 
+		pal(11,lvl.colors[1])
+		pal(3,lvl.colors[2])
+	end
+	
+	
 	for x=1,map_tilew do
 		for y=1,map_tileh do
 			local plot=grid[x][y]
 			local px,py=tile_to_px(x,y)
 			
-			if plot.o==1 then
-				pal(11,curlvl.colors[1])
-				pal(3,curlvl.colors[2])
-				spr(plot.s, px, py, 2,2)
+			if in_range(px,py, p_cx,p_cy, 80) then
+				grass() 
+				if plot.o==1 then
+					spr(plot.s, px, py, 2,2)
+				end
+				
+	            if plot.o==3 then
+					spr(plot.s,px,py,2,2)
+				end
+	            
+	            if plot.o==5 then
+					spr(42,px,py, 2,2, plot.f)
+				end
+				
+				if plot.o==99 then
+					spr(plot.s,px,py,2,1)
+				end
+				pal()
+				
+	            
+	            if plot.o==7 then
+	            	if plot.bomb_st==1 then plot.bomb_st=0 pal(12,8) end
+	                spr(110, px,py, 2,2)
+					pal()
+	            end
+	            
+	            if plot.o==8 then
+	            	if det_st==1 then pal(12,8) end
+	                if det_st<3 then spr(108, px,py, 2,2) end
+					pal()
+	            end
+				
+				if plot.o==4 then
+					spr(9,px,py+3,2,1)
+				end
+	            
+				
+					
+				if plot.o==6 then
+					if tran_st>0 then pal(12,8) pal(13,8) end
+					spr(12,px,py,2,2) pal()
+				end
+				
+				if plot.o==98 then
+					spr(38,px,py,2,2)
+				end
+				
+				if plot.o==9 then
+					pal(11,1) pal(3,1)
+					zspr(42,2,2,px-16,py-8, 2, 1) pal()
+				end
 				
 			end
-            
-            if plot.o==7 then
-            	if plot.bomb_st==1 then
-            		plot.bomb_st=0
-            		pal(12,8) 
-            	end
-                spr(110, px,py, 2,2)
-            end
-            
-            if plot.o==8 then
-            	if det_st==1 then pal(12,8) end
-                if det_st<3 then spr(108, px,py, 2,2) end
-            end
 			
-			if plot.o==4 then
-				spr(9,px,py+3,2,1)
-			end
-            
-            if plot.o==3 then
-				spr(14,px,py,2,2)
-			end
-            
-            if plot.o==5 then
-				spr(42,px,py, 2,2, plot.f)
-			end
-				
-			if plot.o==6 then
-				if tran_st>0 then pal(12,8) pal(13,8) end
-				spr(12,px,py,2,2)
-			end
-
-			if plot.o==99 then
-				spr(plot.s,px,py,2,1)
-			end
-			
-			if plot.o==9 then
-				pal(11,1) pal(3,1)
-				zspr(42,2,2,px-16,py-8, 2, 1)
-			end
+			--rect(px,py,px+16,py+16,5)
 		end
 	end
-	
-	
+
+	grass()
 	for m=0,map_tileh do
 		spr(3, -15, (16*m), 2,2)
 		spr(1, map_wpx, (16*m), 2,2)
@@ -1205,6 +1246,9 @@ function draw_map()
 		spr(5, (16*m), -15, 2,2)
 		spr(3, (16*m),map_hpx, 2,2)
 	end
+	
+	pal()
+
 end
 
 
@@ -1233,8 +1277,8 @@ function gen_map(w,h)
 			local lx,ly=0,0
 			
 			while (lx==0 and ly==0) or (lx==1 and ly==0) do
-				lx=rand(14)
-				ly=rand(2)
+				lx=rand(14,0)
+				ly=rand(2,0)
 			end
 				
 			create_screen(mx,my, lx,ly)
@@ -1244,22 +1288,22 @@ function gen_map(w,h)
 	
 	
 	if finale then
-		local queen_x=map_w
-		local queen_y=rand(map_h)+1
+		local qx=map_w
+		local qy=rand(map_h)
 		local ps_x=1
-		local ps_y=rand(map_h)+1
+		local ps_y=rand(map_h)
 		
 		if map_h>map_w then
-			queen_x=rand(map_w)+1
-			queen_y=map_h
-			ps_x=rand(map_w)+1
+			qx=rand(map_w)
+			qy=map_h
+			ps_x=rand(map_w)
 			ps_y=1
 		end
 
 		create_screen(ps_x,ps_y, 0,0)
-		create_screen(queen_x,queen_y, 1,0)
+		create_screen(qx,qy, 1,0)
 	else
-		create_screen(rand(map_w)+1,rand(map_h)+1, 0,0)
+		create_screen(rand(map_w),rand(map_h), 0,0)
 	end
 
 	local n=1
@@ -1277,7 +1321,7 @@ function gen_map(w,h)
 	end
     
     if #snipers>0 then
-		for n=1,curlvl.snipers do
+		for n=1,lvl.snipers do
 			local t=rnd_table(snipers)
 
             add_sniper(t.tx,t.ty)
@@ -1291,18 +1335,22 @@ function gen_map(w,h)
 	end
 
     if finale then
-    	add_tiles(curlvl.bombs, 2,7, 256,256,function(tx,ty)
+    	add_tiles(lvl.bombs, 2,7, 256,256,function(tx,ty)
 			tile_attr(tx,ty, "bomb_st", 0)
 		end)
+		
+		add_tiles(1, 0,98, 1,256)
     end
 
-    add_tiles(curlvl.bodies, 0,4, 100,70)
-    add_tiles(curlvl.eggs, 2,3, 130,130)
-	curlvl.eggs+=map_eggs
+    add_tiles(lvl.bodies, 0,4, 100,70)
+    add_tiles(lvl.eggs, 2,3, 130,130, function(tx,ty)
+		tile_attr(tx,ty, "s", 14)
+	end)
+	lvl.eggs+=map_eggs
     
 	local ac=0
-	while ac<curlvl.aliens do
-		local t=get_random_tile(0)
+	while ac<lvl.aliens do
+		local t=get_rndtile(0)
 		
 		if not in_range(t.x,t.y, p_cx,p_cy, 150) then
 			add_alien(t.tx,t.ty)
@@ -1312,12 +1360,12 @@ function gen_map(w,h)
     
     
 	local empty=filter_tiles(0)
-	local half=flr((map_w*8)*(map_h*8)*.2)
+	local half=flr(map_tilew*map_tileh*.2)
 	for n=0,half do
 		local t=rnd_table(empty)
 		t.o=99
-		if rnd()<.5 then t.s=7 else t.s=23 end
-		t.h=rand(2)+1
+		if yesno() then t.s=7 else t.s=23 end
+		t.h=rand(2)
 	end
 	
 end
@@ -1363,25 +1411,20 @@ function create_screen(mx,my, lx,ly)
 			end
 
 			-- sniper/bush
-			if pxc==3 and curlvl.snipers>0 then 
+			if pxc==3 and lvl.snipers>0 then 
 				tile.o=5
 				tile.s=bspr
 				tile.w=false
 			end
 			
-			-- beacon
-			if pxc==12 then 
-				tile.o=6
-			end
 			
-			-- spawn
-			if pxc==15 then 
-				tile.o=2
-			end
+			if pxc==12 then tile.o=6 end -- beacon
+			if pxc==15 then tile.o=2 end -- spawn
 			
 			-- egg
 			if pxc==2 then 
 				tile.o=3
+				tile.s=14
 				map_eggs+=1
 			end
 			
@@ -1393,15 +1436,12 @@ function create_screen(mx,my, lx,ly)
 			end
 			
 			-- queen
-			if pxc==9 then 
-				tile.o=9
-			end
+			if pxc==9 then tile.o=9	end
 			
 			-- player
 			if pxc==8 then
 				p_x,p_y,p_cx,p_cy=tile_to_px(tilex,tiley)
 				p_tx,p_ty=tilex,tiley
-				
 			end
 			
 			for k,v in pairs(tile) do grid[tilex][tiley][k]=v end
@@ -1415,17 +1455,17 @@ end
 
 -- #intro
 function intro_init()
-	function intro_draw()
-		fd_update() 
-		center_text("alien harvest "..ver..";(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
+	function intro_drw()
+		fd_upd() 
+		cprint("alien harvest v1.4;(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
 		if gt==sec(3.5) then fd_out() end
 	end
     
     function p2()
         fd_init(title_init)
         cart(ef,function()
-            fd_update()
-            center_text("use headphones;for best experience", 40, fd_c)
+            fd_upd()
+            cprint("use headphones;for best experience", 40, fd_c)
             if gt==sec(2.25) then fd_out() end
         end)
     end
@@ -1433,12 +1473,12 @@ function intro_init()
     fd_init(p2)
 	music(0,4000)
 	
-	cart(ef,intro_draw)
+	cart(ef,intro_drw)
 end
 
 
 -- #story
-function story_init(go)
+function story_init()
 	local sx=1
 	local lspr=14
 	local al={l={128,130,132,130},f=1,r=8}
@@ -1447,16 +1487,12 @@ function story_init(go)
 
     fd_init()
 
-	function story_update()
-		if btnxp or btnzp or gt>sec(12) then 
-			if go then 
-				start_init()
-				firstplay=false
-			else title_init() end 
+	function story_upd()
+		if btnzp or gt>sec(12) then 
+			start_init()
+			fp=false
 		end
-		
-		
-		
+
 		if gt>sec(3) then
 			lspr=anim(hug_anim)
 			if sx>=80 then lspr=anim(al) end
@@ -1464,13 +1500,12 @@ function story_init(go)
 			sx=min(sx+.5,130)
 		end
         
-        fd_update()
-		
-		
+        fd_upd()
+
 	end 
 
-	function story_draw()
-		center_text("dylan burke is finishing the;job his father failed to;complete on lv-426.;;he must be stopped.;;;explore planets and collect;alien eggs before burke can;get to them.",8, fd_c)
+	function story_drw()
+		cprint("dylan burke is finishing the;job his father failed to;complete on lv-426.;;he must be stopped.;;;explore planets and collect;alien eggs before burke can;get to them.",8, fd_c)
 		palt(2,true)
 		spr(lspr,sx,105,2,2)
 		if sx<80 then spr(9, 80,111,2,1) end
@@ -1478,7 +1513,7 @@ function story_init(go)
 	end
 
 
-	cart(story_update,story_draw)
+	cart(story_upd,story_drw)
 end
 
 
@@ -1486,7 +1521,7 @@ end
 
 
 -- #title
-firstplay=true
+fp=true
 hug_anim={l={160,162,164,162},f=1,r=8}
 function title_init()
 	finale=false
@@ -1497,53 +1532,70 @@ function title_init()
 	grid={}
 	blood={}
 	levels={}
+	achv_c=0
+	bishop=true
+	
 	
 	local ty=-8
 	local hugspr=anim(hug_anim,true)
 	local hugx=-16
-	local tc=12
-	
+	local gst=1
+
 	fd_init()
 
-	function title_update()		
-        if btnxp then help_init() end
+	function title_upd()		
 		if btnzp then
-			if tc==12 then
+			if gst==1 then
 				tmo=false
 				countdown=sec(40)
 				tran_w=5
 				quota=12
 				
-				if firstplay then story_init(true) else start_init() end 
+				if fp then story_init() else start_init() end 
 			end
-			
-			if tc==8 and tm>0 then
+
+			if gst==3 and tm>0 then
 				tmo=true
 				countdown=sec(30)
 				quota=20
 				tran_w=7
-				firstplay=false
+				fp=false
 				
 				start_init()
 			end
+			
+			if gst==2 then help_init() end
+			if gst==4 then achv_init() end
 
 		end
 
-		if btnp(2) and tm>0 then 
-            if tc==12 then tc=8 else tc=12 end
-        end
+		if btnp(2) then gst-=1 end
+		if btnp(3) then gst+=1 end
 		
-		if gt>sec(1.5) then fd_update() end
+		if gst>4 then gst=1 end
+		if gst<1 then gst=4 end
+        
+		
+		if gt>sec(1.5) then fd_upd() end
 		hugspr=anim(hug_anim)
 	end 
 	
-	function title_draw()
-		ty=min(60,ty+1)
-		center_text("a l i e n",ty,tc)
-		center_text("harvest",68,fd_c)
+	function title_drw()
+		local label="normal mode"
 		
-		if gt>sec(2.5) then
-			center_text("press z to start;press x for help",100,6)
+		if gst==2 then label="how to play" end
+		if gst==3 then if tm>0 then label="terror mode" else label="mode locked" end end
+		if gst==4 then label="achievements" end
+		
+		
+		ty=min(60,ty+1)
+		cprint("a l i e n",ty,12)
+		cprint("harvest",68,fd_c)
+		
+		if gt>sec(2.2) then
+			spr(90,60,94)
+			cprint(label,100,6)
+			spr(90,60,103,1,1,false,true)
 		end
 		palt(2,true)
 		
@@ -1551,32 +1603,61 @@ function title_init()
 			hugx=min(135,hugx+.5) 
 			spr(hugspr,hugx,80,2,2)
 		end
-		
-		
-		
 	end
 	
-	cart(title_update,title_draw)
+	cart(title_upd,title_drw)
 end
 
+-- dget() 0=terror;1=no weapons;2=all bodies;3=kill huggers;4=save jones;5=ripley
+function achv_init()
+    function achv_drw()
+        cprint("achievements",10,12)
+        
+        if tm>0 then tc1=10 else tc1=1 end
+        if dget(1)>0 then tc2=10 else tc2=1 end
+        if dget(2)>0 then tc3=10 else tc3=1 end
+        if dget(3)>0 then tc4=10 else tc4=1 end
+        if dget(4)>0 then tc5=10 else tc5=1 end
+		if dget(5)>0 then tc5=10 else tc5=1 end
+        
+        cprint("terror mode",30,tc1)
+        cprint("bishop's dozen",40,tc2)
+        cprint("bone collector",50,tc3)
+        cprint("no hugs",60,tc4)        
+        cprint("save jonesy",70,tc5)
+		cprint("ripley's revenge",80,tc5)
+        cprint("see manual for details",100,7)    
+    end
+
+    cart(function() if btnzp then title_init() end end,achv_drw)
+end
+
+function unlock(id)
+	achv_c+=1
+	local c=dget(id)
+	if c<1 then
+		dset(id,1)
+		sfx(23)
+	end
+end
 
 -- #help
 function help_init(auto)
-	function help_update()
-		if btnxp or btnzp then cart(help_last, help_p2) end
+	function help_upd()
+		if btnzp then cart(help_last, help_p2) end
 	end
 	
 	function help_last()
-		if btnxp or btnzp then title_init() end
+		if btnzp then title_init() end
 	end
 	
 	function help_p1()
 		palt(2,true)
 		spr(14, 5,6, 2,2)
-		print("explore planets until\nyou fill the cargo\nbay with alien eggs", 26,8, 7)
+		print("explore planets until\nyou find and collect\n12 alien eggs", 26,8, 7)
 		
 		spr(12, 5,34, 2,2)
-		print("stand on beacon when\negg counter shows 0\nto go to next planet",26,34, 7)
+		print("wait on beacon when\nall eggs are gone\nto go to next planet",26,34, 7)
 		
 		spr(9, 6,62, 2,1)
 		print("search bodies to\nequip weapons\n\n\n\n\142 or z for map scan\n\n\151 or x to use weapon", 26,60,7)
@@ -1594,10 +1675,10 @@ function help_init(auto)
 		print("gun has one shot.\nauto-aims at aliens", 28,8, 7)
 
 		spr(96, 7,30, 2,2)
-		print("bait will distract\naliens", 28,30,7)
+		print("bait will distract\nlarge aliens", 28,30,7)
 		
 
-		center_text("avoid aliens", 52, 8)
+		cprint("avoid aliens", 52, 8)
 
 		spr(160, 6,60, 2,2) 
 		print("facehuggers find bodies\nto become aliens",28,62, 7)
@@ -1615,7 +1696,7 @@ function help_init(auto)
 		rect(2,2,125,125,12)
 	end
 	
-	cart(help_update, help_p1)
+	cart(help_upd, help_p1)
 end
 
 
@@ -1626,70 +1707,70 @@ function finale_init()
     finale=true
     fd_init()
 
-    function finale_update()
-        fd_update()
+    function finale_upd()
+        fd_upd()
         if btnzp then start_init() end
     end
     
     
-    function finale_draw()
-        center_text("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
+    function finale_drw()
+        cprint("with burke's plans ruined you;must now eliminate the source.;;the queen.;;travel to pco-8 and blow it up.;;it's the only way to stop;this nightmare once and for all.",8, fd_c)
         
-        if gt>sec(3) then center_text("press z to continue",100,6) end
+        if gt>sec(3) then cprint("press z to continue",100,6) end
     end
 
 
-    cart(finale_update,finale_draw)
+    cart(finale_upd,finale_drw)
 end
 
 
 -- #victory
-function victory_init()
+function vic_init()
     fd_init()
     music(-1)
 	music(0,2000)
-	
-	local unlock=false
-		
+
 	if tm<1 then 
-		unlock=true
 		tm=1
-		dset(0,1) 
+		unlock(0)
 	end
 	
+	if tmo then unlock(5) end
+	if jones then unlock(4) end
+	if bishop then unlock(1) end
 
-    function vic_update()
-        if btnzp and gt>sec(3) then 
-        	if unlock then
-        		unlock=false
+    function vic_upd()
+        if btnzp and gt>sec(2) then 
+        	if achv_c>0 then
         		fd_init()
-        		cart(vic_update,vic_unlock)
+				achv_c=0
+        		cart(vic_upd,vic_unlock)
         	else
         		title_init() 
         	end
         end
     end
     
-    function vic_draw()
+    function vic_drw()
 		local tc=fd_c
     	if gt>sec(2.5) then
-    		fd_update()
+    		fd_upd()
 			if fd_s==2 and fd_c==7 then tc=12 end
 
-			center_text("mission accomplished",10, tc)
-			center_text("burke and the company have;been stopped once again.;but for how long?;;;;;press z to return home;;;",30, fd_c)
+			cprint("mission accomplished",10, tc)
+			cprint("burke and the company have;been stopped once again.;but for how long?;;;;;press z to return home;;;",30, fd_c)
 		end
 		
 		spr(14,55,55,2,2)
 	end
 
 	function vic_unlock()
-		fd_update()
-		center_text("terror mode unlocked",40, fd_c)
+		fd_upd()
+		cprint("achievement unlocked",40, fd_c)
     end
 
 
-    cart(vic_update,vic_draw)	
+    cart(vic_upd,vic_drw)	
 end
 
 
@@ -1697,9 +1778,13 @@ end
 
 -- #loop
 cartdata("ahmt2017")
+
+function ef() end
+function cart(u,d) cart_upd,cart_drw=u,d gt=0 end
+
 function _init()
 	tm=dget(0)
-	
+
 	intro_init()
 end
 
@@ -1712,7 +1797,7 @@ function _update60()
 	btnzp=btnp(4)
 	btnxp=btnp(5)
 	
-	cart_update()
+	cart_upd()
 
 	gt=min(25000,gt+1)
 end
@@ -1720,7 +1805,9 @@ end
 
 function _draw()
 	cls()
-	cart_draw()
+	cart_drw()
+	
+	
 end
 
 
@@ -1729,18 +1816,18 @@ end
 
 -- #utilities
 function chg_st(o,ns) o.t=0 o.st=ns end
-function rand(x) return flr(rnd(x)) end
+function rand(x,n) n=n or 1 return flr(rnd(x))+n end
 function sec(f) return flr(f*60) end
-function center_text(s,y,c) 
+function cprint(s,y,c) 
 	local all=split(s)
-	for n=1,#all do
-		local t=all[n]
+	for k,t in pairs(all) do
 		print(t,64-(#t*2),y,c) 
 		y+=8
 	end
 end
+function yesno() if rnd()<.5 then return true end return false end
 
-function sprite_flip(d)
+function s_flip(d)
 	if d>.25 and d<.75 then return true end
 	return false
 end
@@ -1820,7 +1907,7 @@ function fd_init(f)
     fd_c=0
 end
 function fd_out() if fd_s<3 then fd_s=3 fd_t=0 end end
-function fd_update()
+function fd_upd()
     if fd_s==1 and fd_t==5 and fd_i<#fd_cl then
         fd_i=min(#fd_cl,fd_i+1)
         fd_c=fd_cl[fd_i]
@@ -1921,7 +2008,7 @@ function tile_attr(tx,ty, key, val)
 	return grid[tx][ty]
 end
 
-function get_random_tile(occ)
+function get_rndtile(occ)
 	local list=filter_tiles(occ)
 	
 	if #list>0 then
@@ -1944,24 +2031,19 @@ end
 
 
 function clock(time)
-	local mins=0
-	local secs=flr(time/60)
-	local micro=time%60
+	local s=flr(time/60)
+	local m=time%60
 	
-	while secs>=60 do
-		mins+=1
-		secs-=60
-	end
+	while s>=60 do s-=60 end
 	
-	if micro<10 then micro="0"..micro end
-	if mins<10 then mins="0"..mins end
-	if secs<=0 then
-		secs="00" 
-	elseif secs<10 then 
-		secs="0"..secs
+	if m<10 then m="0"..m end
+	if s<=0 then
+		s="00" 
+	elseif s<10 then 
+		s="0"..s
 	end
 
-	return secs..":"..micro
+	return s..":"..m
 end
 
 
@@ -1973,7 +2055,7 @@ function add_tiles(q, src, occ, od, pd, f)
 		
 		local sim=filter_tiles(occ)
 		while try>0 and esc<50 do
-			local t=get_random_tile(src)
+			local t=get_rndtile(src)
             local safe=0
 			
 			try+=1
@@ -2003,7 +2085,6 @@ function add_tiles(q, src, occ, od, pd, f)
 	end
 end
 
-
 function in_rec(x,y, ox,oy,ow,oh)
 	if x>=ox and x<=ox+ow and y>=oy and y<=oy+oh then
 		return true
@@ -2011,6 +2092,7 @@ function in_rec(x,y, ox,oy,ow,oh)
 	
 	return false
 end
+
 
 function blocked(px,py, dx,dy, hbox)
 	function wall(t) 
@@ -2056,7 +2138,7 @@ function blocked(px,py, dx,dy, hbox)
 end
 
 
--- #astar
+
 function pathfind(startx,starty,goaltx,goalty)
 	local navpath=find_path({x=startx,y=starty}, {x=goaltx,y=goalty})
 	local endpoint=pf_list[navpath[#navpath]]
@@ -2068,8 +2150,7 @@ end
 function find_path(start_index,target_index)
 	local path={}
 	
-	for i=1,#pf_list do
-		local v=pf_list[i]
+	for k,v in pairs(pf_list) do
 		v.p=0
 		v.status=0
 	end
@@ -2152,14 +2233,14 @@ end
 
 
 __gfx__
-0000000000000000000000000000000000000000000000000b0000000000000000000000a0a0000aaa2222222222262200000000000c00000000000000000000
-000000000000000b00000000000000000000000000300000bbb000000000000000000000a0a0aa0000222222222226220000000000c0c0000000000000000000
-000000000000300b00000000000000b0000000000033000bb0b000000000000030000000aa0aaaaa02222222222aaa22000000000ccc00000000000000000000
+0000000000000000000000000000000000000000000000000b0000000000000000000000a0a0000aaa0000002222262200000000000c00000000000000000000
+000000000000000b00000000000000000000000000300000bbb000000000000000000000a0a0aa0000000000222226220000000000c0c0000000000000000000
+000000000000300b00000000000000b0000000000033000bb0b000000000000030000000aa0aaaaa00000000222aaa22000000000ccc00000000000000000000
 000000000000300b000300b0000000bb00003300003330bb0bb00030003000303030030000000aaaa0aaa00a22aaaaa200000ddd00c000000000000000000000
-0000000000b0030bb00300b0000000bbb0033000003330bb0bb03330000000000000000020aa0aa00aaaaaaa220aa0a2000cc0ddd00000000000000dd0000000
-0000000000b0030bb0330bb0003330b0bb033000000000bbbb03303000000000000000002aa000aaa022222222aaaa2200cccc0d00000000000000dd0d000000
-0000000000bb030bb0330bb0000330bb0b00000000bbb00bb0330330030000000000000020a02222aa022222222aa22200c0ccc00d00000000000dddd0d00000
-00000000000b030bbb00bb000000300bb0bb00000bbbbbbbb00033000030030000000000220a02222aa022222222622200c0cccc0000000000b0dddd0d0d0000
+0000000000b0030bb00300b0000000bbb0033000003330bb0bb03330000000000000000000aa0aa00aaaaaaa220aa0a2000cc0ddd00000000000000dd0000000
+0000000000b0030bb0330bb0003330b0bb033000000000bbbb03303000000000000000000aa000aaa000000022aaaa2200cccc0d00000000000000dd0d000000
+0000000000bb030bb0330bb0000330bb0b00000000bbb00bb0330330030000000000000000a00000aa000000222aa22200c0ccc00d00000000000dddd0d00000
+00000000000b030bbb00bb000000300bb0bb00000bbbbbbbb00033000030030000000000000a00000aa000002222622200c0cccc0000000000b0dddd0d0d0000
 00000000000bb00bbb00bb0000000bbb0bbbb000bb0000bbbbb030303030300300030000bbbbbbb00000000022226222000c0ccccccc00000000ddddd00d00b0
 00000000000bb00bbb0bbb000000bb0bb0bbb0000bbbbbb0b0bb03300000000000000000b00000bb000dd0002226222200000000000000000b00dddd0d0d0000
 000000003000bb0bbbb0bb000000b0bbb00bbb0000bbbb00bb0bb0300000000000000000b0b0b0bb00dd0d002226222200000d0ddd00000000b00dd0d0d000b0
@@ -2168,16 +2249,16 @@ __gfx__
 0000000000330bb0bbbb033000bb000000300000000b0bb000bbb0000000030003030030000000000dddd0d03262232200000000000000000000b000000b0000
 0000000000000bbb0bbb0000000000000000000000bbbb00000bb00003000030030303000000000000dddd00326232230c0cc0ccc0cc0c00000000b0b0000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000002333323200000000000000000000000000000000
-2222222aa22222222222222aa22222222222222aa222222200000000000000000000000000000000000003333333000022222222222222222222222222222222
-222222aaaa222222222222aaaa222222222222aaaa222222000000000000000000003000b0000000000333333333330022222222222222222222222222222222
-222222aa00222222222222aa00222222222222aa0022222200000000000000000003330b00030000003333333300333022222222222222222222222222222222
-22222a00aa22222222222200aa22222222222200aa22222200000000000000000003330b00330000033330000330033322222222222222222222222222222222
-2222aaaa00a2222222222aaa00a22222222222aa0022222200000000000000000b003330033300b0033300bbb033333322222555552222222222222222222222
-222aa0aaaaaa22222222aa0aaaa2222222222aa0aa22222200000000000000000bb0033303330bb033000b000b03330322225555555222222222222222222222
-222aa0aaaa0a22222222aa0aaa0a222222222aa0aa22222200000000000000000bbbb0330330bbb03300b0330b0000302225005000002222222aaa2222222222
-222a000aaa00a2222222a000aa0a222222222aa0aa222222000000000000000000bbbb00330bbbb0000b03330bb00000225505050000525222aaaaa22a0a2222
-222aa0a0a0a0a2222222aa0aaaa2222222222a0aaa2222220000000000000000000bbbb0330bbb00000b0330000033302250500005005052220aa0a000a0a222
-2222a0aa0aa2222222222a0a0aa22222222222a0aa22222200000000000000000000bbb030bbbb03000bb03330033033220000500005050222aaaa0aa8a0a222
+2222222aa22222222222222aa22222222222222aa222222200900000000000000000000000000000000003333333000022222222222222222222222222222222
+222222aaaa222222222222aaaa222222222222aaaa222222090900000000000000003000b0000000000333333333330022222222222222222222222222222222
+222222aa00222222222222aa00222222222222aa0022222290090900900000000003330b00030000003333333300333022222222222222222222222222222222
+22222a00aa22222222222200aa22222222222200aa22222290090999900000000003330b00330000033330000330033322222222222222222222222222222222
+2222aaaa00a2222222222aaa00a22222222222aa0022222200900909000000000b003330033300b0033300bbb033333322222555552222222222222222222222
+222aa0aaaaaa22222222aa0aaaa2222222222aa0aa22222209000090900000000bb0033303330bb033000b000b03330322225555555222222222222222222222
+222aa0aaaa0a22222222aa0aaa0a222222222aa0aa22222290999909000000000bbbb0330330bbb03300b0330b0000302225005000002222222aaa2222222222
+222a000aaa00a2222222a000aa0a222222222aa0aa222222990999990000000000bbbb00330bbbb0000b03330bb00000225505050000525222aaaaa22a0a2222
+222aa0a0a0a0a2222222aa0aaaa2222222222a0aaa2222220990090990000000000bbbb0330bbb00000b0330000033302250500005005052220aa0a000a0a222
+2222a0aa0aa2222222222a0a0aa22222222222a0aa22222290990990990000000000bbb030bbbb03000bb03330033033220000500005050222aaaa0aa8a0a222
 222220aa0aa22222222222aaa0a2222222222aaaa0222222000000000000000033330bbb00bbb03300b00000333333032000005005555050220aa0008a0a8222
 22222aa222aa22222222222a0aa2222222222aaaaa2222220000000000000000033330bb0bbb033000bb0bb00000030005005005500005552228800a000a0822
 2222aa2222aa22222222222aaa222222222aaa22aaa222220000000000000000003330bb0bb0333000bbbb0bb00000005050bb050b05b0bb2220a00880a0a222
@@ -2188,17 +2269,17 @@ __gfx__
 22aaaa222222222222aaaa222222222222aaaa222222222200000000000000000bbbbb0bbbbbb000aa0770aa1770aa0000006660550000000000000000000000
 22aa00222222222222aa00222222222222aa0022222222220000000000000000b0000b0bb000bb000aa00aaaa00aa00000066060555000000000000000000000
 2a00aa2aaaaa222222aaaa22222222222aaaaa2aaaaa2222000000000000000000bbb030bbbb0b000aa00aaaa00aa00000066660555000000000006605500000
-aa000aaa00aaaaa22a0aaa2aaaaa2222aa000aaa00aaaaa200000000000000000bb00b0330bbb00000aaaa00aaaa000000060060055500000006666605550000
-aaa0aaaaaaaaaaa2aa000aaa00aaaaa2aaa0aaaaaaaaaaa20000000000000000bb00bb03300bbb0000aaaa00aaaa000000666666055500000066666605550000
-22aaa000aa222222aaa0aaaaaaaaaaa222aaa000aa2222220000000000000000bb0bb0003300bb00000aa0770aa0000000600606055500000066666605555000
-22000a22a222222222aaa000aa22222222000a22a22222220000000000000000bb0bb0003300bb00000aa0770aa0000000666666055550000066666605555000
-220aaa222222222222000a22a2222222220aa022222222220000000000000000bb0bb0003300bb00000000000000000000600066055550000666666600555500
-22a0a0a22222222222a0a0222222222222a0aa222222222200000000000000000b00bb003300b000000000000000000006666066005555000666666660555500
-22aa00aa2222222222aa0aa222222222222aaaa222222222000000000000000000000003300b0000000000000000000006606606605555000666666660555500
-22aa222a222222222220aaa22222222222aa2aa22222222200000000000000000000003330000000000000000000000006666666605555000666666660555500
-2aa2222aa2222222222aaa222222222222aa22aa2222222200000000000000000330033333333000000000000000000006666666605555000006666660555503
-aa02222aaa2222222222a222222222222aa222aa222222220000000000000000b003303303000b00000000000000000000066666605555030000000000000000
-0aa22222222222222222aa22222222222a22222aa2222222000000000000000000b000b0003b00b0000000000000000003000000000000300300030000000300
+aa000aaa00aaaaa22a0aaa2aaaaa2222aa000aaa00aaaaa200000d00000d00000bb00b0330bbb00000aaaa00aaaa000000060060055500000006666605550000
+aaa0aaaaaaaaaaa2aa000aaa00aaaaa2aaa0aaaaaaaaaaa20000d0d000d0d000bb00bb03300bbb0000aaaa00aaaa000000666666055500000066666605550000
+22aaa000aa222222aaa0aaaaaaaaaaa222aaa000aa22222200000ddf0fdd0000bb0bb0003300bb00000aa0770aa0000000600606055500000066666605555000
+22000a22a222222222aaa000aa22222222000a22a222222200b0ddddfd0d0000bb0bb0003300bb00000aa0770aa0000000666666055550000066666605555000
+220aaa222222222222000a22a2222222220aa022222222220000ddddd00d00b0bb0bb0003300bb00006000000000000000600066055550000666666600555500
+22a0a0a22222222222a0a0222222222222a0aa22222222220b00dddd0d0d00000b00bb003300b000060600000000000006666066005555000666666660555500
+22aa00aa2222222222aa0aa222222222222aaaa22222222200b00dd0d0d000b000000003300b0000600060000000000006606606605555000666666660555500
+22aa222a222222222220aaa22222222222aa2aa2222222220b0b00dd0d0000000000003330000000000000000000000006666666605555000666666660555500
+2aa2222aa2222222222aaa222222222222aa22aa2222222200b000000000b0b00330033333333000000000000000000006666666605555000006666660555503
+aa02222aaa2222222222a222222222222aa222aa222222220000b000000b0000b003303303000b00000000000000000000066666605555030000000000000000
+0aa22222222222222222aa22222222222a22222aa2222222000000b0b000000000b000b0003b00b0000000000000000003000000000000300300030000000300
 22222222222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000000000030000000030000
 222aa222222222a2222aa22222222222222aa2222222222200000000000000000000000000000000000000000000000000000000000000000000000100000000
 22aaaa2222222a2222aaaa22222222a222aaaa2222222a22000000000000000000000000000000000000000000000000000c00000000c0000000001110001000
@@ -2264,7 +2345,7 @@ d22dd000dd2222d2d22dd000dd0222d2d22dd220ddd2222200000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-bb0000bbb00000b00000fffb0000000000600fbbbbb0000000b00000000bfbfb00000bbb00000000b000fffb000000000bbbbbbb000000000000000000000000
+bb0000bbb00000b00000fffb0000000000600fbbbbb0000000b00000000bfbfb00000bbb00000000b000fffb000000000bbb0000000000000000000000000000
 b000000b002200000000ffb0b0000b00000000fb0000000000f300000003fbfb00ff00000b0000b0300003bb00bbbbb000000bbb00603bb00000000000000000
 00000000020000b0b300bb0000000000000f00000000000000ffbbbb000bfbf300fb00000bf0fbb0b00000000bffff3000000b6000ffbbbb0000000000000000
 00000c00000009b00000ff0000000000006f00000fff00000b0000b000000b0b0003000000bbb00000ffff00000000b0003ffbb000bbbbbb0000000000000000
@@ -2273,14 +2354,28 @@ b000000b002200000000ffb0b0000b00000000fb0000000000f300000003fbfb00ff00000b0000b0
 b000000b000220000f60fffb00f3bf0b000f00b00bf00f0b00f0ff000ff60000bf3f00b0bffff6fb00ff060b000bbbb0bbb0060000bbb00b0000000000000000
 bb0000bbb00000b00ff0fffb000f000b0000000000b00b0000300000bbbf00b00b0000b0b000fffb0000000b00000000b6000000000bb0bb0000000000000000
 0000006000000b0b0000000b0000000b0b000b000bb00bbb000000000000000000000000000000000000000000000f60000000000bbbbbbb0000000000000000
-03000000003fff0b00000b00bbbbb00b0b000b0bbff00fffb030b0000bb00000000b0060bbb3f0600bbfbbb06f0600000bb03b0000bbbbbb0000000000000000
-0b0000b000fbb00b00300b0000ff300b0006f00bbf3000000fbfbfbb0b30f6000b0fbff000fff0000bbf6bb00f0fff060bf0bbb00006bbbb0000000000000000
-0f3fbbf00bfbb0000fbff030000fbb000b0ffb00006000000fbfffb00ff0f0000bfffb0000bbbbf00f36fff00b0fb6000bbbbbb00f3bbb6b0000000000000000
-0fbb6bf0000b30000bf3f0fbb300f600b3fbf30b00000300bbbf3fb0000b3000003fffb000f000f00fb6f000000006f000bbbbb000fbbbf30000000000000000
-0fbfff300bf6bb060bf000fb0000fb00000b000bbff00bfb0000b0b0000bbfbb000b00b00bbfbbb000f6f00000fffff003663f00000bbbfb0000000000000000
-00bf0000000fb30b0b000f600000bb000b000b00bff00bfb0060b0b0bb0fffbb0f00b000003ff00000000000606f00600bbbbbb000060b0b0000000000000000
-b00000000000000b0bb00300000000000b000b00bbb00bb000000000b30000000600000000b0000000b00bb0006600000bbbbbb0000000000000000000000000
+03000000003fff0b00000b00bbbbb00b0b000b0bbff00fffb030b0000bb00000000b00600bb03b000bbfbbb06f060000bbb3f06000bbbbbb0000000000000000
+0b0000b000fbb00b00300b0000ff300b0006f00bbf3000000fbfbfbb0b30f6000b0fbff00bf0bbb00bbf6bb00f0fff0600fff0000006bbbb0000000000000000
+0f3fbbf00bfbb0000fbff030000fbb000b0ffb00006000000fbfffb00ff0f0000bfffb000bbbbbb00f36fff00b0fb60000bbbbf00f3bbb6b0000000000000000
+0fbb6bf0000b30000bf3f0fbb300f600b3fbf30b00000300bbbf3fb0000b3000003fffb000bbbbb00fb6f000000006f000f000f000fbbbf30000000000000000
+0fbfff300bf6bb060bf000fb0000fb00000b000bbff00bfb0000b0b0000bbfbb000b00b003663f0000f6f00000fffff00bbfbbb0000bbbfb0000000000000000
+00bf0000000fb30b0b000f600000bb000b000b00bff00bfb0060b0b0bb0fffbb0f00b0000bbbbbb000000000606f0060003ff00000060b0b0000000000000000
+b00000000000000b0bb00300000000000b000b00bbb00bb000000000b3000000060000000bbbbbb000b00bb00066000000b00000000000000000000000000000
 __label__
+bbbbbb0b0bb03300bbbbbb0b0bb03300bbbbbb0b0bb03300bbbbbb0b0bb03300bbbbbb0b0bb03300bbbbbb0b0bb03300bbbbbb0b0bb03300bbbbbb0b0bb03300
+0bbbb00bb0bb03000bbbb00bb0bb03000bbbb00bb0bb03000bbbb00bb0bb03000bbbb00bb0bb03000bbbb00bb0bb03000bbbb00bb0bb03000bbbb00bb0bb0300
+00000b0bbb0b000000000b0bbb0b000000000b0bbb0b000000000b0bbb0b000000000b0bbb0b000000000b0bbb0b000000000b0bbb0b000000000b0bbb0b0000
+00bb0bb0bb0b000000bb0bb0bb0b000000bb0bb0bb0b000000bb0bb0bb0b000000bb0bb0bb0b000000bb0bb0bb0b000000bb0bb0bb0b000000bb0bb0bb0b0000
+00b0bb000bbb000000b0bb000bbb000000b0bb000bbb000000b0bb000bbb000000b0bb000bbb000000b0bb000bbb000000b0bb000bbb000000b0bb000bbb0000
+0bbbb00000bb00000bbbb00000bb00000bbbb00000bb00000bbbb00000bb00000bbbb00000bb00000bbbb00000bb00000bbbb00000bb00000bbbb00000bb0000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030303003000300000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000003000000000000000000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000
+03000303030030000000000000000000000000000000000000000000000000000000000000000000030003030300300000000000000000000000000300000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030030000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300030300300
+30000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000003000030030303000
+03003000000000000000000000000000000000000000000000000000000000000000000000000000030030000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2289,123 +2384,109 @@ __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000b000000000000000000000000000000000000000000000000000000000000000000000000000
-00b000000000000000000000000000000000000000000300000bbb00000000000000000000000000000000000000000000000000000000000000000000000000
-00b00000000000000b000000000000000b0000000000033000bb0b00000000000b0000000000000000000000000000000b000000000000000003000000000003
-00b000300b0000000bb00003300000000bb00003300003330bb0bb00030000000bb000033000000000000000000000000bb00003300003000303030030000003
-30bb00300b0000000bbb0033000000000bbb0033000003330bb0bb03330000000bbb00330000000000000000000000000bbb0033000000000000000000000b00
-30bb0330bb0003330b0bb033000003330b0bb033000000000bbbb033030003330b0bb0330000000000000000000003330b0bb033000000000000000000000b00
-30bb0330bb0000330bb0b000000000330bb0b00000000bbb00bb0330330000330bb0b0000000000000000000000000330bb0b000000030000000000000000bb0
-30bbb00bb000000300bb0bb00000000300bb0bb00000bbbbbbbb00033000000300bb0bb000000000000000000000000300bb0bb00000030030000000000000b0
-00bbb00bb0000000bbb0bbbb00000000bbb0bbbb000bb0000bbbbb0303000000bbb0bbbb000000000000000000000000bbb0bbbb0000000000000000000000bb
-00bbb0bbb000000bb0bb0bbb0000000bb0bb0bbb0000bbbbbb0b0bb03300000bb0bb0bbb00000000000000000000000bb0bb0bbb0000000000000000000000bb
-b0bbbb0bb000000b0bbb00bbb000000b0bbb00bbb0000bbbb00bb0bb0300000b0bbb00bbb0000000000000000000000b0bbb00bbb0000000000000000003000b
-b0bbbb0b000000b0bbb03300b00000b0bbb03300b00000000b0bbb0b000000b0bbb03300b000000000000000000000b0bbb03300b0000000000000000000300b
-bb0bbb00030000bbb0003300000000bbb0003300000000bb0bb0bb0b000000bbb00033000000000000000000000000bbb000330000000000000000000000330b
-bb0bbbb033000bb00000030000000bb000000300000000b0bb000bbb00000bb000000300000000000000000000000bb000000300000000000000000000000330
-bbb0bbb000000000000000000000000000000000000000bbb00000bb000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000bbb000000b0000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000030303003000300000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000000000000b0000000000000000000000000000000000000000000000000000000000300
-000000000000000000000000000000000000000000000000000000000000000300b0000000000000000000000000000000000000000000000000000000000330
-000000000000000000000000000000000000000000000000000000000000000300b000300b000000000300000000000000000000000000000000000000000333
-0000000000000000000000000000000000000000000000000000000000000b0030bb00300b000000000030030000000000000000000000000000000000000333
-0000000000000000000000000000000000000000000000000000000000000b0030bb0330bb000000300030300300000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000bb030bb0330bb003000030030303000000000000000000000000000000000000bbb
-00000000000000000000000000000000000000000000000000000000000000b030bbb00bb000000000000000000000000000000000000000000000000000bbbb
-00000000000000000000000000000000000000000000000000000000000000bb00bbb00bb00000000000000000000000000000000000000000000000000bb000
-00000000000000000000000000000000000000000000000000000000000000bb00bbb0bbb000000000000000000000000000000000000000000000000000bbbb
-000000000000000000000000000000000000000000000000000000000003000bb0bbbb0bb0000000000000000000000000000000000000000000000000000bbb
-000000000000000000000000000000000000000000000000000000000000300bb0bbbb0b00000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000000330bbb0bbb00030000000000000000000000000000000000000000000000000000bb
-0000000000000000000000000000000000000000000000000000000000000330bb0bbbb0330000000000000000000000000000000000000000000000000000b0
-0000000000000000000000000000000000000000000000000000000000000000bbb0bbb0000000000000000000000000000000000000000000000000000000bb
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbb
-00000000000000000000000000000000000000000003030300300030000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000b00000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000300000bbb0000000003000b0000000000000000000000000003000b00000000000000b000000000
+000000000000000000000000000000000000000000000000033000bb0b000000003330b00030000000000b0000000000003330b000300000000300b000000000
+00000000000000000000000000000000000000000000000003330bb0bb000300003330b00330000000000bb000033000003330b003300000000300b000300b00
+00000000000000000000000000000000000000000000000003330bb0bb033300b003330033300b0000000bbb00330000b003330033300b000b0030bb00300b00
+00000000000000000000000000000000000000000000000000000bbbb0330300bb0033303330bb0003330b0bb0330000bb0033303330bb000b0030bb0330bb00
+0000000000000000000000000000000000000000000000000bbb00bb03303300bbbb0330330bbb0000330bb0b0000000bbbb0330330bbb000bb030bb0330bb00
+000000000000000000000000000000000000000000000000bbbbbbbb000330000bbbb00330bbbb00000300bb0bb000000bbbb00330bbbb0000b030bbb00bb000
+00000000000000000000000000000000000000000000000bb0000bbbbb03030000bbbb0330bbb0000000bbb0bbbb000000bbbb0330bbb00000bb00bbb00bb000
+000000000000000000000000000000000000000000000000bbbbbb0b0bb03300000bbb030bbbb030000bb0bb0bbb0000000bbb030bbbb03000bb00bbb0bbb000
+0000000000000000000000000000000000000000000000000bbbb00bb0bb03033330bbb00bbb0330000b0bbb00bbb0033330bbb00bbb0333000bb0bbbb0bb000
+00000000000000000000000000000000000000000000000000000b0bbb0b000033330bb0bbb0330000b0bbb03300b00033330bb0bbb03300300bb0bbbb0b0000
+00000000000000000000000000000000000000000000000000bb0bb0bb0b000003330bb0bb03330000bbb0003300000003330bb0bb033300330bbb0bbb000300
+00000000000000000000000000000000000000000000000000b0bb000bbb0000000030b0b03300000bb0000003000000000030b0b03300000330bb0bbbb03300
+0000000000000000000000000000000000000000000000000bbbb00000bb0000000000b0b00000000000000000000000000000b0b00000000000bbb0bbb00000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00030000000000000000000000000000000000000000000000000000000000000b00000000000000000000000000000000000000000000000000000000000003
-03030300300000000000000000000000000000000000000000030000000000000bb0000330000000000000000000000000000000000000000000000000000003
-00000000000000000000000000000000000000000000000000003003000000000bbb003300000000000000000000000000000000000000000000000000000b00
-00000000000000000000000000000000000000000000000030003030030003330b0bb03300000000000000000000000000000000000000000000000000000b00
-00000000000000000000000000000000000000000000300003003030300000330bb0b00000000000000000000000000000000000000000000000000000000bb0
-300000000000000000000000000000000000000000000000000000000000000300bb0bb0000000000000000000000000000000000000000000000000000000b0
-0000000000000000000000000000000000000000000000000000000000000000bbb0bbbb000000000000000000000000000000000000000000000000000000bb
-000000000000000000000000000000000000000000000000000000000000000bb0bb0bbb000000000000000000000000000000000000000000000000000000bb
-000000000000000000000000000000000000000000000000000000000000000b0bbb00bbb000000000000000000000000000000000000000000000000003000b
-00000000000000000000000000000000000000000000000000000000000000b0bbb03300b000000000000000000000000000000000000000000000000000300b
-00000000000000000000000000000000000000000000000000000000000000bbb00033000000000000000000000000000000000000000000000000000000330b
-0000000000000000000000000000000000000000000000000000000000000bb00000030000000000000000000000000000000000000000000000000000000330
+0000000000000000000000000000000000000000b000000000000000000000000000000000000000000000000000000000000000000000000bbb000bbbb00003
+0003000b0000000000000000000000000300000bbb0000000000000000000000000000000000000000000000000000000000000000000000bbbbb0bbbbbb0000
+003330b0003000000000000000000000033000bb0b000000000000000000000000000000000000000000000000000000000000000000000b0000b0bb000bb000
+003330b003300000000000000000000003330bb0bb00030000000000000000000000000000000000000000000000000000000000000000000bbb030bbbb0b000
+b003330033300b00000000000000000003330bb0bb0333000000000000000000000000000000000000000000000000000000000000000000bb00b0330bbb0000
+bb0033303330bb00000000000000000000000bbbb0330300000000000000000000000000000000000000000000000000000000000000000bb00bb03300bbb000
+bbbb0330330bbb0000000000000000000bbb00bb03303300000000000000000000000000000000000000000000000000000000000000000bb0bb0003300bb000
+0bbbb00330bbbb000000000000000000bbbbbbbb00033000000000000000000000000000000000000000000000000000000000000000000bb0bb0003300bb000
+00bbbb0330bbb000000000000000000bb0000bbbbb030300000000000000000000000000000000000000000000000000000000000000000bb0bb0003300bb000
+000bbb030bbbb0300000000000000000bbbbbb0b0bb033000000000000000000000000000000000000000000000000000000000000000000b00bb003300b0000
+3330bbb00bbb033000000000000000000bbbb00bb0bb030000000000000000000000000000000000000000000000000000000000000000000000003300b00000
+33330bb0bbb03300000000000000000000000b0bbb0b000000000000000000000000000000000000000000000000000000000000000000000000033300000000
+03330bb0bb033300000000000000000000bb0bb0bb0b000000000000000000000000000000000000000000000000000000000000000000003300333333330000
+000030b0b0330000000000000000000000b0bb000bbb0000000000000000000000000000000000000000000000000000000000000000000b003303303000b000
+000000b0b000000000000000000000000bbbb00000bb000000000000000000000000000000000000000000000000000000000000000000000b000b0003b00b00
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000030303003000300000000000000000000000000000000000000000000aa00000000000000000000000000000000000000000000000b00000000000
-000000000000000000000000000000000000000000000000000000000000000000aaaa000000000000000000000000000000000000000300000bbb0000000300
-00000000000000000000000000000000000000000000000000000000000000000000aa000000000000000000000000000b0000000000033000bb0b0000000330
-000000000000000000030000000000000000000000000000000000000000aaaaa0aa00a00000000000000000000000000bb00003300003330bb0bb0003000333
-000000000000000000003003000000000000000000000000000000000aaaaa00aaa000aa0000000000000000000000000bbb0033000003330bb0bb0333000333
-000000000000000030003030030000000000000000000000000000000aaaaaaaaaaa0aaa0000000000000000000003330b0bb033000000000bbbb03303000000
-00000000000030000300303030000000000000000000000000000000000000aa000aaa000000000000000000000000330bb0b00000000bbb00bb033033000bbb
-000000000000000000000000000000000000000000000000000000000000000a00a0000000000000000000000000000300bb0bb00000bbbbbbbb00033000bbbb
-000000000000000000000000000000000000000000000000000000000000000000aaa000000000000000000000000000bbb0bbbb000bb0000bbbbb03030bb000
-00000000000000000000000000000000000000000000000000000000000000000a0a0a0000000000000000000000000bb0bb0bbb0000bbbbbb0b0bb03300bbbb
-0000000000000000000000000000000000000000000000000000000000000000aa00aa0000000000000000000000000b0bbb00bbb0000bbbb00bb0bb03000bbb
-0000000000000000000000000000000000000000000000000000000000000000a000aa000000000000000000000000b0bbb03300b00000000b0bbb0b00000000
-000000000000000000000000000000000000000000000000000000000000000aa0000aa00000000000000000000000bbb0003300000000bb0bb0bb0b000000bb
-00000000000000000000000000000000000000000000000000000000000000aaa00000aa000000000000000000000bb000000300000000b0bb000bbb000000b0
-000000000000000000000000000000000000000000000000000000000000000000000aa000000000000000000000000000000000000000bbb00000bb000000bb
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbb000000b000000bbb
-0000b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000bbb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00bb0b00000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000
-0bb0bb00030000000000000000000000000000000000000000000000000003000303030030000000000000000000000000000000000000000000000000000000
-0bb0bb03330000000000000000000000000000000000000000dd0000000000000000000000000000000000000000000000000000000000000000000000000000
-0bbbb03303000000000000000000000000000000000000000dd0d000000000000000000000000000000000000000000000000000000000000000000000000000
-00bb03303300000000000000000000000000000000000000dddd0d00000030000000000000000000000000000000000000000000000000000000000000000000
-bbbb00033000000000000000000000000000000000000b0dddd0d0d0000003003000000000000000000000000000000000000000000000000000000000000000
-0bbbbb03030000000000000000000000000000000000000ddddd00d00b0000000000000000000000000000000000000000000000000000000000000000000000
-bb0b0bb0330000000000000000000000000000000000b00dddd0d0d0000000000000000000000000000000000000000000000000000000000000000000000000
-b00bb0bb0300000000000000000000000000000000000b00dd0d0d000b0000000000000000000000000000000000000000000000000000000000000000000000
-0b0bbb0b000000000000000000000000000000000000b0b00dd0d000000000000000000000000000000000000000000000000000000000000000000000000000
-0bb0bb0b0000000000000000000000000000000000000b000000000b0b0000000000000000000000000000000000000000000000000000000000000000000000
-bb000bbb000000000000000000000000000000000000000b000000b0000000000000000000000000000000000000000000000000000000000000000000000000
-b00000bb00000000000000000000000000000000000000000b0b0000000000000000000000000000000000000000000000000000000000000000000000000000
-000000b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000b000000000000000b0000000000000000000000000000000b00000000000000000000000000000000000000000000000000000000000
-0000000000000300000bbb0000000300000bbb000000000000b0000000000300000bbb0000000000000000000000000000000000000000000000000000000000
-000000000000033000bb0b000000033000bb0b000000000300b000000000033000bb0b0000000000000000000000000000000000000000000000000000000000
-00000000000003330bb0bb00030003330bb0bb000300000300b000300b0003330bb0bb0003000000000000000000000000000000000000000000000000000000
-00000000000003330bb0bb03330003330bb0bb0333000b0030bb00300b0003330bb0bb0333000000000000000000000000000000000000000000000000000066
-00000000000000000bbbb033030000000bbbb03303000b0030bb0330bb0000000bbbb03303000000000000000000000000000000000000000000000000000666
-0000000000000bbb00bb033033000bbb00bb033033000bb030bb0330bb000bbb00bb033033000000000000000000000000000000000000000000000000000666
-000000000000bbbbbbbb00033000bbbbbbbb0003300000b030bbb00bb000bbbbbbbb000330000000000000000000000000000000000000000000000000000666
-00000000000bb0000bbbbb03030bb0000bbbbb03030000bb00bbb00bb00bb0000bbbbb0303000000000000000000000000000000000000000000000000006666
-000000000000bbbbbb0b0bb03300bbbbbb0b0bb0330000bb00bbb0bbb000bbbbbb0b0bb033000000000000000000000000000000000000000000000000006666
-0000000000000bbbb00bb0bb03000bbbb00bb0bb0303000bb0bbbb0bb0000bbbb00bb0bb03000000000000000000000000000000000000000000000000006666
-00000000000000000b0bbb0b000000000b0bbb0b0000300bb0bbbb0b000000000b0bbb0b00000000000000000000000000000000000000000000000000006666
-00000000000000bb0bb0bb0b000000bb0bb0bb0b0000330bbb0bbb00030000bb0bb0bb0b00000000000000000000000000000000000000000000000000000066
-00000000000000b0bb000bbb000000b0bb000bbb00000330bb0bbbb0330000b0bb000bbb00000000000000000000000000000000000000000000000000000000
-00000000000000bbb00000bb000000bbb00000bb00000000bbb0bbb0000000bbb00000bb00000000000000000000000000000000000000000000000000003000
-0000000000000bbb000000b000000bbb000000b0000000000000000000000bbb000000b000000000000000000000000000000000000000000000000000000300
-00000000000000000000000000030303003000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000003000000000000
-00000000000000000000000000000000000300000000000000000000000000000000000000000300030303003000000000000000000003000303030030000000
-00000000000000000000000000000000000030030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000300030300300000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000003000030030303000000000000000000000000000000000003000000000000000000000000000000030000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000300300000000000000000000000000003003000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000aa00000000003030300300030000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000000000000000000aaaa0000000000000000000000000000000000000000000003000b00000000
+00000000000000000000000000000000000000000000000000000000000000000000aa000000000000000000000000000000000000000000003330b000300000
+000000000000000000000000000000000000000000000000000000000000aaaaa0aa00a00000000000000003000000000000000000000000003330b003300000
+000000000000000000000000000000000000000000000000000000000aaaaa00aaa000aa0000000000000000300300000000000000000000b003330033300b00
+000000000000000000000000000000000000000000000000000000000aaaaaaaaaaa0aaa0000000000003000303003000000000000000000bb0033303330bb00
+00000000000000000000000000000000000000000000000000000000000000aa000aaa000000000030000300303030000000000000000000bbbb0330330bbb00
+000000000000000000000000000000000000000000000000000000000000000a00a0000000000000000000000000000000000000000000000bbbb00330bbbb00
+000000000000000000000000000000000000000000000000000000000000000000aaa000000000000000000000000000000000000000000000bbbb0330bbb000
+00000000000000000000000000000000000000000000000000000000000000000a0a0a000000000000000000000000000000000000000000000bbb030bbbb030
+0000000000000000000000000000000000000000000000000000000000000000aa00aa0000000000000000000000000000000000000000033330bbb00bbb0330
+0000000000000000000000000000000000000000000000000000000000000000a000aa00000000000000000000000000000000000000000033330bb0bbb03300
+000000000000000000000000000000000000000000000000000000000000000aa0000aa0000000000000000000000000000000000000000003330bb0bb033300
+00000000000000000000000000000000000000000000000000000000000000aaa00000aa0000000000000000000000000000000000000000000030b0b0330000
+000000000000000000000000000000000000000000000000000000000000000000000aa00000000000000000000000000000000000000000000000b0b0000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000030003030300300000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000dd0d00000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000dddd0d0000000000000000000000300000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000b0dddd0d0d000000000000000000000030030000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000ddddd00d00b000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000b00dddd0d0d000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000b00dd0d0d000b000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000b0b00dd0d00000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000b000000000b0b000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000b000000b000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000b0b000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000b00000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000003000b000000000300000bbb0000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000003330b000300000033000bb0b0000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000003330b00330000003330bb0bb0003000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000b003330033300b0003330bb0bb0333000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000bb0033303330bb0000000bbbb03303000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000bbbb0330330bbb000bbb00bb033033000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000bbbb00330bbbb00bbbbbbbb000330000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000bbbb0330bbb00bb0000bbbbb0303000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000bbb030bbbb030bbbbbb0b0bb033000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000033330bbb00bbb03300bbbb00bb0bb03000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000033330bb0bbb0330000000b0bbb0b00000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000003330bb0bb03330000bb0bb0bb0b00000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000030b0b033000000b0bb000bbb00000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000b0b00000000bbbb00000bb00000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000b0000000000003000b000000000003000b00000000
+000000000000000000000000000000000000000000000000000000000000000000000b0000000000000300b000000000003330b000300000003330b000300000
+000000000000000000000000000000000000000000000000000000000000000000000bb000033000000300b000300b00003330b003300000003330b003300000
+000000000000000000000000000000000000000000000000000000000000000000000bbb003300000b0030bb00300b00b003330033300b00b003330033300b00
+000000000000000000000000000000000000000000000000000000000000000003330b0bb03300000b0030bb0330bb00bb0033303330bb00bb0033303330bb00
+000000000000000000000000000000000000000000000000000000000000000000330bb0b00000000bb030bb0330bb00bbbb0330330bbb00bbbb0330330bbb00
+0000000000000000000000000000000000000000000000000000000000000000000300bb0bb0000000b030bbb00bb0000bbbb00330bbbb000bbbb00330bbbb00
+00000000000000000000000000000000000000000000000000000000000000000000bbb0bbbb000000bb00bbb00bb00000bbbb0330bbb00000bbbb0330bbb000
+0000000000000000000000000000000000000000000000000000000000000000000bb0bb0bbb000000bb00bbb0bbb000000bbb030bbbb030000bbb030bbbb030
+0000000000000000000000000000000000000000000000000000000000000000000b0bbb00bbb003000bb0bbbb0bb0033330bbb00bbb03333330bbb00bbb0330
+000000000000000000000000000000000000000000000000000000000000000000b0bbb03300b000300bb0bbbb0b000033330bb0bbb0330033330bb0bbb03300
+000000000000000000000000000000000000000000000000000000000000000000bbb00033000000330bbb0bbb00030003330bb0bb03330003330bb0bb033300
+00000000000000000000000000000000000000000000000000000000000000000bb00000030000000330bb0bbbb03300000030b0b0330000000030b0b0330000
+000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbb0bbb00000000000b0b0000000000000b0b0000000
 55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555
 51111111111111111111111111111111111111111111111111111111111111111111111111111111111111111155555555555555555555555555555555555555
 51111111111111111111111111111111111111111111111111111111111111111111111111111111111111111155555555555555555555555555555555555555
-5111111111111111111111111111111111111111111111111111111111111111111111111111111111111111115555bbbbbbb55555555555566655555dd55555
-5111111111111111111111111111111111111111111111111111111111111111111111111111111111111111115555b55555bb555555555555565555dd5d5555
-5111111111111111111111111111111111111111111111111111111111111111111111111111111111111111115555b5b5b5bb55555555555666555dddd5d555
-5111111111111111111111111111111111111111111111111111111111111111111111111111111111111111115555b55555bb55555555555655555ddd5dd555
-5111111111111111111111111111111111111111111111111111111111111111111111111111111111111111115555bbbbbbb555555555555666555dddd5d555
+51cc11cc11111ccc1ccc1ccc1ccc1ccc1cc11ccc1cc111cc1111111111111111111111111111111111111111115555888888855555555555566655555dd55555
+5c111c1111111c1c1c111ccc1c1c11c11c1c11c11c1c1c11111111111111111111111111111111111111111111555585555588555555555555565555dd5d5555
+5c111ccc11111cc11cc11c1c1ccc11c11c1c11c11c1c1c1111111111111111111111111111111111111111111155558585858855555555555666555dddd5d555
+5c1c111c11111c1c1c111c1c1c1c11c11c1c11c11c1c1c1c11111111111111111111111111111111111111111155558555558855555555555655555ddd5dd555
+5ccc1cc111111c1c1ccc1c1c1c1c1ccc1c1c1ccc1c1c1ccc11111111111111111111111111111111111111111155558888888555555555555666555dddd5d555
 511111111111111111111111111111111111111111111111111111111111111111111111111111111111111111555555555555555555555555555555dddd5555
 51111111111111111111111111111111111111111111111111111111111111111111111111111111111111111155555555555555555555555555555555555555
 55555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555
@@ -2470,7 +2551,7 @@ __sfx__
 001000000562005620056200562006620066200662006620076200762008620096200b6300d63010630116401464016640196401c6401f6402264025640286402b6502e6503365035650386503c6603f6603f660
 010a00001477014770147701477014770147701477014770147701477014770147701477014770147701477014770147701477014770147701477014770147701477014770147701477014770147701477014770
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00060000183311a3411c3511d3611f36121361243602b36030360243602b36030360243062b306303000030000300003000030000300003000030000300003000030000300003000030000300003000030000300
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
