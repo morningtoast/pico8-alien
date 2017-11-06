@@ -130,6 +130,7 @@ function p_tiles(tile)
             sfx(16)
 			tile_attr(p_tx,p_ty)
 			tkr("alien egg collected",true)
+			l_egg=false
 			
 			if p_eggs<quota then 
 				if lvl.eggs<=0 then
@@ -442,6 +443,7 @@ function play_init()
 	p_st,p_flip,p_freeze=0,false,0
 	egg_t=sec(lvl.hatch)
 	tran_st=0
+	l_egg=false
 	
 	tkr_x,tkr_end,tkr_t=105,105,0
 	tkr_log={}
@@ -500,16 +502,18 @@ function play_upd()
 			end
 
 			if egg_t<=0 then
-				tile_attr(l_egg.tx,l_egg.ty,"s",14)
-			 	if few() then
-					lvl.eggs-=1
-					add_hugger(l_egg.tx,l_egg.ty) 
-					tile_attr(l_egg.tx,l_egg.ty)
-
-					tkr("egg hatch detected",true)
-					sfx(11)
-
-					if not finale then tkr(_t()) end
+				if l_egg then
+					tile_attr(l_egg.tx,l_egg.ty,"s",14)
+				 	if few() then
+						lvl.eggs-=1
+						add_hugger(l_egg.tx,l_egg.ty) 
+						tile_attr(l_egg.tx,l_egg.ty)
+	
+						tkr("egg hatch detected",true)
+						sfx(11)
+	
+						if not finale then tkr(_t()) end
+					end
 				end
 				
 				egg_t=sec(lvl.hatch)
@@ -1070,6 +1074,8 @@ function alien_upd(self)
 				near={tx=self.tx,ty=self.ty}
 				while near.tx==self.tx and near.ty==self.ty do
 					near=get_rndtile(0) 
+					
+					if id==2 and rnd()<.25 then near={tx=p_tx,ty=p_ty} end
 				end
 			end
 
@@ -1457,7 +1463,7 @@ end
 function intro_init()
 	function intro_drw()
 		fd_upd() 
-		cprint("alien harvest v1.4;(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
+		cprint("alien harvest v1.5;(c)brian vaughn, 2017;;design+code;brian vaughn;@morningtoast;;music;brian follick;@gnarcade_vgm;;animation;@pineconegraphic", 8, fd_c)
 		if gt==sec(3.5) then fd_out() end
 	end
     
