@@ -1624,14 +1624,14 @@ function achv_init()
         if dget(2)>0 then tc3=10 else tc3=1 end
         if dget(3)>0 then tc4=10 else tc4=1 end
         if dget(4)>0 then tc5=10 else tc5=1 end
-		if dget(5)>0 then tc5=10 else tc5=1 end
+		if dget(5)>0 then tc6=10 else tc6=1 end
         
         cprint("terror mode",30,tc1)
         cprint("bishop's dozen",40,tc2)
         cprint("bone collector",50,tc3)
         cprint("no hugs",60,tc4)        
         cprint("save jonesy",70,tc5)
-		cprint("ripley's revenge",80,tc5)
+		cprint("ripley's revenge",80,tc6)
         cprint("see manual for details",100,7)    
     end
 
